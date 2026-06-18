@@ -1,0 +1,572 @@
+/**
+ * Holistic Context Engine
+ * 
+ * Builds complete patient context by aggregating data from multiple sources:
+ * - Clinical data (conditions, medications, care gaps)
+ * - SDOH barriers (transportation, financial, housing, etc.)
+ * - Caregiver status (dependents, burden, time availability)
+ * - Financial profile (income, insurance, out-of-pocket burden)
+ * - Geographic/access data (rural status, distance to care)
+ * - Digital capabilities (technology access, literacy)
+ * - Psychosocial factors (health literacy, stress, isolation)
+ */
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+export interface HolisticPatientContext {
+  patient: PatientBasicInfo;
+  clinicalProfile: ClinicalProfile;
+  barriers: BarrierProfile;
+  caregiverStatus: CaregiverStatus;
+  financialProfile: FinancialProfile;
+  accessProfile: AccessProfile;
+  digitalProfile: DigitalProfile;
+  psychosocialProfile: PsychosocialProfile;
+  contextGeneratedAt: string;
+}
+
+export interface PatientBasicInfo {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  mrn?: string;
+}
+
+export interface ClinicalProfile {
+  chronicConditions: ChronicCondition[];
+  conditionCount: number;
+  complexityScore: number; // 0-100
+  riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+  openCareGaps: CareGap[];
+  medications: Medication[];
+  recentHospitalizations: number;
+  erVisits: number;
+}
+
+export interface ChronicCondition {
+  name: string;
+  icdCode?: string;
+  severity: 'low' | 'moderate' | 'high' | 'critical';
+  controlled: boolean;
+  diagnosisDate?: string;
+}
+
+export interface CareGap {
+  id: string;
+  type: string;
+  description: string;
+  hedisCode?: string;
+  dueDate?: string;
+  priority: 'low' | 'moderate' | 'high' | 'critical';
+}
+
+export interface Medication {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  class?: string;
+}
+
+export interface BarrierProfile {
+  transportation: BarrierDetail;
+  financial: BarrierDetail;
+  housing: BarrierDetail;
+  food: BarrierDetail;
+  technology: BarrierDetail;
+  language: BarrierDetail;
+}
+
+export interface BarrierDetail {
+  severity: 'none' | 'low' | 'moderate' | 'high' | 'critical';
+  status: 'not-screened' | 'identified' | 'intervention-active' | 'resolved';
+  description?: string;
+  interventionProvider?: string;
+  screeningDate?: string;
+}
+
+export interface CaregiverStatus {
+  isCaregiverForOthers: boolean;
+  dependents: Dependent[];
+  caregiverBurdenScore: number; // 0-100
+  timeAvailability: TimeAvailability;
+  respiteCareAvailable: boolean;
+  supportSystem: SupportSystem;
+}
+
+export interface Dependent {
+  name: string;
+  relationship: 'child' | 'parent' | 'spouse' | 'sibling' | 'other';
+  age: number;
+  healthStatus: 'healthy' | 'chronic-condition' | 'special-needs' | 'frail';
+  careRequirements: CareRequirements;
+}
+
+export interface CareRequirements {
+  dailyCareHours: number;
+  medicalAppointments: number; // per month
+  specialNeeds: string[];
+  canBeLeftAlone: boolean;
+}
+
+export interface TimeAvailability {
+  weekdayMorning: 'none' | 'limited' | 'available';
+  weekdayAfternoon: 'none' | 'limited' | 'available';
+  weekdayEvening: 'none' | 'limited' | 'available';
+  weekend: 'none' | 'limited' | 'available';
+}
+
+export interface SupportSystem {
+  familyNearby: boolean;
+  friendSupport: boolean;
+  communityResources: string[];
+}
+
+export interface FinancialProfile {
+  householdIncome: 'low' | 'moderate' | 'high';
+  insuranceCoverage: InsuranceCoverage;
+  outOfPocketBurden: number; // monthly
+  employmentStatus: 'employed' | 'unemployed' | 'disabled' | 'caregiver' | 'retired';
+  financialStressScore: number; // 0-100
+}
+
+export interface InsuranceCoverage {
+  type: 'Medicare' | 'Medicaid' | 'Commercial' | 'Dual' | 'Uninsured';
+  copays: boolean;
+  deductible: number;
+  hasSupplemental?: boolean;
+}
+
+export interface AccessProfile {
+  ruralStatus: 'urban' | 'suburban' | 'rural' | 'frontier';
+  distanceToProvider: number; // miles
+  publicTransitAvailable: boolean;
+  broadbandAccess: boolean;
+  cellularCoverage: 'excellent' | 'good' | 'fair' | 'poor' | 'none';
+  nearestPharmacy: number; // miles
+  nearestER: number; // miles
+  distanceToNearestFacility?: number; // miles to LabCorp or primary lab facility
+  nearestLabLocation?: string; // e.g., "Rapid City", "Sioux Falls"
+}
+
+export interface DigitalProfile {
+  hasSmartphone: boolean;
+  hasComputer: boolean;
+  hasInternet: boolean;
+  videoCapable: boolean;
+  digitalLiteracy: 'low' | 'moderate' | 'high';
+  preferredContactMethod: 'phone' | 'text' | 'email' | 'portal' | 'mail';
+}
+
+export interface PsychosocialProfile {
+  healthLiteracy: 'low' | 'moderate' | 'high';
+  motivationLevel: 'low' | 'moderate' | 'high';
+  depressionScreening?: PHQ9Score;
+  anxietyScreening?: GAD7Score;
+  socialIsolation: boolean;
+  stressLevel: 'low' | 'moderate' | 'high' | 'severe';
+}
+
+export interface PHQ9Score {
+  score: number; // 0-27
+  severity: 'none' | 'minimal' | 'mild' | 'moderate' | 'moderately-severe' | 'severe';
+  screeningDate?: string;
+}
+
+export interface GAD7Score {
+  score: number; // 0-21
+  severity: 'none' | 'mild' | 'moderate' | 'severe';
+  screeningDate?: string;
+}
+
+// ============================================================================
+// HOLISTIC CONTEXT ENGINE
+// ============================================================================
+
+export class HolisticContextEngine {
+  
+  /**
+   * Build complete holistic context for a patient
+   */
+  buildContext(patientId: string): HolisticPatientContext {
+    // In production, this would aggregate from multiple data sources
+    // For now, return Maria's context as the demo patient
+    
+    if (patientId === 'patient-001' || patientId === 'maria-redhawk') {
+      return this.getMariaContext();
+    }
+    
+    // Default context for other patients
+    return this.getDefaultContext(patientId);
+  }
+  
+  /**
+   * Get Maria Redhawk's complete holistic context
+   */
+  private getMariaContext(): HolisticPatientContext {
+    return {
+      patient: {
+        id: 'patient-001',
+        name: 'Maria Redhawk',
+        age: 34,
+        gender: 'Female',
+        mrn: 'MRN-001'
+      },
+      
+      clinicalProfile: {
+        chronicConditions: [
+          {
+            name: 'Type 2 Diabetes Mellitus',
+            icdCode: 'E11.9',
+            severity: 'moderate',
+            controlled: false,
+            diagnosisDate: '2020-03-15'
+          },
+          {
+            name: 'Chronic Kidney Disease Stage 3b',
+            icdCode: 'N18.3',
+            severity: 'high',
+            controlled: true,
+            diagnosisDate: '2021-06-20'
+          },
+          {
+            name: 'Hypertension',
+            icdCode: 'I10',
+            severity: 'high',
+            controlled: false,
+            diagnosisDate: '2019-08-10'
+          },
+          {
+            name: 'Heart Failure with Preserved Ejection Fraction (HFpEF)',
+            icdCode: 'I50.32',
+            severity: 'moderate',
+            controlled: true,
+            diagnosisDate: '2022-11-05'
+          },
+          {
+            name: 'Atrial Fibrillation',
+            icdCode: 'I48.91',
+            severity: 'moderate',
+            controlled: true,
+            diagnosisDate: '2022-09-18'
+          }
+        ],
+        conditionCount: 5,
+        complexityScore: 78,
+        riskLevel: 'high',
+        openCareGaps: [
+          {
+            id: 'CG_MARIA_001',
+            type: 'HEDIS_CDC',
+            description: 'HbA1c test overdue',
+            hedisCode: 'CDC',
+            dueDate: '2026-06-01',
+            priority: 'high'
+          },
+          {
+            id: 'CG_MARIA_002',
+            type: 'HEDIS_CBP',
+            description: 'Blood pressure control',
+            hedisCode: 'CBP',
+            priority: 'high'
+          },
+          {
+            id: 'CG_MARIA_003',
+            type: 'HEDIS_EED',
+            description: 'Diabetic eye exam overdue',
+            hedisCode: 'EED',
+            dueDate: '2026-07-15',
+            priority: 'moderate'
+          }
+        ],
+        medications: [
+          { name: 'Metformin', dosage: '1000mg', frequency: 'BID', class: 'Antidiabetic' },
+          { name: 'Lisinopril', dosage: '20mg', frequency: 'Daily', class: 'ACE Inhibitor' },
+          { name: 'Amlodipine', dosage: '10mg', frequency: 'Daily', class: 'Calcium Channel Blocker' },
+          { name: 'Furosemide', dosage: '40mg', frequency: 'Daily', class: 'Diuretic' },
+          { name: 'Apixaban', dosage: '5mg', frequency: 'BID', class: 'Anticoagulant' },
+          { name: 'Atorvastatin', dosage: '40mg', frequency: 'Daily', class: 'Statin' },
+          { name: 'Aspirin', dosage: '81mg', frequency: 'Daily', class: 'Antiplatelet' },
+          { name: 'Carvedilol', dosage: '12.5mg', frequency: 'BID', class: 'Beta Blocker' },
+          { name: 'Spironolactone', dosage: '25mg', frequency: 'Daily', class: 'Aldosterone Antagonist' },
+          { name: 'Pantoprazole', dosage: '40mg', frequency: 'Daily', class: 'PPI' },
+          { name: 'Vitamin D3', dosage: '2000 IU', frequency: 'Daily', class: 'Supplement' },
+          { name: 'Multivitamin', dosage: '1 tablet', frequency: 'Daily', class: 'Supplement' }
+        ],
+        recentHospitalizations: 0,
+        erVisits: 1
+      },
+      
+      barriers: {
+        transportation: {
+          severity: 'high',
+          status: 'intervention-active',
+          description: 'No reliable transportation, lives 45 miles from provider',
+          interventionProvider: 'Unite Us',
+          screeningDate: '2026-05-15'
+        },
+        financial: {
+          severity: 'moderate',
+          status: 'identified',
+          description: 'Single income household, medical expenses for 3 people',
+          screeningDate: '2026-05-15'
+        },
+        housing: {
+          severity: 'low',
+          status: 'resolved',
+          description: 'Stable housing',
+          screeningDate: '2026-05-15'
+        },
+        food: {
+          severity: 'low',
+          status: 'resolved',
+          description: 'Food secure',
+          screeningDate: '2026-05-15'
+        },
+        technology: {
+          severity: 'low',
+          status: 'resolved',
+          description: 'Has smartphone and internet access',
+          screeningDate: '2026-05-15'
+        },
+        language: {
+          severity: 'none',
+          status: 'not-screened',
+          description: 'English speaking'
+        }
+      },
+      
+      caregiverStatus: {
+        isCaregiverForOthers: true,
+        dependents: [
+          {
+            name: 'Sophia',
+            relationship: 'child',
+            age: 8,
+            healthStatus: 'special-needs',
+            careRequirements: {
+              dailyCareHours: 6,
+              medicalAppointments: 2,
+              specialNeeds: ['Autism Spectrum Disorder', 'Speech therapy', 'Occupational therapy'],
+              canBeLeftAlone: false
+            }
+          },
+          {
+            name: 'Elena',
+            relationship: 'parent',
+            age: 68,
+            healthStatus: 'frail',
+            careRequirements: {
+              dailyCareHours: 4,
+              medicalAppointments: 3,
+              specialNeeds: ['Mobility assistance', 'Medication management', 'Fall risk'],
+              canBeLeftAlone: false
+            }
+          }
+        ],
+        caregiverBurdenScore: 85,
+        timeAvailability: {
+          weekdayMorning: 'limited',
+          weekdayAfternoon: 'none',
+          weekdayEvening: 'limited',
+          weekend: 'none'
+        },
+        respiteCareAvailable: false,
+        supportSystem: {
+          familyNearby: false,
+          friendSupport: false,
+          communityResources: ['Unite Us transportation referral']
+        }
+      },
+      
+      financialProfile: {
+        householdIncome: 'low',
+        insuranceCoverage: {
+          type: 'Medicaid',
+          copays: true,
+          deductible: 0,
+          hasSupplemental: false
+        },
+        outOfPocketBurden: 250,
+        employmentStatus: 'caregiver',
+        financialStressScore: 72
+      },
+      
+      accessProfile: {
+        ruralStatus: 'rural',
+        distanceToProvider: 45,
+        publicTransitAvailable: false,
+        broadbandAccess: true,
+        cellularCoverage: 'good',
+        nearestPharmacy: 12,
+        nearestER: 35,
+        distanceToNearestFacility: 45, // LabCorp in Rapid City
+        nearestLabLocation: 'Rapid City'
+      },
+      
+      digitalProfile: {
+        hasSmartphone: true,
+        hasComputer: false,
+        hasInternet: true,
+        videoCapable: true,
+        digitalLiteracy: 'moderate',
+        preferredContactMethod: 'text'
+      },
+      
+      psychosocialProfile: {
+        healthLiteracy: 'moderate',
+        motivationLevel: 'high',
+        depressionScreening: {
+          score: 8,
+          severity: 'mild',
+          screeningDate: '2026-05-15'
+        },
+        anxietyScreening: {
+          score: 12,
+          severity: 'moderate',
+          screeningDate: '2026-05-15'
+        },
+        socialIsolation: true,
+        stressLevel: 'severe'
+      },
+      
+      contextGeneratedAt: new Date().toISOString()
+    };
+  }
+  
+  /**
+   * Get default context for other patients
+   */
+  private getDefaultContext(patientId: string): HolisticPatientContext {
+    return {
+      patient: {
+        id: patientId,
+        name: 'Unknown Patient',
+        age: 0,
+        gender: 'Unknown'
+      },
+      clinicalProfile: {
+        chronicConditions: [],
+        conditionCount: 0,
+        complexityScore: 0,
+        riskLevel: 'low',
+        openCareGaps: [],
+        medications: [],
+        recentHospitalizations: 0,
+        erVisits: 0
+      },
+      barriers: {
+        transportation: { severity: 'none', status: 'not-screened' },
+        financial: { severity: 'none', status: 'not-screened' },
+        housing: { severity: 'none', status: 'not-screened' },
+        food: { severity: 'none', status: 'not-screened' },
+        technology: { severity: 'none', status: 'not-screened' },
+        language: { severity: 'none', status: 'not-screened' }
+      },
+      caregiverStatus: {
+        isCaregiverForOthers: false,
+        dependents: [],
+        caregiverBurdenScore: 0,
+        timeAvailability: {
+          weekdayMorning: 'available',
+          weekdayAfternoon: 'available',
+          weekdayEvening: 'available',
+          weekend: 'available'
+        },
+        respiteCareAvailable: false,
+        supportSystem: {
+          familyNearby: false,
+          friendSupport: false,
+          communityResources: []
+        }
+      },
+      financialProfile: {
+        householdIncome: 'moderate',
+        insuranceCoverage: {
+          type: 'Commercial',
+          copays: true,
+          deductible: 0
+        },
+        outOfPocketBurden: 0,
+        employmentStatus: 'employed',
+        financialStressScore: 0
+      },
+      accessProfile: {
+        ruralStatus: 'suburban',
+        distanceToProvider: 0,
+        publicTransitAvailable: true,
+        broadbandAccess: true,
+        cellularCoverage: 'excellent',
+        nearestPharmacy: 0,
+        nearestER: 0
+      },
+      digitalProfile: {
+        hasSmartphone: true,
+        hasComputer: true,
+        hasInternet: true,
+        videoCapable: true,
+        digitalLiteracy: 'high',
+        preferredContactMethod: 'portal'
+      },
+      psychosocialProfile: {
+        healthLiteracy: 'high',
+        motivationLevel: 'high',
+        socialIsolation: false,
+        stressLevel: 'low'
+      },
+      contextGeneratedAt: new Date().toISOString()
+    };
+  }
+  
+  /**
+   * Calculate total caregiver hours per day
+   */
+  getTotalCaregiverHours(context: HolisticPatientContext): number {
+    return context.caregiverStatus.dependents.reduce(
+      (sum, dep) => sum + dep.careRequirements.dailyCareHours,
+      0
+    );
+  }
+  
+  /**
+   * Check if patient can leave home for appointments
+   */
+  canLeaveHomeForAppointments(context: HolisticPatientContext): boolean {
+    if (!context.caregiverStatus.isCaregiverForOthers) {
+      return true;
+    }
+    
+    // Check if any dependent cannot be left alone
+    const hasUnattendableDependent = context.caregiverStatus.dependents.some(
+      dep => !dep.careRequirements.canBeLeftAlone
+    );
+    
+    return !hasUnattendableDependent || context.caregiverStatus.respiteCareAvailable;
+  }
+  
+  /**
+   * Get available time windows for appointments
+   */
+  getAvailableTimeWindows(context: HolisticPatientContext): string[] {
+    const windows: string[] = [];
+    const availability = context.caregiverStatus.timeAvailability;
+    
+    if (availability.weekdayMorning === 'available') windows.push('Weekday mornings');
+    if (availability.weekdayAfternoon === 'available') windows.push('Weekday afternoons');
+    if (availability.weekdayEvening === 'available') windows.push('Weekday evenings');
+    if (availability.weekend === 'available') windows.push('Weekends');
+    
+    if (windows.length === 0) {
+      windows.push('Very limited - respite care needed');
+    }
+    
+    return windows;
+  }
+}
+
+// Export singleton instance
+export const holisticContextEngine = new HolisticContextEngine();
+
+// Made with Bob
