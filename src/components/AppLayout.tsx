@@ -49,31 +49,31 @@ const navItems: NavItem[] = [
   { key: 'nav-physicians', label: 'Care Team Members', icon: 'UserGroupIcon', href: '/physician-view', group: 'Whole Person Care' },
   { key: 'nav-program-eligibility', label: 'Program Eligibility', icon: 'CheckBadgeIcon', href: '/program-eligibility', group: 'Whole Person Care' },
   { key: 'nav-cbo-directory', label: 'CBO Directory', icon: 'BuildingStorefrontIcon', href: '/cbo-directory', group: 'Whole Person Care' },
-  // Episodes & Quality
-  { key: 'nav-episodic-management', label: 'Episodic Management Analytics', icon: 'ChartBarIcon', href: '/episodic-management-analytics', group: 'Episodes & Quality' },
-  { key: 'nav-care-gap-closure', label: 'Care Gap Closure', icon: 'CheckCircleIcon', href: '/care-gap-closure-verification', group: 'Episodes & Quality' },
-  // Analytics & Outcomes
-  { key: 'nav-exec-dashboard', label: 'Executive Dashboard', icon: 'ChartBarIcon', href: '/executive-outcomes-dashboard', group: 'Analytics & Outcomes' },
-  // Network
-  { key: 'nav-referrals', label: 'Referral Tracking', icon: 'ArrowsRightLeftIcon', href: '/referral-tracking', group: 'Network' },
-  // CDP & Agentic Automation
-  { key: 'nav-cdp-assembly-new', label: 'CDP Assembly', icon: 'CircleStackIcon', href: '/cdp-assembly', group: 'CDP & Agentic Automation' },
-  { key: 'nav-journey-aware-context', label: 'Journey-Aware Context', icon: 'MapIcon', href: '/journey-aware-context', group: 'CDP & Agentic Automation' },
-  { key: 'nav-whole-person-intelligence', label: 'Whole Person Intelligence', icon: 'SparklesIcon', href: '/whole-person-intelligence', group: 'CDP & Agentic Automation' },
-  { key: 'nav-signal-disposition-engine', label: 'Signal Disposition Engine', icon: 'BoltIcon', href: '/signal-disposition-engine', group: 'CDP & Agentic Automation' },
+  // Moved to Care Team Workflows
+  { key: 'nav-care-gap-closure', label: 'Care Gap Closure', icon: 'CheckCircleIcon', href: '/care-gap-closure-verification', group: 'Care Team Workflows' },
+  { key: 'nav-referrals', label: 'Referral Tracking', icon: 'ArrowsRightLeftIcon', href: '/referral-tracking', group: 'Care Team Workflows' },
+  // Moved to Whole Person Care
+  { key: 'nav-episodic-management', label: 'Episodic Management Analytics', icon: 'ChartBarIcon', href: '/episodic-management-analytics', group: 'Whole Person Care' },
+  // Moved to Backup
+  { key: 'nav-exec-dashboard', label: 'Executive Dashboard', icon: 'ChartBarIcon', href: '/executive-outcomes-dashboard', group: 'Backup' },
+  // CDP & Agentic Automation - MOVED TO BACKUP
+  { key: 'nav-cdp-assembly-new', label: 'CDP Assembly', icon: 'CircleStackIcon', href: '/cdp-assembly', group: 'Backup' },
+  { key: 'nav-journey-aware-context', label: 'Journey-Aware Context', icon: 'MapIcon', href: '/journey-aware-context', group: 'Backup' },
+  { key: 'nav-whole-person-intelligence', label: 'Whole Person Intelligence', icon: 'SparklesIcon', href: '/whole-person-intelligence', group: 'Backup' },
+  { key: 'nav-signal-disposition-engine', label: 'Signal Disposition Engine', icon: 'BoltIcon', href: '/signal-disposition-engine', group: 'Backup' },
 
-  { key: 'uhg-fragmentation', label: 'One Enterprise · Five Entities', icon: 'BuildingOffice2Icon', href: '/uhg-orchestrate/fragmentation-split-system-view', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-cdp-assembly', label: 'CDP Assembly', icon: 'CircleStackIcon', href: '/uhg-orchestrate/cdp-assembly-split', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-journey-aware', label: 'Journey-Aware Context', icon: 'MapIcon', href: '/uhg-orchestrate/consumer-360', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-whole-person', label: 'Whole Person Care Intelligence', icon: 'SparklesIcon', href: '/uhg-orchestrate/whole-person-care', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-signal-disposition', label: 'Signal Disposition Engine', icon: 'BoltIcon', href: '/uhg-orchestrate/signal-disposition-engine', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-super-orchestration', label: 'Agentic Super Orchestration', icon: 'CpuChipIcon', href: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-super-agent', label: 'Agentic Super Agent', icon: 'CpuChipIcon', href: '/uhg-orchestrate/agent-library', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-family-thread', label: 'Family Thread — Dependents', icon: 'HomeIcon', href: '/uhg-orchestrate/family-sofia', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-caregiver', label: 'Caregiver Intelligence — Elena', icon: 'UserIcon', href: '/uhg-orchestrate/caregiver-elena', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-agent-impact', label: 'Agent Impact Dashboard', icon: 'ChartBarIcon', href: '/uhg-orchestrate/agent-impact-dashboard', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-reporting', label: 'Agent Impact — Reporting', icon: 'ChartBarIcon', href: '/uhg-orchestrate/reporting-dashboard', group: 'UHG-Orchestrate-Screens' },
-  { key: 'uhg-population-filter', label: 'Live Population Filter', icon: 'UserGroupIcon', href: '/uhg-orchestrate/portfolio-scale', group: 'UHG-Orchestrate-Screens' },
+  { key: 'uhg-fragmentation', label: 'One Enterprise · Five Entities', icon: 'BuildingOffice2Icon', href: '/uhg-orchestrate/fragmentation-split-system-view', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-cdp-assembly', label: 'CDP Assembly', icon: 'CircleStackIcon', href: '/uhg-orchestrate/cdp-assembly-split', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-journey-aware', label: 'Journey-Aware Context', icon: 'MapIcon', href: '/uhg-orchestrate/consumer-360', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-whole-person', label: 'Whole Person Care Intelligence', icon: 'SparklesIcon', href: '/uhg-orchestrate/whole-person-care', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-signal-disposition', label: 'Signal Disposition Engine', icon: 'BoltIcon', href: '/uhg-orchestrate/signal-disposition-engine', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-super-orchestration', label: 'Agentic Super Orchestration', icon: 'CpuChipIcon', href: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-super-agent', label: 'Agentic Super Agent', icon: 'CpuChipIcon', href: '/uhg-orchestrate/agent-library', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-family-thread', label: 'Family Thread — Dependents', icon: 'HomeIcon', href: '/uhg-orchestrate/family-sofia', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-caregiver', label: 'Caregiver Intelligence — Elena', icon: 'UserIcon', href: '/uhg-orchestrate/caregiver-elena', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-agent-impact', label: 'Agent Impact Dashboard', icon: 'ChartBarIcon', href: '/uhg-orchestrate/agent-impact-dashboard', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-reporting', label: 'Agent Impact — Reporting', icon: 'ChartBarIcon', href: '/uhg-orchestrate/reporting-dashboard', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-population-filter', label: 'Live Population Filter', icon: 'UserGroupIcon', href: '/uhg-orchestrate/portfolio-scale', group: 'Agentic_Orchestrate-Screens' },
   // System
   { key: 'nav-settings', label: 'EHR Settings', icon: 'Cog6ToothIcon', href: '/settings', group: 'System' },
   { key: 'nav-fhir-tester', label: 'FHIR API Tester', icon: 'BeakerIcon', href: '/settings/fhir-tester', group: 'System' },
@@ -93,7 +93,7 @@ const navItems: NavItem[] = [
   { key: 'nav-patient-episode-summary', label: 'Patient Episode Summary', icon: 'DocumentTextIcon', href: '/patient-episode-summary', group: 'Backup' },
 ];
 
-const groupOrder = ['RHTP Program', 'Care Team Workflows', 'Whole Person Care', 'Episodes & Quality', 'Analytics & Outcomes', 'Network', 'CDP & Agentic Automation', 'UHG-Orchestrate-Screens', 'System', 'Backup'];
+const groupOrder = ['RHTP Program', 'Care Team Workflows', 'Whole Person Care', 'Agentic_Orchestrate-Screens', 'System', 'Backup'];
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -106,6 +106,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [backupCollapsed, setBackupCollapsed] = useState(true);
   const { user, setUser, entryContext, setEntryContext } = useAppContext();
 
   const grouped = groupOrder.map((g) => ({
@@ -152,12 +153,20 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
           {grouped.map(({ group, items }) =>
             items.length === 0 ? null : (
               <div key={`group-${group}`} className="mb-4">
-                {!collapsed && (
+                {!collapsed && group === 'Backup' ? (
+                  <button
+                    onClick={() => setBackupCollapsed(!backupCollapsed)}
+                    className="w-full flex items-center justify-between px-4 mb-1 text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest hover:text-carbon-gray-30 transition-colors"
+                  >
+                    <span>{group}</span>
+                    <Icon name={backupCollapsed ? 'ChevronRightIcon' : 'ChevronDownIcon'} size={14} />
+                  </button>
+                ) : !collapsed ? (
                   <p className="px-4 mb-1 text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest">
                     {group}
                   </p>
-                )}
-                {items.map((item) => {
+                ) : null}
+                {(group !== 'Backup' || !backupCollapsed) && items.map((item) => {
                   const isActive = pathname === item.href;
                   return (
                     <Link
