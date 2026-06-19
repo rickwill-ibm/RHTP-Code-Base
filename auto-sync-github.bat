@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM Auto-Sync with GitHub - Bidirectional sync (push AND pull)
 REM This script automatically pushes your changes and pulls others' changes
 
@@ -35,17 +36,32 @@ if errorlevel 1 (
 REM Now check for local changes to push
 git add -A
 
-REM Check if there are local changes to commit
-git diff-index --quiet HEAD
+REM Check if there are any changes (staged or unstaged)
+git diff-index --quiet --cached HEAD
 if errorlevel 1 (
     echo [%date% %time%] Local changes detected! Committing and pushing...
     git commit -m "Auto-sync: %date% %time%"
     git push origin main
     echo [%date% %time%] Push completed - team can now see your changes!
     echo.
+    goto :continue_loop
 )
 
+REM Check if there are already committed changes that need to be pushed
+for /f %%i in ('git rev-list --count HEAD ^origin/main 2^>nul') do set AHEAD=%%i
+if defined AHEAD (
+    if not "!AHEAD!"=="0" (
+        echo [%date% %time%] Found !AHEAD! unpushed commit(s)! Pushing...
+        git push origin main
+        echo [%date% %time%] Push completed - team can now see your changes!
+        echo.
+    )
+)
+
+:continue_loop
+
 REM Wait 5 seconds before next sync
+echo [%date% %time%] Monitoring... (next check in 5 seconds)
 timeout /t 5 /nobreak >nul
 goto loop
 
