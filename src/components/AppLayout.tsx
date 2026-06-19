@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
@@ -107,7 +107,68 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [backupCollapsed, setBackupCollapsed] = useState(true);
+  const [isInitialMount, setIsInitialMount] = useState(true);
   const { user, setUser, entryContext, setEntryContext } = useAppContext();
+  
+  // Ref for nav container to enable scrollIntoView
+  const navRef = useRef<HTMLElement>(null);
+
+  // Auto-expand Backup section if active item is inside
+  useEffect(() => {
+    const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
+      ? pathname.slice(0, -1)
+      : pathname;
+    
+    const activeItem = navItems.find(item => {
+      const normalizedHref = item.href.endsWith('/') && item.href !== '/'
+        ? item.href.slice(0, -1)
+        : item.href;
+      return normalizedPathname === normalizedHref;
+    });
+    
+    if (activeItem && activeItem.group === 'Backup' && backupCollapsed) {
+      setBackupCollapsed(false);
+    }
+  }, [pathname, backupCollapsed]);
+
+  // Scroll active menu item and its section into view on navigation
+  useEffect(() => {
+    // Skip on initial mount to avoid unwanted scrolling on page load
+    if (isInitialMount) {
+      setIsInitialMount(false);
+      return;
+    }
+    
+    if (!navRef.current) return;
+    
+    // Delay to ensure DOM updates and Backup section expands if needed
+    const timer = setTimeout(() => {
+      const activeLink = navRef.current?.querySelector('.sidebar-item-active');
+      if (activeLink) {
+        // Find the section header (parent group div)
+        const sectionDiv = activeLink.closest('div[class*="mb-4"]');
+        const sectionHeader = sectionDiv?.querySelector('p, button');
+        
+        // Scroll section header to top for better context
+        if (sectionHeader) {
+          sectionHeader.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start', // Scroll section to top
+            inline: 'nearest'
+          });
+        } else {
+          // Fallback: scroll active item into view
+          activeLink.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+          });
+        }
+      }
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, [pathname, isInitialMount]);
 
   const grouped = groupOrder.map((g) => ({
     group: g,
@@ -149,7 +210,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 min-h-0 overflow-y-auto py-4 scrollbar-thin">
+        <nav ref={navRef} className="flex-1 min-h-0 overflow-y-auto py-4 scrollbar-thin">
           {grouped.map(({ group, items }) =>
             items.length === 0 ? null : (
               <div key={`group-${group}`} className="mb-4">
@@ -167,7 +228,15 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
                   </p>
                 ) : null}
                 {(group !== 'Backup' || !backupCollapsed) && items.map((item) => {
-                  const isActive = pathname === item.href;
+                  // Improved path matching with normalization
+                  const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
+                    ? pathname.slice(0, -1)
+                    : pathname;
+                  const normalizedHref = item.href.endsWith('/') && item.href !== '/'
+                    ? item.href.slice(0, -1)
+                    : item.href;
+                  const isActive = normalizedPathname === normalizedHref;
+                  
                   return (
                     <Link
                       key={item.key}
