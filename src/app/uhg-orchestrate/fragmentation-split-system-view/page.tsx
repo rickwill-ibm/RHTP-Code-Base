@@ -111,12 +111,12 @@ const ROLES = [
   {
     id: 'caregiver',
     label: 'CAREGIVER',
-    subtitle: 'Elena Redhawk, 71',
+    subtitle: 'Elena Redhawk, 66',
     color: '#f59e0b',
     bg: 'rgba(245,158,11,0.07)',
     border: 'rgba(245,158,11,0.30)',
-    items: ['Heart + Diabetes (A1C 8.1%)', 'Metformin + Lisinopril', 'Proxy consent PENDING'],
-    livesIn: 'Nowhere — no system aware',
+    items: ['Maria is caregiver', 'Medicare beneficiary', 'Lives 15 miles from Maria'],
+    livesIn: 'Medicare · Separate residence (15mi from Maria)',
   },
   {
     id: 'parent',

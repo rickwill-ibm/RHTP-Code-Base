@@ -70,8 +70,8 @@ interface ProfileAttribute {
 }
 
 const PROFILE_ATTRIBUTES: ProfileAttribute[] = [
-  { id: 'pa-age',    label: 'Age',           value: '58',                    color: '#c6c6c6' },
-  { id: 'pa-risk',   label: 'Risk Score',    value: '7.8 / 10',              color: '#fa4d56' },
+  { id: 'pa-age',    label: 'Age',           value: '34',                    color: '#c6c6c6' },
+  { id: 'pa-risk',   label: 'RAF Score',     value: '2.18',                  color: '#fa4d56' },
   { id: 'pa-member', label: 'Member Since',  value: '2019',                  color: '#8d8d8d' },
   { id: 'pa-plan',   label: 'Plan',          value: 'SD Medicaid',          color: '#8d8d8d' },
   { id: 'pa-pcp',    label: 'PCP',           value: 'Bennett County Health',        color: '#78a9ff' },
@@ -79,7 +79,7 @@ const PROFILE_ATTRIBUTES: ProfileAttribute[] = [
   { id: 'pa-auth',   label: 'Open Auth',     value: 'CAREGAP_HBA1C — T-4 days',   color: '#f1c21b' },
   { id: 'pa-consent',label: 'Consent',       value: 'FULL — all channels',   color: '#42be65' },
   { id: 'pa-cm',     label: 'Care Manager',  value: 'Sarah Johnson (H1ab)',     color: '#06b6d4' },
-  { id: 'pa-dup',    label: '⚠ Dup Therapy', value: 'Lisinopril + Metformin',   color: '#fa4d56' },
+  { id: 'pa-meds',   label: 'Medications',   value: 'Lisinopril + Metformin',   color: '#42be65' },
 ];
 
 // ─── Journey Timeline Component ───────────────────────────────────────────────
@@ -453,7 +453,7 @@ export default function Consumer360Screen() {
       <MariaStatusStrip
         state="known"
         authStatus="AUTH T-4 days"
-        careGapStatus="HbA1c Gap 45d"
+        careGapStatus="HbA1c Gap 38d"
         episodeStatus="Postpartum Health"
         visible
       />
@@ -516,24 +516,12 @@ export default function Consumer360Screen() {
               style={{ background: 'rgba(22,22,22,0.95)', border: '1px solid rgba(57,57,57,0.8)', opacity: 0 }}
             >
               <span className="font-mono uppercase" style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.1em' }}>ACTIVE SIGNALS</span>
-              {/* Duplicate Therapy Critical Alert */}
-              <div
-                className="rounded px-3 py-2 flex items-start gap-2"
-                style={{ background: 'rgba(250,77,86,0.12)', border: '1.5px solid rgba(250,77,86,0.6)', boxShadow: '0 0 10px rgba(250,77,86,0.15)' }}
-              >
-                <div className="rounded-full flex-shrink-0 mt-0.5" style={{ width: 7, height: 7, background: '#fa4d56', animation: 'authPulse 1s ease-in-out infinite', boxShadow: '0 0 6px #fa4d56' }} />
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-mono font-bold" style={{ fontSize: '10px', color: '#fa4d56', letterSpacing: '0.06em' }}>⚠ Med review_ALERT — DUPLICATE_THERAPY</span>
-                  <span style={{ fontSize: '10px', color: '#f4f4f4', lineHeight: 1.4 }}>Lisinopril (CVS) + Metformin (Walgreens) — same molecule — two prescribers</span>
-                  <span style={{ fontSize: '9px', color: '#f87171' }}>A1C monitoring: 22d ago · Bleeding risk: ELEVATED</span>
-                </div>
-              </div>
-              {/* Medication History — Duplicate Therapy */}
-              <div className="rounded px-3 py-2 flex flex-col gap-1.5" style={{ background: 'rgba(250,77,86,0.06)', border: '1px solid rgba(250,77,86,0.3)' }}>
-                <span className="font-mono" style={{ fontSize: '9px', color: '#fa4d56', letterSpacing: '0.08em' }}>ACTIVE MEDICATIONS — ANTICOAGULANTS</span>
+              {/* Active Medications */}
+              <div className="rounded px-3 py-2 flex flex-col gap-1.5" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.3)' }}>
+                <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.08em' }}>ACTIVE MEDICATIONS</span>
                 {[
-                  { name: 'Lisinopril 5mg', type: 'Generic', prescriber: 'Bennett County Health', pharmacy: 'CVS #4821', fill: '2024-11-01', color: '#f1c21b' },
-                  { name: 'Metformin 5mg', type: 'Brand', prescriber: 'Bennett County Health', pharmacy: 'Walgreens #7734', fill: '2024-10-28', color: '#fa4d56' },
+                  { name: 'Lisinopril 5mg', type: 'Generic', prescriber: 'Bennett County Health', pharmacy: 'CVS #4821', fill: '2024-11-01', color: '#42be65' },
+                  { name: 'Metformin 500mg', type: 'Generic', prescriber: 'Bennett County Health', pharmacy: 'Walgreens #7734', fill: '2024-10-28', color: '#42be65' },
                 ].map((med) => (
                   <div key={med.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
@@ -546,15 +534,11 @@ export default function Consumer360Screen() {
                     </div>
                   </div>
                 ))}
-                <div className="rounded px-2 py-1 mt-0.5" style={{ background: 'rgba(250,77,86,0.1)', border: '1px solid rgba(250,77,86,0.3)' }}>
-                  <span style={{ fontSize: '9px', color: '#fa4d56' }}>⚠ DUPLICATE — Lisinopril Sodium · Same mechanism · Two prescribers unaware of each other</span>
-                </div>
               </div>
               {[
                 { id: 'as-auth',     label: 'AUTH_EXPIRY',    detail: 'T-4 days',       color: '#f1c21b', severity: 'HIGH' },
-                { id: 'as-gap',      label: 'CARE_GAP',       detail: 'HbA1c 45d',      color: '#fa4d56', severity: 'HIGH' },
+                { id: 'as-gap',      label: 'CARE_GAP',       detail: 'HbA1c 38d',      color: '#fa4d56', severity: 'HIGH' },
                 { id: 'as-behavior', label: 'BEHAVIORAL',     detail: 'Portal 2x/wk',   color: '#42be65', severity: 'MEDIUM' },
-                { id: 'as-mtm',      label: 'Med review_ALERT',      detail: 'Dup therapy',    color: '#fa4d56', severity: 'CRITICAL' },
               ].map((sig) => (
                 <div key={sig.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -698,7 +682,7 @@ export default function Consumer360Screen() {
                     { label: 'Prior hospitalizations', value: '1 (cardiac, 2022)', color: '#f87171' },
                     { label: 'Plan transitions', value: '0', color: '#8d8d8d' },
                     { label: 'Life events', value: 'New dependent registered June 2024 (Sophia)', color: '#ff7eb6' },
-                    { label: 'Caregiver status', value: 'Registered Nov 2024 (Elena)', color: '#c084fc' },
+                    { label: 'Caregiver status', value: 'Caregiver for mother Elena (66y, 15mi away)', color: '#c084fc' },
                   ].map((item) => (
                     <div key={item.label} className="flex items-start justify-between gap-2">
                       <span style={{ fontSize: '10px', color: '#6f6f6f', flexShrink: 0 }}>{item.label}</span>
@@ -907,7 +891,7 @@ export default function Consumer360Screen() {
                   {[
                     { id: 'MARIA_SD_001', name: 'Maria Redhawk', role: 'Primary member', risk: 'HIGH 7.8', riskColor: '#fa4d56', initials: 'MR' },
                     { id: 'SD CHIP', name: 'Sophia Reyes', role: 'Dependent, age 2', risk: 'MODERATE', riskColor: '#f1c21b', initials: 'SR', note: 'No PCP · 6 gaps' },
-                    { id: 'ELENA_SD_003', name: 'Elena Redhawk', role: 'Caregiver context', risk: 'HIGH (meds)', riskColor: '#fa4d56', initials: 'ER', note: 'Proxy consent: SCOPED' },
+                    { id: 'ELENA_SD_003', name: 'Elena Redhawk', role: 'Mother (lives 15mi away)', risk: 'Medicare', riskColor: '#78a9ff', initials: 'ER', note: 'Maria is caregiver · Separate residence' },
                   ].map((member) => (
                     <div key={member.id} className="flex items-center gap-2.5 rounded px-2.5 py-2" style={{ background: 'rgba(38,38,38,0.6)', border: '1px solid rgba(57,57,57,0.5)' }}>
                       <div className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, background: 'rgba(255,126,182,0.12)', border: '1px solid rgba(255,126,182,0.35)' }}>
