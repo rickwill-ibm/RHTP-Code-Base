@@ -169,18 +169,27 @@ export class TieredInterventionGenerator {
       }
     ];
     
-    // Add child-specific support if applicable
-    const hasChildWithSpecialNeeds = context.caregiverStatus.dependents.some(
-      d => d.relationship === 'child' && d.healthStatus === 'special-needs'
+    // Add childcare and caregiver support if applicable
+    const hasYoungChildren = context.caregiverStatus.dependents.some(
+      d => d.relationship === 'child' && d.age && d.age < 5
     );
     
-    if (hasChildWithSpecialNeeds) {
+    if (hasYoungChildren) {
       actions.push({
-        action: 'Connect with Autism Family Support Services',
-        provider: 'Autism Speaks South Dakota',
+        action: 'Enroll in Childcare Subsidy Program',
+        provider: 'SD Department of Social Services',
         timeline: 'Week 1',
-        expectedOutcome: 'In-home support 2x/week',
-        modality: 'home-visit',
+        expectedOutcome: '$487/month childcare assistance',
+        modality: 'application',
+        status: 'pending'
+      });
+      
+      actions.push({
+        action: 'Connect with Postpartum Support Group',
+        provider: 'Bennett County Health Services',
+        timeline: 'Week 1',
+        expectedOutcome: 'Weekly support group attendance',
+        modality: 'group-visit',
         status: 'pending'
       });
     }
