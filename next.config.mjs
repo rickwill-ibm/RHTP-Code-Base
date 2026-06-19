@@ -18,14 +18,9 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
 
+  // Redirects removed - now shows demo navigator home page
   async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/contract-program-selection',
-        permanent: false,
-      },
-    ];
+    return [];
   }
 };
 export default nextConfig;

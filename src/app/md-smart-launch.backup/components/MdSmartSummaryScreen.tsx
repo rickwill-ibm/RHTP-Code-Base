@@ -38,7 +38,7 @@ const SDOH_BADGES = [
 const CARE_GAPS_ENHANCED = [
   { id: 'cg-001', name: 'A1C Control — Diabetes', program: 'HEDIS', cmsMips: 'CDC-001', priority: 'High', status: 'In Process' as GapStatusType, daysOpen: 112 },
   { id: 'cg-002', name: 'SDoH Screening', program: 'MIPS', cmsMips: 'MIPS-487', priority: 'Medium', status: 'In Process' as GapStatusType, daysOpen: 67 },
-  { id: 'cg-003', name: 'Mental/Behavioral Health', program: 'MIPS', cmsMips: 'MIPS-134', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 45 },
+  { id: 'cg-003', name: 'Behavioral Health: Screening for Depression and Follow-Up Plan', program: 'MIPS', cmsMips: 'MIPS-134', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 45 },
   { id: 'cg-004', name: 'Statin Therapy — CVD', program: 'HEDIS', cmsMips: 'SPC-438', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 89 },
   { id: 'cg-005', name: 'Controlling Hypertension', program: 'HEDIS', cmsMips: 'CBP-236', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 134 },
   { id: 'cg-006', name: 'Colorectal Cancer Screening', program: 'HEDIS', cmsMips: 'COL-113', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 22 },
