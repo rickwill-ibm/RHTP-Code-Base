@@ -23,6 +23,41 @@ function AppendixOverlay({ onClose }: { onClose: () => void }) {
 
   const APPENDIX_SCREENS = [
     {
+      id: 'fragmentation' as const,
+      label: 'CDP1 — Fragmentation Split System View',
+      desc: 'System fragmentation view showing split care delivery across multiple systems and providers.',
+      color: '#06b6d4',
+      route: '/fragmentation-split-system-view',
+    },
+    {
+      id: 'cdp-assembly' as const,
+      label: 'CDP2 — CDP Assembly',
+      desc: 'Customer Data Platform identity resolution and data assembly process.',
+      color: '#8b5cf6',
+      route: '/cdp-assembly-split',
+    },
+    {
+      id: 'maria-subgraph' as const,
+      label: 'CDP3 — Maria Subgraph Context',
+      desc: 'Maria\'s knowledge graph subgraph showing relationships, care gaps, and context.',
+      color: '#42be65',
+      route: '/maria-subgraph-context',
+    },
+    {
+      id: 'consumer-360' as const,
+      label: 'UHG1 — Consumer 360',
+      desc: 'UHG-ORCHESTRATE Consumer 360 view with identity, care gaps, and household context.',
+      color: '#78a9ff',
+      route: '/consumer-360',
+    },
+    {
+      id: 'whole-person-care' as const,
+      label: 'UHG2 — Whole Person Care',
+      desc: 'UHG-ORCHESTRATE Whole Person Care orchestration and intervention planning.',
+      color: '#f1c21b',
+      route: '/whole-person-care',
+    },
+    {
       id: 'agent-marketplace-query' as const,
       label: 'A1 — Agent Marketplace Query',
       desc: 'Live agent selection and task routing — how the controller queries the marketplace for the right agent for each domain.',

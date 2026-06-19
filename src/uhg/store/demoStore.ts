@@ -6,14 +6,9 @@ export type ScreenId =
   // Appendix screens
   | 'agent-marketplace-query' | 'reporting-dashboard' | 'agent-library';
 
-// Main demo flow — 17 screens (burning-platform and opening moved to appendix)
+// Main demo flow — 9 screens (CDP & Agentic Orchestration moved to appendix)
 export const SCREEN_ORDER: ScreenId[] = [
   'knowledge-graph',
-  'fragmentation',
-  'cdp-assembly',
-  'maria-subgraph',
-  'consumer-360',
-  'whole-person-care',
   'signal-disposition-engine',
   'controller',
   'family-sofia',
@@ -26,6 +21,13 @@ export const SCREEN_ORDER: ScreenId[] = [
 
 // Appendix screens — accessible via A key or Leave Behind button
 export const APPENDIX_ORDER: ScreenId[] = [
+  // CDP & Agentic Orchestration Section
+  'fragmentation',
+  'cdp-assembly',
+  'maria-subgraph',
+  'consumer-360',
+  'whole-person-care',
+  // Existing Appendix Screens
   'agent-marketplace-query',
   'agent-library',
   'reporting-dashboard',
@@ -141,8 +143,8 @@ export const useDemoStore = create<DemoState>((set, get) => ({
       showMiniProfile: screenIndex >= 0,
       phaseArcActive: {
         foundation: screenIndex >= 0,
-        orchestration: screenIndex >= 6,
-        autonomous: screenIndex >= 7,
+        orchestration: screenIndex >= 1,
+        autonomous: screenIndex >= 2,
       },
     });
   },
