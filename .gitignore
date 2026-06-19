@@ -35,3 +35,16 @@ jest-test-results.json
 
 # Optional: if using TurboRepo or monorepo
 turbo/
+
+# Java/Maven build artifacts
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# FHIR server specific
+fhir/**/target/
+fhir/**/*.class
+fhir/**/*.jar
+fhir/**/*.war
