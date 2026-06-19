@@ -180,7 +180,7 @@ export class TieredInterventionGenerator {
         provider: 'SD Department of Social Services',
         timeline: 'Week 1',
         expectedOutcome: '$487/month childcare assistance',
-        modality: 'application',
+        modality: 'phone',
         status: 'pending'
       });
       
@@ -189,7 +189,7 @@ export class TieredInterventionGenerator {
         provider: 'Bennett County Health Services',
         timeline: 'Week 1',
         expectedOutcome: 'Weekly support group attendance',
-        modality: 'group-visit',
+        modality: 'in-person',
         status: 'pending'
       });
     }
