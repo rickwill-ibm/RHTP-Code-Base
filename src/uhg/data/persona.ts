@@ -1,4 +1,4 @@
-// uhg/data/persona.ts — display persona for UHG-Orchestrate screens, sourced from the
+// uhg/data/persona.ts — display persona for RHTP-Orchestrate screens, sourced from the
 // RHTP patient registry. Works for ANY citizen; default = Maria Redhawk (MARIA_SD_001).
 import { getPatientById, getAllPatients, type RegistryPatient } from '@/lib/patientRegistry';
 

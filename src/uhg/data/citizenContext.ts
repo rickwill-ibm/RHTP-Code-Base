@@ -1,4 +1,4 @@
-// uhg/data/citizenContext.ts — structured, graph-grounded context for the UHG-Orchestrate
+// uhg/data/citizenContext.ts — structured, graph-grounded context for the RHTP-Orchestrate
 // screens. Sourced from RHTP patientRegistry + wholePersonGraphData helpers. Default = Maria
 // Redhawk; works for ANY citizen (others derive from their own registry/graph; degrade gracefully).
 import { getPatientById, type RegistryPatient } from '@/lib/patientRegistry';
@@ -11,6 +11,8 @@ export interface CtxSignal { id: string; label: string; domain: 'Clinical' | 'BH
 export interface CtxBarrier { category: string; label: string; severity: Sev; intensity: number; keystone: boolean; blocks: string[]; sources: string[]; }
 export interface CtxPerson { name: string; relation: string; detail: string; consent: string; }
 export interface CtxSource { system: string; recordId: string; nameVariant: string; address: string; risk: string; consent: string; sees: string[]; blindTo: string; color: string; }
+export interface CtxLifecycle { label: string; value: string; color: string; }
+export interface CtxConsentDomain { domain: string; scope: string; status: string; statusColor: string; icon: string; }
 export interface CitizenContext {
   id: string; name: string; age: number; location: string; careManager: string; organization: string; pcp: string;
   signals: CtxSignal[];
@@ -21,9 +23,11 @@ export interface CitizenContext {
   providers: { name: string; role: string; distance: string }[];
   sources: CtxSource[];
   benefits: { name: string; status: string }[];
+  lifecycle: CtxLifecycle[];
+  consentDomains: CtxConsentDomain[];
 }
 
-const SEV_INT: Record<Sev, number> = { HIGH: 82, MEDIUM: 55, LOW: 32 };
+const SEV_INT: Record<string, number> = { HIGH: 82, MEDIUM: 55, MODERATE: 55, LOW: 32 };
 
 function gapSeverity(daysOpen: number, blocked: boolean): Sev {
   if (blocked || daysOpen > 180) return 'HIGH';
@@ -71,19 +75,23 @@ export function contextFor(citizenId?: string): CitizenContext {
 
   // ── Barriers: from citizenNeeds (graph for Maria, registry-derived for others) ──
   const barriers: CtxBarrier[] = needs.map((n) => ({
-    category: n.category, label: n.label, severity: n.severity,
-    intensity: SEV_INT[n.severity], keystone: !!n.keystone, blocks: n.blockedGaps ?? [],
+    category: n.category, label: n.label, severity: (n.severity === 'MODERATE' ? 'MEDIUM' : n.severity) as Sev,
+    intensity: SEV_INT[n.severity] ?? 55, keystone: !!n.keystone, blocks: n.blockedGaps ?? [],
     sources: [p.transportStatus, p.foodSecurity, p.housingStatus].filter(Boolean).slice(0, 2) as string[],
   }));
 
   // ── Household: dependents (care-gap "(Name)") + caregiver-for (from goal/cohort) ──
   const depNames = Array.from(new Set((p.careGaps || [])
     .map((g) => (g.name.match(/\(([^)]+)\)/) || [])[1]).filter(Boolean) as string[]));
-  const dependents: CtxPerson[] = depNames.map((n) => ({ name: n, relation: 'Dependent (child)', detail: 'Well-child / pediatric care', consent: 'Parent proxy · ACTIVE' }));
-  const caregiverFor: CtxPerson[] = /caregiver/i.test(p.cohortFlag || '')
-    ? [{ name: 'Elena Redhawk', relation: 'Cared-for (parent)', detail: 'Heart/DM · meds picked up by ' + p.name.split(' ')[0], consent: 'Caregiver-scoped · PENDING' }]
-        .filter(() => /MARIA_SD_001/.test(p.platformId))
-    : [];
+  const dependents: CtxPerson[] = p.household?.dependents?.length
+    ? p.household.dependents.map((d) => ({ name: d.name, relation: `${d.relation} · age ${d.age}`, detail: d.gaps[0]?.label ?? 'Pediatric care', consent: d.consent }))
+    : depNames.map((n) => ({ name: n, relation: 'Dependent (child)', detail: 'Well-child / pediatric care', consent: 'Parent proxy · ACTIVE' }));
+  const caregiverFor: CtxPerson[] = p.household?.caregiverFor?.length
+    ? p.household.caregiverFor.map((c) => ({ name: c.name, relation: `Cared-for · ${c.relation}`, detail: c.condition, consent: `Caregiver-scoped · ${c.consentScopeItems.length} domains` }))
+    : (/caregiver/i.test(p.cohortFlag || '')
+        ? [{ name: 'Elena Redhawk', relation: 'Cared-for (parent)', detail: 'Heart/DM · meds picked up by ' + p.name.split(' ')[0], consent: 'Caregiver-scoped · PENDING' }]
+            .filter(() => /MARIA_SD_001/.test(p.platformId))
+        : []);
 
   // ── Sources: fragmented SD systems with conflicting views of this citizen ──
   const [first, ...rest] = p.name.split(' ');
@@ -115,6 +123,25 @@ export function contextFor(citizenId?: string): CitizenContext {
     ],
   };
 
+  // ── Lifecycle events (derived per citizen) ──
+  const orgShort = p.organization.replace(/ \(.*\)/, '');
+  const lifecycle: CtxLifecycle[] = [
+    { label: 'Episode', value: `${p.episodeType} · Day ${p.episodeDaysActive} of 90 (${p.episodeStatus})`, color: '#78a9ff' },
+    ...(dependents.length ? [{ label: 'Life events', value: `New dependent registered (${dependents[0].name})`, color: '#ff7eb6' }] : []),
+    ...(caregiverFor.length ? [{ label: 'Caregiver status', value: `Caregiver for ${caregiverFor[0].name} — ${caregiverFor[0].detail}`, color: '#c084fc' }] : []),
+    { label: 'Benefits', value: p.snapStatus, color: '#f1c21b' },
+    { label: 'Last contact', value: p.lastContact, color: '#8d8d8d' },
+  ];
+
+  // ── Consent domains (derived per citizen) ──
+  const consentDomains: CtxConsentDomain[] = [
+    { domain: 'Claims / TPO', scope: 'GRANTED', status: 'Full — HIPAA TPO', statusColor: '#42be65', icon: '\u2713' },
+    { domain: 'Clinical / EHR', scope: 'GRANTED', status: 'Care coordination', statusColor: '#42be65', icon: '\u2713' },
+    { domain: 'Behavioral Health', scope: 'GATED', status: '42 CFR Part 2 — consent required', statusColor: '#f1c21b', icon: '\u26a0' },
+    ...(caregiverFor.length ? [{ domain: `${caregiverFor[0].name.split(' ')[0]} Proxy`, scope: 'SCOPED', status: 'Meds + Appts', statusColor: '#c084fc', icon: '\u2299' }] : []),
+    { domain: orgShort, scope: (dependents.length || caregiverFor.length) ? 'PENDING' : 'GRANTED', status: (dependents.length ? 'Not granted' : 'Provider access'), statusColor: dependents.length ? '#9ca3af' : '#42be65', icon: dependents.length ? '\u2717' : '\u2713' },
+  ];
+
   return {
     id: p.platformId, name: p.name, age: p.age, location: p.location, careManager: p.careManager, organization: p.organization, pcp: p.pcp,
     signals, barriers, journey,
@@ -127,6 +154,6 @@ export function contextFor(citizenId?: string): CitizenContext {
       { name: p.organization, role: 'PCP · CAH', distance: '0 miles' },
       { name: 'Winner Regional', role: 'Specialty · ENT/IM', distance: p.ruralDistance || '47 miles' },
     ],
-    sources, benefits,
+    sources, benefits, lifecycle, consentDomains,
   };
 }

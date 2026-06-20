@@ -2,7 +2,8 @@
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useDemoStore, SCREEN_ORDER, SCREEN_ROUTES } from '@/uhg/store/demoStore';
+import { useDemoStore, SCREEN_ORDER, SCREEN_ROUTES, ORCHESTRATE_FLOW, orchestrateIndexFor } from '@/uhg/store/demoStore';
+import { getPatientById } from '@/lib/patientRegistry';
 import { downloadTalkTrackPDF } from '@/uhg/lib/generateTalkTrackPDF';
 
 interface PresenterControlsProps {
@@ -46,14 +47,14 @@ function AppendixOverlay({ onClose }: { onClose: () => void }) {
     {
       id: 'consumer-360' as const,
       label: 'UHG1 — Consumer 360',
-      desc: 'UHG-ORCHESTRATE Consumer 360 view with identity, care gaps, and household context.',
+      desc: 'RHTP-ORCHESTRATE Consumer 360 view with identity, care gaps, and household context.',
       color: '#78a9ff',
       route: '/consumer-360',
     },
     {
       id: 'whole-person-care' as const,
       label: 'UHG2 — Whole Person Care',
-      desc: 'UHG-ORCHESTRATE Whole Person Care orchestration and intervention planning.',
+      desc: 'RHTP-ORCHESTRATE Whole Person Care orchestration and intervention planning.',
       color: '#f1c21b',
       route: '/whole-person-care',
     },
@@ -245,6 +246,30 @@ export default function PresenterControls({
     [router, store]
   );
 
+  // Up/Down navigation across the Agentic Orchestrate flow (routes under /uhg-orchestrate/*).
+  // Returns true if it handled navigation for the current orchestrate screen.
+  const navigateOrchestrate = useCallback(
+    (dir: 1 | -1): boolean => {
+      // The caregiver screen is only relevant for members who are a proxy caregiver —
+      // skip it in the flow for everyone else so arrow nav never lands on it.
+      const reg = getPatientById(store.activeCitizenId);
+      const hasCaregiver = !!reg?.household?.caregiverFor?.length;
+      const flow = hasCaregiver
+        ? ORCHESTRATE_FLOW
+        : ORCHESTRATE_FLOW.filter((s) => !s.route.endsWith('/caregiver-elena'));
+      const idx = flow.findIndex((s) => pathname === s.route || pathname.endsWith(s.route));
+      if (idx === -1) return false; // not on an orchestrate screen — let legacy nav handle it
+      const target = idx + dir;
+      if (target < 0 || target >= flow.length) return true; // at an edge: handled (no-op)
+      if (navigatingRef.current) return true;
+      navigatingRef.current = true;
+      router.push(flow[target].route);
+      setTimeout(() => { navigatingRef.current = false; }, 400);
+      return true;
+    },
+    [pathname, router, store.activeCitizenId]
+  );
+
   const openAppendix = useCallback(() => {
     store.openAppendix();
     setShowAppendix(true);
@@ -294,6 +319,7 @@ export default function PresenterControls({
         e.preventDefault();
         // If a screen has local reveal steps pending, do not navigate
         if (store.navigationBlocked) return;
+        if (navigateOrchestrate(1)) return;
         const idx = SCREEN_ORDER.indexOf(store.currentScreen);
         if (idx < SCREEN_ORDER.length - 1) navigate(idx + 1);
         return;
@@ -303,6 +329,7 @@ export default function PresenterControls({
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         // Allow going back even when navigation is blocked (clears block via screen unmount)
+        if (navigateOrchestrate(-1)) return;
         const idx = SCREEN_ORDER.indexOf(store.currentScreen);
         if (idx > 0) navigate(idx - 1);
         return;
@@ -312,6 +339,7 @@ export default function PresenterControls({
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         if (store.navigationBlocked) return;
+        if (navigateOrchestrate(1)) return;
         const idx = SCREEN_ORDER.indexOf(store.currentScreen);
         if (idx < SCREEN_ORDER.length - 1) navigate(idx + 1);
         return;
@@ -320,6 +348,7 @@ export default function PresenterControls({
       // Left arrow also goes back (secondary)
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
+        if (navigateOrchestrate(-1)) return;
         const idx = SCREEN_ORDER.indexOf(store.currentScreen);
         if (idx > 0) navigate(idx - 1);
         return;
@@ -406,7 +435,7 @@ export default function PresenterControls({
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
       document.removeEventListener('keyup', handleKeyUp, { capture: true });
     };
-  }, [store, navigate, onMariaInject, onGovernanceIntercept, pathname, router, showAppendix, openAppendix, closeAppendix]);
+  }, [store, navigate, navigateOrchestrate, onMariaInject, onGovernanceIntercept, pathname, router, showAppendix, openAppendix, closeAppendix]);
 
   return (
     <>

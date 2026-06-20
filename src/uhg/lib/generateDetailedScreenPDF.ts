@@ -1053,7 +1053,7 @@ function buildDetailedHTML(): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>UHG Orchestrate — Detailed Screen Write-Ups</title>
+  <title>RHTP Orchestrate — Detailed Screen Write-Ups</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -1308,7 +1308,7 @@ function buildDetailedHTML(): string {
   <div class="cover">
     <div class="cover-eyebrow">UnitedHealth Group · Confidential · Internal Use Only</div>
     <div class="cover-title">Screen Write-Ups</div>
-    <div class="cover-subtitle">UHG Orchestrate — Detailed Narrative &amp; Technical Reference</div>
+    <div class="cover-subtitle">RHTP Orchestrate — Detailed Narrative &amp; Technical Reference</div>
     <div class="cover-desc">
       Comprehensive storytelling and technical detail for every screen in demo sequencing order.
       Each section includes the narrative story, technical mechanics, key talking points, and closing argument.
@@ -1374,7 +1374,7 @@ export function downloadDetailedScreenPDF(): void {
     // Fallback: direct HTML download if popup blocked
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'UHG-Orchestrate-Detailed-Screen-WriteUps.html';
+    a.download = 'RHTP-Orchestrate-Detailed-Screen-WriteUps.html';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

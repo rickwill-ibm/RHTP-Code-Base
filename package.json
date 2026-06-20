@@ -39,9 +39,9 @@
     "warning": "🚨 CRITICAL: DO NOT REMOVE OR MODIFY ABOVE DEPENDENCIES - Required for Next.js 15 TypeScript app functionality"
   },
   "scripts": {
-    "dev": "next dev -p 4028",
+    "dev": "next dev -p 4029",
     "build": "next build",
-    "start": "next dev -p 4028",
+    "start": "next dev -p 4029",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
@@ -55,6 +55,7 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "d3": "7.9.0",
+    "force": "^0.0.3",
     "next": "15.1.11",
     "react": "19.0.3",
     "react-dom": "19.0.3",

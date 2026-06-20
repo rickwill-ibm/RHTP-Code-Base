@@ -28,6 +28,19 @@ export interface CdsCardEntry {
   detail: string;
 }
 
+export interface HouseholdDependentRec {
+  name: string; relation: string; age: number; dob: string; plan: string; consent: string;
+  gaps: { label: string; urgency: 'critical' | 'high' | 'due'; detail: string }[];
+  coordinatedOutreach?: string;
+}
+export interface HouseholdCaregiverRec {
+  name: string; relation: string; age: number; condition: string; clinicalMetric: string;
+  pharmacy: string; prescriber: string;
+  meds: { name: string; dose: string; indication: string }[];
+  consentScopeItems: string[]; consentExclusions: string[];
+}
+export interface Household { dependents?: HouseholdDependentRec[]; caregiverFor?: HouseholdCaregiverRec[]; }
+
 export interface RegistryPatient {
   // FHIR / Platform identity
   platformId: string;
@@ -98,6 +111,12 @@ export interface RegistryPatient {
 
   // Patient-specific CDS cards for SMART launch
   cdsCards: CdsCardEntry[];
+
+  // Household / whole-family scenario (mock; drives family-sofia + caregiver-elena)
+  household?: Household;
+
+  // Care-journey mapping (references a template in uhg/data/journeys.ts)
+  journey?: { id: string; currentDay: number };
 }
 
 // ─── FHIR ID Mapping Table ────────────────────────────────────────────────────
@@ -128,6 +147,27 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
   // ── Maria Redhawk — Primary Demo Patient (Standardized from Maria_Redhawk_Summary.py) ──────────────────────
   {
     platformId: 'MARIA_SD_001',
+    journey: { id: 'POSTPARTUM_90D', currentDay: 34 },
+    household: {
+      dependents: [
+        { name: 'Sophia Redhawk', relation: 'Daughter', age: 2, dob: 'June 2024', plan: 'SD CHIP', consent: 'Parent proxy - ACTIVE',
+          gaps: [
+            { label: 'Well-Child 24-Month Visit', urgency: 'high', detail: '21 days overdue - transportation barrier (47 mi)' },
+            { label: 'Immunizations (DTaP, MMR)', urgency: 'due', detail: 'Bundle with well-child visit' },
+          ],
+          coordinatedOutreach: 'Maria postpartum check-in + Sophia well-child - one SMS, one outreach' },
+      ],
+      caregiverFor: [
+        { name: 'Elena Redhawk', relation: 'Mother', age: 66, condition: 'Heart disease + Type 2 diabetes', clinicalMetric: 'A1C 8.1% - DM management',
+          pharmacy: 'Martin Pharmacy', prescriber: 'Bennett County Health',
+          meds: [
+            { name: 'Metformin', dose: '1000mg', indication: 'Type 2 Diabetes' },
+            { name: 'Lisinopril', dose: '10mg', indication: 'Hypertension' },
+          ],
+          consentScopeItems: ['Medication list', 'Appointment scheduling', 'Refill coordination'],
+          consentExclusions: ['Behavioral health records', 'Third-party disclosure'] },
+      ],
+    },
     fhirId: 'patient/maria-redhawk-001',
     ehrMrn: 'MARIA_SD_001',
 
@@ -213,6 +253,21 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
   // ── Dorothy Simmons — Preserved exactly ──────────────────────────────────
   {
     platformId: 'PAT-0042',
+    journey: { id: 'COPD_30D', currentDay: 14 },
+    household: {
+      dependents: [],
+      caregiverFor: [
+        { name: 'Earl Simmons', relation: 'Husband', age: 78, condition: 'Vascular dementia + hypertension', clinicalMetric: 'BP 146/88 - borderline',
+          pharmacy: 'Ozark Pharmacy', prescriber: 'Ozark Regional FQHC',
+          meds: [
+            { name: 'Donepezil', dose: '10mg', indication: 'Dementia' },
+            { name: 'Lisinopril', dose: '20mg', indication: 'Hypertension' },
+            { name: 'Amlodipine', dose: '5mg', indication: 'Hypertension' },
+          ],
+          consentScopeItems: ['Medication list', 'Appointment scheduling', 'Refill coordination'],
+          consentExclusions: ['Behavioral health records', 'Third-party disclosure'] },
+      ],
+    },
     fhirId: 'patient/dorothy-simmons-042',
     ehrMrn: 'MRN-0042',
 
@@ -300,6 +355,21 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
   // ── James Wilson ──────────────────────────────────────────────────────────
   {
     platformId: 'PAT-0087',
+    journey: { id: 'CHF_DM_120D', currentDay: 89 },
+    household: {
+      dependents: [],
+      caregiverFor: [
+        { name: 'Ruth Wilson', relation: 'Mother', age: 84, condition: 'Early-stage Alzheimer disease + Type 2 diabetes', clinicalMetric: 'A1C 7.9% - DM management',
+          pharmacy: 'Winner Pharmacy', prescriber: 'Winner Regional Medical Center',
+          meds: [
+            { name: 'Donepezil', dose: '10mg', indication: 'Alzheimer disease' },
+            { name: 'Metformin', dose: '1000mg', indication: 'Type 2 Diabetes' },
+            { name: 'Lisinopril', dose: '10mg', indication: 'Hypertension' },
+          ],
+          consentScopeItems: ['Medication list', 'Appointment scheduling', 'Refill coordination'],
+          consentExclusions: ['Behavioral health records', 'Third-party disclosure'] },
+      ],
+    },
     fhirId: 'patient/james-wilson-087',
     ehrMrn: 'MRN-0087',
 
@@ -382,6 +452,27 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
   // ── Robert Chen ───────────────────────────────────────────────────────────
   {
     platformId: 'PAT-0103',
+    journey: { id: 'CKD_180D', currentDay: 156 },
+    household: {
+      dependents: [
+        { name: 'Kevin Chen', relation: 'Son', age: 20, dob: '2005', plan: 'Medicaid (student)', consent: 'Adult dependent - self-consent',
+          gaps: [
+            { label: 'Asthma PCP Re-establishment', urgency: 'high', detail: 'Lapsed PCP - controller refill at risk' },
+          ],
+          coordinatedOutreach: 'Robert HTN reminder + Kevin asthma refill - household batch' },
+      ],
+      caregiverFor: [
+        { name: 'Mei Chen', relation: 'Mother', age: 88, condition: 'Post-stroke + hypertension', clinicalMetric: 'BP 158/92 - not at goal',
+          pharmacy: 'Rapid City Pharmacy', prescriber: 'Rapid City Regional Health',
+          meds: [
+            { name: 'Amlodipine', dose: '10mg', indication: 'Hypertension' },
+            { name: 'Atorvastatin', dose: '40mg', indication: 'Stroke prevention' },
+            { name: 'Aspirin', dose: '81mg', indication: 'Antiplatelet' },
+          ],
+          consentScopeItems: ['Medication list', 'Appointment scheduling', 'Interpreter coordination (Mandarin)'],
+          consentExclusions: ['Behavioral health records', 'Third-party disclosure'] },
+      ],
+    },
     fhirId: 'patient/robert-chen-103',
     ehrMrn: 'MRN-0103',
 
@@ -462,6 +553,22 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
   // ── Lisa Thompson ─────────────────────────────────────────────────────────
   {
     platformId: 'PAT-0156',
+    journey: { id: 'ASTHMA_OBESITY_365D', currentDay: 203 },
+    household: {
+      dependents: [
+        { name: 'Mason Thompson', relation: 'Son', age: 7, dob: '2018', plan: 'CHIP', consent: 'Parent proxy - ACTIVE',
+          gaps: [
+            { label: 'Asthma Well-Child + Inhaler Technique', urgency: 'high', detail: 'Spacer technique review overdue' },
+            { label: 'Immunizations (7-year catch-up)', urgency: 'due', detail: 'Catch-up DTaP / IPV' },
+          ],
+          coordinatedOutreach: 'Lisa asthma + Mason asthma - combined family asthma-action review' },
+        { name: 'Ava Thompson', relation: 'Daughter', age: 4, dob: '2021', plan: 'CHIP', consent: 'Parent proxy - ACTIVE',
+          gaps: [
+            { label: 'Well-Child 4-Year Visit', urgency: 'due', detail: 'Vision + dental screening due' },
+          ] },
+      ],
+      caregiverFor: [],
+    },
     fhirId: 'patient/lisa-thompson-156',
     ehrMrn: 'MRN-0156',
 

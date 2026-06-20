@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import { useDemoStore } from '@/uhg/store/demoStore';
+import { personaFor } from '@/uhg/data/persona';
+import { contextFor } from '@/uhg/data/citizenContext';
+import { getPatientById } from '@/lib/patientRegistry';
+import { journeyForPatient, type ResolvedJourney } from '@/uhg/data/journeys';
 
 // ─── Journey milestone data ───────────────────────────────────────────────────
 
@@ -18,14 +22,6 @@ interface JourneyMilestone {
   color: string;
 }
 
-const JOURNEY_MILESTONES: JourneyMilestone[] = [
-  { id: 'jm-0',  day: 0,  label: 'Admission',     sublabel: 'Postpartum event',          color: '#fa4d56' },
-  { id: 'jm-14', day: 14, label: 'Discharge',      sublabel: 'Post-acute transition',  color: '#f1c21b' },
-  { id: 'jm-34', day: 34, label: 'HERE',            sublabel: 'Active monitoring',      isCurrent: true, color: '#42be65' },
-  { id: 'jm-60', day: 60, label: 'Follow-up Appt', sublabel: 'Cardiology review',      isUpcoming: true, color: '#78a9ff' },
-  { id: 'jm-90', day: 90, label: 'Episode Close',  sublabel: '90-day window end',      isUpcoming: true, color: '#8b5cf6' },
-];
-
 interface ExpectedSignal {
   id: string;
   type: 'expected' | 'unexpected' | 'positive';
@@ -35,33 +31,6 @@ interface ExpectedSignal {
   color: string;
 }
 
-const EXPECTED_SIGNALS: ExpectedSignal[] = [
-  {
-    id: 'es-auth',
-    type: 'expected',
-    label: 'Auth renewal',
-    detail: 'Expected at Day 34 — standard post-discharge authorization cycle',
-    icon: '✓',
-    color: '#42be65',
-  },
-  {
-    id: 'es-hba1c',
-    type: 'unexpected',
-    label: 'HbA1c care gap',
-    detail: 'Unexpected — should have closed by Day 21. Now 13 days overdue.',
-    icon: '⚠',
-    color: '#f1c21b',
-  },
-  {
-    id: 'es-portal',
-    type: 'positive',
-    label: 'Portal engagement',
-    detail: 'Positive — expected post-discharge. 2x/week login indicates receptivity.',
-    icon: '✓',
-    color: '#42be65',
-  },
-];
-
 interface ProfileAttribute {
   id: string;
   label: string;
@@ -69,25 +38,11 @@ interface ProfileAttribute {
   color: string;
 }
 
-const PROFILE_ATTRIBUTES: ProfileAttribute[] = [
-  { id: 'pa-age',    label: 'Age',           value: '34',                    color: '#c6c6c6' },
-  { id: 'pa-risk',   label: 'RAF Score',     value: '2.18',                  color: '#fa4d56' },
-  { id: 'pa-member', label: 'Member Since',  value: '2019',                  color: '#8d8d8d' },
-  { id: 'pa-plan',   label: 'Plan',          value: 'SD Medicaid',          color: '#8d8d8d' },
-  { id: 'pa-pcp',    label: 'PCP',           value: 'Bennett County Health',        color: '#78a9ff' },
-  { id: 'pa-cond',   label: 'Conditions',    value: 'Postpartum Health',    color: '#8b5cf6' },
-  { id: 'pa-auth',   label: 'Open Auth',     value: 'CAREGAP_HBA1C — T-4 days',   color: '#f1c21b' },
-  { id: 'pa-consent',label: 'Consent',       value: 'FULL — all channels',   color: '#42be65' },
-  { id: 'pa-cm',     label: 'Care Manager',  value: 'Sarah Johnson (H1ab)',     color: '#06b6d4' },
-  { id: 'pa-meds',   label: 'Medications',   value: 'Lisinopril + Metformin',   color: '#42be65' },
-];
-
 // ─── Journey Timeline Component ───────────────────────────────────────────────
 
-function JourneyTimeline({ visible }: { visible: boolean }) {
-  const totalDays = 90;
-  const currentDay = 34;
-  const progressPct = (currentDay / totalDays) * 100;
+function JourneyTimeline({ visible, firstName, episodeLabel, journey }: { visible: boolean; firstName: string; episodeLabel: string; journey: ResolvedJourney }) {
+  const { windowDays, currentDay, progressPct, steps, expectedSignals, currentStepIndex, currentStage } = journey;
+  const herePct = 5 + (currentDay / windowDays) * 90;
 
   return (
     <div
@@ -104,107 +59,77 @@ function JourneyTimeline({ visible }: { visible: boolean }) {
         <div className="flex items-center gap-3">
           <div className="rounded-full" style={{ width: 8, height: 8, background: '#42be65', animation: 'authPulse 2s ease-in-out infinite' }} />
           <span className="font-mono font-semibold" style={{ fontSize: '12px', color: '#42be65', letterSpacing: '0.1em' }}>
-            MARIA&apos;S CARE JOURNEY — Postpartum Episode
+            {`${firstName.toUpperCase()}'S CARE JOURNEY — ${episodeLabel}`}
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="rounded px-2 py-0.5" style={{ background: 'rgba(120,169,255,0.12)', border: '1px solid rgba(120,169,255,0.3)' }}>
+            <span className="font-mono" style={{ fontSize: '10px', color: '#78a9ff' }}>{currentStage} stage</span>
+          </div>
           <div className="rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.3)' }}>
-            <span className="font-mono" style={{ fontSize: '10px', color: '#42be65' }}>Day {currentDay} of {totalDays}</span>
+            <span className="font-mono" style={{ fontSize: '10px', color: '#42be65' }}>Day {currentDay} of {windowDays}</span>
           </div>
           <div className="rounded px-2 py-0.5" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)' }}>
-            <span className="font-mono" style={{ fontSize: '10px', color: '#f59e0b' }}>{Math.round(progressPct)}% complete</span>
+            <span className="font-mono" style={{ fontSize: '10px', color: '#f59e0b' }}>{progressPct}% complete</span>
           </div>
         </div>
       </div>
 
       {/* Timeline track */}
-      <div className="relative" style={{ paddingTop: 40, paddingBottom: 48 }}>
-        {/* Track line */}
-        <div
-          className="absolute rounded-full"
-          style={{ left: '5%', right: '5%', top: 56, height: 4, background: 'rgba(57,57,57,0.8)' }}
-        />
-        {/* Progress fill */}
-        <div
-          className="absolute rounded-full transition-all duration-1000"
-          style={{ left: '5%', top: 56, height: 4, width: `${progressPct * 0.9}%`, background: 'linear-gradient(90deg, #fa4d56, #f1c21b, #42be65)' }}
-        />
+      <div className="relative" style={{ paddingTop: 40, paddingBottom: 64 }}>
+        <div className="absolute rounded-full" style={{ left: '5%', right: '5%', top: 56, height: 4, background: 'rgba(57,57,57,0.8)' }} />
+        <div className="absolute rounded-full transition-all duration-1000" style={{ left: '5%', top: 56, height: 4, width: `${progressPct * 0.9}%`, background: 'linear-gradient(90deg, #fa4d56, #f1c21b, #42be65)' }} />
+
+        {/* HERE marker (floats at the member's current day) */}
+        <div className="absolute flex flex-col items-center" style={{ left: `${herePct}%`, transform: 'translateX(-50%)', top: 37, zIndex: 20 }}>
+          <span className="font-mono font-bold" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.12em', marginBottom: 3 }}>HERE</span>
+          <div className="rounded-full" style={{ width: 12, height: 12, background: '#42be65', border: '2px solid #161616', boxShadow: '0 0 12px rgba(66,190,101,0.7)', animation: 'authPulse 1.5s ease-in-out infinite' }} />
+        </div>
 
         {/* Milestones */}
-        {JOURNEY_MILESTONES.map((milestone) => {
-          const leftPct = 5 + (milestone.day / totalDays) * 90;
+        {steps.map((step, i) => {
+          const leftPct = 5 + (step.day / windowDays) * 90;
+          const passed = i <= currentStepIndex;
+          const isActive = i === currentStepIndex;
           return (
-            <div
-              key={milestone.id}
-              className="absolute flex flex-col items-center"
-              style={{ left: `${leftPct}%`, transform: 'translateX(-50%)', top: 0 }}
-            >
-              {/* Day label above */}
-              <span className="font-mono" style={{ fontSize: '10px', color: '#6f6f6f', marginBottom: 4 }}>
-                Day {milestone.day}
-              </span>
-
-              {/* Node */}
+            <div key={`${step.day}-${i}`} className="absolute flex flex-col items-center" style={{ left: `${leftPct}%`, transform: 'translateX(-50%)', top: 34 }}>
+              <span className="font-mono" style={{ fontSize: '10px', color: '#6f6f6f', marginBottom: 4 }}>Day {step.day}</span>
               <div
-                className="rounded-full flex items-center justify-center transition-all duration-300"
+                className="rounded-full"
                 style={{
-                  width: milestone.isCurrent ? 20 : 14,
-                  height: milestone.isCurrent ? 20 : 14,
-                  background: milestone.isCurrent ? milestone.color : milestone.isUpcoming ? 'rgba(57,57,57,0.8)' : milestone.color,
-                  border: `2px solid ${milestone.color}`,
-                  boxShadow: milestone.isCurrent ? `0 0 16px ${milestone.color}60` : 'none',
-                  marginTop: milestone.isCurrent ? -3 : 0,
-                  zIndex: milestone.isCurrent ? 10 : 1,
+                  width: isActive ? 16 : 12,
+                  height: isActive ? 16 : 12,
+                  background: passed ? '#42be65' : 'rgba(57,57,57,0.8)',
+                  border: `2px solid ${passed ? '#42be65' : 'rgba(120,169,255,0.5)'}`,
                   position: 'relative',
+                  zIndex: 1,
                 }}
-              >
-                {milestone.isCurrent && (
-                  <div className="rounded-full" style={{ width: 8, height: 8, background: '#161616' }} />
-                )}
-              </div>
-
-              {/* Labels below */}
+              />
               <div className="flex flex-col items-center gap-0.5 mt-3">
-                <span
-                  className="font-semibold"
-                  style={{
-                    fontSize: milestone.isCurrent ? '13px' : '11px',
-                    color: milestone.isCurrent ? milestone.color : milestone.isUpcoming ? '#6f6f6f' : '#c6c6c6',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {milestone.label}
-                </span>
-                <span style={{ fontSize: '10px', color: '#6f6f6f', whiteSpace: 'nowrap' }}>
-                  {milestone.sublabel}
-                </span>
+                <span className="font-semibold" style={{ fontSize: isActive ? '12px' : '11px', color: passed ? '#c6c6c6' : '#6f6f6f', whiteSpace: 'nowrap' }}>{step.label}</span>
+                <span style={{ fontSize: '10px', color: '#6f6f6f', whiteSpace: 'nowrap' }}>{step.sublabel}</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Expected signals at Day 34 */}
+      {/* Expected signals */}
       <div className="flex flex-col gap-2">
         <span style={{ fontSize: '11px', color: '#6f6f6f', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          Expected signals at Day 34:
+          Expected signals at Day {currentDay}:
         </span>
         <div className="flex flex-col gap-1.5">
-          {EXPECTED_SIGNALS.map((sig) => (
-            <div key={sig.id} className="flex items-start gap-3">
-              <span
-                className="font-mono font-semibold flex-shrink-0"
-                style={{ fontSize: '13px', color: sig.color, width: 16, textAlign: 'center' }}
-              >
-                {sig.icon}
+          {expectedSignals.map((sig, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <span className="font-mono font-semibold flex-shrink-0" style={{ fontSize: '13px', color: sig.type === 'unexpected' ? '#f1c21b' : '#42be65', width: 16, textAlign: 'center' }}>
+                {sig.type === 'unexpected' ? '⚠' : '✓'}
               </span>
               <div className="flex flex-col gap-0.5">
                 <span className="font-semibold" style={{ fontSize: '12px', color: sig.type === 'unexpected' ? '#f1c21b' : '#c6c6c6' }}>
                   {sig.label}
                   {sig.type === 'unexpected' && (
-                    <span className="font-mono ml-2" style={{ fontSize: '9px', color: '#f1c21b', background: 'rgba(241,194,27,0.12)', border: '1px solid rgba(241,194,27,0.3)', borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>
-                      UNEXPECTED
-                    </span>
+                    <span className="font-mono ml-2" style={{ fontSize: '9px', color: '#f1c21b', background: 'rgba(241,194,27,0.12)', border: '1px solid rgba(241,194,27,0.3)', borderRadius: 3, padding: '1px 5px', letterSpacing: '0.06em' }}>UNEXPECTED</span>
                   )}
                 </span>
                 <span style={{ fontSize: '11px', color: '#6f6f6f', lineHeight: 1.4 }}>{sig.detail}</span>
@@ -215,10 +140,7 @@ function JourneyTimeline({ visible }: { visible: boolean }) {
       </div>
 
       {/* Sensitivity guidance */}
-      <div
-        className="rounded px-4 py-3 flex items-start gap-3"
-        style={{ background: 'rgba(250,77,86,0.08)', border: '1px solid rgba(250,77,86,0.25)' }}
-      >
+      <div className="rounded px-4 py-3 flex items-start gap-3" style={{ background: 'rgba(250,77,86,0.08)', border: '1px solid rgba(250,77,86,0.25)' }}>
         <div className="rounded px-2 py-0.5 flex-shrink-0" style={{ background: 'rgba(250,77,86,0.15)', border: '1px solid rgba(250,77,86,0.35)' }}>
           <span className="font-mono" style={{ fontSize: '9px', color: '#fa4d56', letterSpacing: '0.08em' }}>SENSITIVITY: HIGH</span>
         </div>
@@ -242,79 +164,86 @@ interface ChannelEvent {
   type: string;
   outcome: string;
   annotation?: string;
+  current?: boolean;
+}
+interface ChannelHistoryData {
+  events: ChannelEvent[];
+  chips: { label: string; color: string; day: string }[];
+  summary: string;
+  learning: string;
+  dayRange: string;
 }
 
-const CHANNEL_HISTORY: ChannelEvent[] = [
-  {
-    id: 'ch-1',
-    day: 1,
-    channel: 'IVR',
-    channelIcon: '☎',
-    channelColor: '#8d8d8d',
-    type: 'Self-service inquiry',
-    outcome: 'Benefits menu navigated — no agent transfer',
-    annotation: 'First contact post-discharge',
-  },
-  {
-    id: 'ch-2',
-    day: 8,
-    channel: 'PHONE',
-    channelIcon: '📞',
-    channelColor: '#f59e0b',
-    type: 'Outbound call attempt',
-    outcome: 'No answer — voicemail left',
-  },
-  {
-    id: 'ch-3',
-    day: 11,
-    channel: 'PHONE',
-    channelIcon: '📞',
-    channelColor: '#f59e0b',
-    type: 'Outbound call attempt',
-    outcome: 'No answer — 2nd unanswered attempt',
-    annotation: '2 phone attempts unanswered → preference updated',
-  },
-  {
-    id: 'ch-4',
-    day: 14,
-    channel: 'PORTAL',
-    channelIcon: '⬡',
-    channelColor: '#42be65',
-    type: 'Portal login — self-initiated',
-    outcome: 'Auth status viewed · Care plan accessed',
-    annotation: 'Portal became primary — system learned',
-  },
-  {
-    id: 'ch-5',
-    day: 21,
-    channel: 'PORTAL',
-    channelIcon: '⬡',
-    channelColor: '#42be65',
-    type: 'Portal session — 18 min',
-    outcome: 'HbA1c reminder acknowledged · Rx refill initiated',
-  },
-  {
-    id: 'ch-6',
-    day: 28,
-    channel: 'PORTAL',
-    channelIcon: '⬡',
-    channelColor: '#42be65',
-    type: 'Portal session — 12 min',
-    outcome: 'Financial summary reviewed · Sophia care gap viewed',
-  },
-  {
-    id: 'ch-7',
-    day: 34,
-    channel: 'PORTAL',
-    channelIcon: '⬡',
-    channelColor: '#42be65',
-    type: 'Portal active — 2×/week pattern',
-    outcome: 'Engagement window open — outreach scheduled 10am',
-    annotation: 'Current — receptivity HIGH',
-  },
-];
+function buildChannelHistory(reg: NonNullable<ReturnType<typeof getPatientById>>, topGapName: string, currentDay: number): ChannelHistoryData {
+  // Maria Redhawk — authored verbatim (flagship walkthrough)
+  if (reg.platformId === 'MARIA_SD_001') {
+    return {
+      events: [
+        { id: 'ch-1', day: 1, channel: 'IVR', channelIcon: '☎', channelColor: '#8d8d8d', type: 'Self-service inquiry', outcome: 'Benefits menu navigated — no agent transfer', annotation: 'First contact post-discharge' },
+        { id: 'ch-2', day: 8, channel: 'PHONE', channelIcon: '📞', channelColor: '#f59e0b', type: 'Outbound call attempt', outcome: 'No answer — voicemail left' },
+        { id: 'ch-3', day: 11, channel: 'PHONE', channelIcon: '📞', channelColor: '#f59e0b', type: 'Outbound call attempt', outcome: 'No answer — 2nd unanswered attempt', annotation: '2 phone attempts unanswered → preference updated' },
+        { id: 'ch-4', day: 14, channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal login — self-initiated', outcome: 'Auth status viewed · Care plan accessed', annotation: 'Portal became primary — system learned' },
+        { id: 'ch-5', day: 21, channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal session — 18 min', outcome: 'HbA1c reminder acknowledged · Rx refill initiated' },
+        { id: 'ch-6', day: 28, channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal session — 12 min', outcome: 'Financial summary reviewed · dependent care gap viewed' },
+        { id: 'ch-7', day: 34, channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal active — 2×/week pattern', outcome: 'Engagement window open — outreach scheduled 10am', annotation: 'Current — receptivity HIGH', current: true },
+      ],
+      chips: [
+        { label: 'IVR', color: '#8d8d8d', day: 'Day 1' },
+        { label: 'PHONE ×2', color: '#f59e0b', day: 'Day 8–11' },
+        { label: 'PORTAL', color: '#42be65', day: 'Day 14+' },
+      ],
+      summary: 'Portal preferred — learned, not configured',
+      learning: 'Portal became primary after 2 failed phone attempts — system updated preference automatically on Day 14. Outreach today scheduled via portal at 10am based on 20 days of behavioral data.',
+      dayRange: 'Day 1 → Day 34',
+    };
+  }
 
-function ChannelHistoryTimeline({ visible }: { visible: boolean }) {
+  // Others — vary by the member's learned channel preference
+  const phoneLed = /phone only|limited|low/i.test(reg.digitalAccess || '') || /rural/i.test(reg.cohortFlag || '');
+  const d = (frac: number) => Math.max(1, Math.round(currentDay * frac));
+  const dayRange = `Day 1 → Day ${currentDay}`;
+
+  if (phoneLed) {
+    return {
+      events: [
+        { id: 'ch-1', day: 1, channel: 'IVR', channelIcon: '☎', channelColor: '#8d8d8d', type: 'Self-service inquiry', outcome: 'Benefits menu navigated', annotation: 'First contact' },
+        { id: 'ch-2', day: d(0.25), channel: 'SMS', channelIcon: '✉', channelColor: '#84CC16', type: 'SMS outreach', outcome: 'Delivered — link not opened (limited broadband)' },
+        { id: 'ch-3', day: d(0.5), channel: 'PHONE', channelIcon: '📞', channelColor: '#f59e0b', type: 'Inbound call', outcome: `Answered — ${topGapName} discussed · ride coordinated`, annotation: 'Phone is primary channel' },
+        { id: 'ch-4', day: d(0.75), channel: 'PHONE', channelIcon: '📞', channelColor: '#f59e0b', type: 'Outbound reminder call', outcome: 'Answered — appointment confirmed' },
+        { id: 'ch-5', day: currentDay, channel: 'PHONE', channelIcon: '📞', channelColor: '#f59e0b', type: 'Outreach call', outcome: 'Live conversation — receptive', annotation: 'Current — phone-first preference', current: true },
+      ],
+      chips: [
+        { label: 'IVR', color: '#8d8d8d', day: 'Day 1' },
+        { label: 'SMS', color: '#84CC16', day: `Day ${d(0.25)}` },
+        { label: 'PHONE', color: '#f59e0b', day: `Day ${d(0.5)}+` },
+      ],
+      summary: 'Phone preferred — broadband gap',
+      learning: 'Phone/SMS is the primary channel — portal access is constrained by a broadband gap. Outreach is scheduled via live phone based on response history.',
+      dayRange,
+    };
+  }
+
+  return {
+    events: [
+      { id: 'ch-1', day: 1, channel: 'IVR', channelIcon: '☎', channelColor: '#8d8d8d', type: 'Self-service inquiry', outcome: 'Benefits menu navigated — no agent transfer', annotation: 'First contact' },
+      { id: 'ch-2', day: d(0.2), channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal registration', outcome: 'Account created · care plan viewed' },
+      { id: 'ch-3', day: d(0.45), channel: 'PHONE', channelIcon: '📞', channelColor: '#f59e0b', type: 'Outbound call', outcome: 'Answered — appointment scheduled', annotation: 'Single touch sufficient' },
+      { id: 'ch-4', day: d(0.7), channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal session', outcome: `${topGapName} reminder acknowledged · Rx refill initiated` },
+      { id: 'ch-5', day: currentDay, channel: 'PORTAL', channelIcon: '⬡', channelColor: '#42be65', type: 'Portal active', outcome: 'Engagement window open — outreach scheduled', annotation: 'Current — receptivity HIGH', current: true },
+    ],
+    chips: [
+      { label: 'IVR', color: '#8d8d8d', day: 'Day 1' },
+      { label: 'PHONE', color: '#f59e0b', day: `Day ${d(0.45)}` },
+      { label: 'PORTAL', color: '#42be65', day: `Day ${d(0.2)}+` },
+    ],
+    summary: 'Portal preferred — learned',
+    learning: 'Portal became primary after digital engagement was detected — outreach is scheduled via portal based on behavioral data.',
+    dayRange,
+  };
+}
+
+function ChannelHistoryTimeline({ visible, data }: { visible: boolean; data: ChannelHistoryData }) {
+  const { events, chips, summary, learning, dayRange } = data;
   return (
     <div
       className="rounded flex flex-col gap-3 p-5 transition-all duration-500"
@@ -334,17 +263,13 @@ function ChannelHistoryTimeline({ visible }: { visible: boolean }) {
           </span>
         </div>
         <div className="rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.3)' }}>
-          <span className="font-mono" style={{ fontSize: '10px', color: '#42be65' }}>Day 1 → Day 34</span>
+          <span className="font-mono" style={{ fontSize: '10px', color: '#42be65' }}>{dayRange}</span>
         </div>
       </div>
 
       {/* Channel progression summary */}
       <div className="flex items-center gap-2 flex-wrap">
-        {[
-          { label: 'IVR', color: '#8d8d8d', day: 'Day 1' },
-          { label: 'PHONE ×2', color: '#f59e0b', day: 'Day 8–11' },
-          { label: 'PORTAL', color: '#42be65', day: 'Day 14+' },
-        ].map((ch, i) => (
+        {chips.map((ch, i) => (
           <React.Fragment key={ch.label}>
             <div className="rounded px-2.5 py-1 flex items-center gap-1.5" style={{ background: `${ch.color}12`, border: `1px solid ${ch.color}40` }}>
               <div className="rounded-full" style={{ width: 6, height: 6, background: ch.color }} />
@@ -355,7 +280,7 @@ function ChannelHistoryTimeline({ visible }: { visible: boolean }) {
           </React.Fragment>
         ))}
         <div className="ml-auto rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.1)', border: '1px solid rgba(66,190,101,0.3)' }}>
-          <span style={{ fontSize: '10px', color: '#42be65' }}>Portal preferred — learned, not configured</span>
+          <span style={{ fontSize: '10px', color: '#42be65' }}>{summary}</span>
         </div>
       </div>
 
@@ -366,20 +291,20 @@ function ChannelHistoryTimeline({ visible }: { visible: boolean }) {
           className="absolute"
           style={{ left: 28, top: 12, bottom: 12, width: 1, background: 'rgba(57,57,57,0.8)' }}
         />
-        {CHANNEL_HISTORY.map((event, i) => (
-          <div key={event.id} className="flex items-start gap-3 relative" style={{ paddingBottom: i < CHANNEL_HISTORY.length - 1 ? 10 : 0 }}>
+        {events.map((event, i) => (
+          <div key={event.id} className="flex items-start gap-3 relative" style={{ paddingBottom: i < events.length - 1 ? 10 : 0 }}>
             {/* Channel icon node */}
             <div
               className="rounded-full flex items-center justify-center flex-shrink-0 relative z-10"
               style={{
                 width: 28,
                 height: 28,
-                background: event.day === 34 ? event.channelColor : `${event.channelColor}18`,
-                border: `1.5px solid ${event.channelColor}${event.day === 34 ? '' : '60'}`,
-                boxShadow: event.day === 34 ? `0 0 10px ${event.channelColor}50` : 'none',
+                background: event.current ? event.channelColor : `${event.channelColor}18`,
+                border: `1.5px solid ${event.channelColor}${event.current ? '' : '60'}`,
+                boxShadow: event.current ? `0 0 10px ${event.channelColor}50` : 'none',
               }}
             >
-              <span style={{ fontSize: '11px', color: event.day === 34 ? '#161616' : event.channelColor }}>{event.channelIcon}</span>
+              <span style={{ fontSize: '11px', color: event.current ? '#161616' : event.channelColor }}>{event.channelIcon}</span>
             </div>
 
             {/* Event content */}
@@ -412,7 +337,7 @@ function ChannelHistoryTimeline({ visible }: { visible: boolean }) {
           <span className="font-mono" style={{ fontSize: '9px', color: '#78a9ff', letterSpacing: '0.08em' }}>CHANNEL LEARNING</span>
         </div>
         <span style={{ fontSize: '11px', color: '#8d8d8d', lineHeight: 1.5 }}>
-          Portal became primary after 2 failed phone attempts — system updated preference automatically on Day 14. Outreach today scheduled via portal at 10am based on 20 days of behavioral data.
+          {learning}
         </span>
       </div>
     </div>
@@ -431,6 +356,48 @@ export default function Consumer360Screen() {
   const [consentDomainsOpen, setConsentDomainsOpen] = useState(false);
   const [householdOpen, setHouseholdOpen] = useState(false);
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // ── Per-active-citizen identity + profile (default Maria Redhawk) ──
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const { persona, reg, profileAttributes, firstName, household, lifecycle, consentDomains, consentLimited, journey, channelData, episodeLabel, riskTierLabel } = useMemo(() => {
+    const persona = personaFor(activeCitizenId);
+    const ctx = contextFor(activeCitizenId);
+    const reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+    const firstName = reg.name.split(' ')[0];
+    const tier = (reg.riskTier || 'Moderate').toUpperCase();
+    const topGap = (reg.careGaps || []).find((g) => g.domain === 'Clinical' && g.status !== 'Closed') || reg.careGaps?.[0];
+    const meds = reg.platformId === 'MARIA_SD_001' ? 'Lisinopril + Metformin' : 'Per active care plan';
+    const profileAttributes = [
+      { id: 'pa-age', label: 'Age', value: String(reg.age), color: '#c6c6c6' },
+      { id: 'pa-risk', label: 'RAF Score', value: String(reg.rafScore), color: '#fa4d56' },
+      { id: 'pa-member', label: 'Member Since', value: '2019', color: '#8d8d8d' },
+      { id: 'pa-plan', label: 'Plan', value: reg.contract, color: '#8d8d8d' },
+      { id: 'pa-pcp', label: 'PCP', value: reg.pcp, color: '#78a9ff' },
+      { id: 'pa-cond', label: 'Conditions', value: reg.episodeType, color: '#8b5cf6' },
+      { id: 'pa-auth', label: 'Open Auth', value: topGap ? `${topGap.name.replace(/ \(.*\)/, '')} — T-4 days` : '—', color: '#f1c21b' },
+      { id: 'pa-consent', label: 'Consent', value: 'FULL — all channels', color: '#42be65' },
+      { id: 'pa-cm', label: 'Care Manager', value: reg.careManager, color: '#06b6d4' },
+      { id: 'pa-meds', label: 'Medications', value: meds, color: '#42be65' },
+    ];
+    const initialsOf = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    const household = [
+      { id: reg.platformId, name: reg.name, role: 'Primary member', risk: `${tier} ${reg.rafScore}`, riskColor: persona.riskColor, initials: persona.initials, note: '' },
+      ...ctx.household.dependents.map((d, i) => ({ id: `dep-${i}`, name: d.name, role: d.relation, risk: 'MODERATE', riskColor: '#f1c21b', initials: initialsOf(d.name), note: d.detail })),
+      ...ctx.household.caregiverFor.map((c, i) => ({ id: `cg-${i}`, name: c.name, role: c.relation, risk: 'Medicare', riskColor: '#78a9ff', initials: initialsOf(c.name), note: c.detail })),
+    ];
+    const lifecycle = ctx.lifecycle;
+    const consentDomains = ctx.consentDomains.map((c) => ({ ...c, note: '' }));
+    const consentLimited = consentDomains.filter((c) => c.scope !== 'GRANTED' && c.scope !== 'FULL').length;
+    const journey = journeyForPatient(reg);
+    const topGapName = topGap ? topGap.name.replace(/ \(.*\)/, '') : 'care gap';
+    const channelData = buildChannelHistory(reg, topGapName, journey.currentDay);
+    return {
+      persona, reg, profileAttributes, firstName, household, lifecycle, consentDomains, consentLimited,
+      journey, channelData,
+      episodeLabel: reg.episodeType,
+      riskTierLabel: tier,
+    };
+  }, [activeCitizenId]);
 
   useEffect(() => {
     setScreen('consumer-360');
@@ -484,17 +451,17 @@ export default function Consumer360Screen() {
                 className="rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ width: 56, height: 56, background: 'rgba(250,77,86,0.15)', border: '2px solid rgba(250,77,86,0.5)' }}
               >
-                <span className="font-semibold text-white" style={{ fontSize: '20px' }}>MR</span>
+                <span className="font-semibold text-white" style={{ fontSize: '20px' }}>{persona.initials}</span>
               </div>
               <div>
-                <div className="font-semibold text-white" style={{ fontSize: '18px' }}>Maria Redhawk</div>
-                <div className="font-mono" style={{ fontSize: '11px', color: '#fa4d56', letterSpacing: '0.06em' }}>MARIA_SD_001 · HIGH RISK</div>
+                <div className="font-semibold text-white" style={{ fontSize: '18px' }}>{reg.name}</div>
+                <div className="font-mono" style={{ fontSize: '11px', color: '#fa4d56', letterSpacing: '0.06em' }}>{reg.platformId} · {riskTierLabel} RISK</div>
               </div>
             </div>
 
             {/* Attributes */}
             <div className="flex flex-col gap-2">
-              {PROFILE_ATTRIBUTES.map((attr) => (
+              {profileAttributes.map((attr) => (
                 <div key={attr.id} className="flex items-center justify-between">
                   <span style={{ fontSize: '11px', color: '#6f6f6f' }}>{attr.label}</span>
                   <span style={{ fontSize: '12px', color: attr.color, fontWeight: attr.label === 'Risk Score' ? 600 : 400 }}>{attr.value}</span>
@@ -520,8 +487,8 @@ export default function Consumer360Screen() {
               <div className="rounded px-3 py-2 flex flex-col gap-1.5" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.3)' }}>
                 <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.08em' }}>ACTIVE MEDICATIONS</span>
                 {[
-                  { name: 'Lisinopril 5mg', type: 'Generic', prescriber: 'Bennett County Health', pharmacy: 'CVS #4821', fill: '2024-11-01', color: '#42be65' },
-                  { name: 'Metformin 500mg', type: 'Generic', prescriber: 'Bennett County Health', pharmacy: 'Walgreens #7734', fill: '2024-10-28', color: '#42be65' },
+                  { name: 'Lisinopril 5mg', type: 'Generic', prescriber: reg.organization.replace(/ \(.*\)/, ''), pharmacy: 'CVS #4821', fill: '2024-11-01', color: '#42be65' },
+                  { name: 'Metformin 500mg', type: 'Generic', prescriber: reg.organization.replace(/ \(.*\)/, ''), pharmacy: 'Walgreens #7734', fill: '2024-10-28', color: '#42be65' },
                 ].map((med) => (
                   <div key={med.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
@@ -573,10 +540,10 @@ export default function Consumer360Screen() {
                   className="rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ width: 32, height: 32, background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.4)' }}
                 >
-                  <span className="font-semibold" style={{ fontSize: '12px', color: '#06b6d4' }}>SC</span>
+                  <span className="font-semibold" style={{ fontSize: '12px', color: '#06b6d4' }}>{reg.careManagerInitials}</span>
                 </div>
                 <div>
-                  <div className="font-semibold" style={{ fontSize: '13px', color: '#f4f4f4' }}>Sarah Johnson</div>
+                  <div className="font-semibold" style={{ fontSize: '13px', color: '#f4f4f4' }}>{reg.careManager}</div>
                   <div style={{ fontSize: '10px', color: '#8d8d8d' }}>Assigned care manager</div>
                 </div>
               </div>
@@ -596,7 +563,7 @@ export default function Consumer360Screen() {
               </div>
               <div className="rounded px-2.5 py-2" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)' }}>
                 <span style={{ fontSize: '10px', color: '#f87171', lineHeight: 1.4 }}>
-                  Sarah is working from a 47-day-old snapshot — unaware of AUTH_EXPIRY, SDOH barriers, or family context.
+                  {reg.careManager.split(' ')[0]} is working from a 47-day-old snapshot — unaware of AUTH_EXPIRY, SDOH barriers, or family context.
                 </span>
               </div>
             </div>
@@ -622,8 +589,8 @@ export default function Consumer360Screen() {
                   <span className="font-semibold" style={{ fontSize: '11px', color: '#78a9ff' }}>DC</span>
                 </div>
                 <div>
-                  <div className="font-semibold" style={{ fontSize: '13px', color: '#f4f4f4' }}>Bennett County Health</div>
-                  <div style={{ fontSize: '10px', color: '#8d8d8d' }}>Cardiology · NPI: 1234567890</div>
+                  <div className="font-semibold" style={{ fontSize: '13px', color: '#f4f4f4' }}>{reg.organization.replace(/ \(.*\)/, '')}</div>
+                  <div style={{ fontSize: '10px', color: '#8d8d8d' }}>{reg.pcp} · NPI: 1234567890</div>
                 </div>
               </div>
               {/* Without integration */}
@@ -633,7 +600,7 @@ export default function Consumer360Screen() {
                   <span className="font-mono" style={{ fontSize: '9px', color: '#fa4d56', letterSpacing: '0.08em' }}>WITHOUT INTEGRATION</span>
                 </div>
                 <span style={{ fontSize: '10px', color: '#8d8d8d', lineHeight: 1.4 }}>Claims history only — 14-day lag</span>
-                <span style={{ fontSize: '10px', color: '#6f6f6f', lineHeight: 1.4 }}>Opens Maria&apos;s chart blind — no duplicate therapy alert, no SDOH context, no pre-approved auth visible</span>
+                <span style={{ fontSize: '10px', color: '#6f6f6f', lineHeight: 1.4 }}>{`Opens ${firstName}'s chart blind — no duplicate therapy alert, no SDOH context, no pre-approved auth visible`}</span>
               </div>
               {/* With integration */}
               <div className="rounded px-3 py-2.5 flex flex-col gap-1.5" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.3)' }}>
@@ -677,13 +644,7 @@ export default function Consumer360Screen() {
               </button>
               {lifecycleOpen && (
                 <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[
-                    { label: 'Enrolled', value: '3 years (SD Medicaid SD Medicaid)', color: '#c6c6c6' },
-                    { label: 'Prior hospitalizations', value: '1 (cardiac, 2022)', color: '#f87171' },
-                    { label: 'Plan transitions', value: '0', color: '#8d8d8d' },
-                    { label: 'Life events', value: 'New dependent registered June 2024 (Sophia)', color: '#ff7eb6' },
-                    { label: 'Caregiver status', value: 'Caregiver for mother Elena (66y, 15mi away)', color: '#c084fc' },
-                  ].map((item) => (
+                  {lifecycle.map((item) => (
                     <div key={item.label} className="flex items-start justify-between gap-2">
                       <span style={{ fontSize: '10px', color: '#6f6f6f', flexShrink: 0 }}>{item.label}</span>
                       <span style={{ fontSize: '11px', color: item.color, textAlign: 'right', lineHeight: 1.4 }}>{item.value}</span>
@@ -710,21 +671,14 @@ export default function Consumer360Screen() {
                 <div className="flex items-center gap-2">
                   <span className="font-mono uppercase" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.1em' }}>CONSENT DOMAINS</span>
                   <div className="rounded px-1.5 py-0.5" style={{ background: 'rgba(241,194,27,0.12)', border: '1px solid rgba(241,194,27,0.35)' }}>
-                    <span className="font-mono" style={{ fontSize: '8px', color: '#f1c21b' }}>2 LIMITED</span>
+                    <span className="font-mono" style={{ fontSize: '8px', color: '#f1c21b' }}>{consentLimited} LIMITED</span>
                   </div>
                 </div>
                 <span style={{ fontSize: '14px', color: '#6f6f6f', transform: consentDomainsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
               </button>
               {consentDomainsOpen && (
                 <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {[
-                    { domain: 'SD Medicaid Commercial', scope: 'FULL — TPO', status: 'Active', statusColor: '#42be65', icon: '✓' },
-                    { domain: 'Martin Pharmacy', scope: 'LIMITED', status: 'Fill history only', statusColor: '#f1c21b', icon: '⚠', note: 'Diagnosis excluded' },
-                    { domain: 'Bennett County Health', scope: 'PENDING', status: 'Not granted', statusColor: '#9ca3af', icon: '✗' },
-                    { domain: 'RHTP Care Management', scope: 'FULL', status: 'Active', statusColor: '#42be65', icon: '✓' },
-                    { domain: 'Employer SD-MCD', scope: 'LIMITED', status: 'Wellness only', statusColor: '#f1c21b', icon: '⚠', note: 'Clinical excluded' },
-                    { domain: 'Elena Proxy', scope: 'SCOPED', status: 'Meds + Appts', statusColor: '#c084fc', icon: '⊙' },
-                  ].map((item) => (
+                  {consentDomains.map((item) => (
                     <div
                       key={item.domain}
                       className="rounded px-2.5 py-2 flex flex-col gap-0.5"
@@ -749,7 +703,7 @@ export default function Consumer360Screen() {
                   ))}
                   <div className="rounded px-2.5 py-2 mt-1" style={{ background: 'rgba(241,194,27,0.06)', border: '1px solid rgba(241,194,27,0.25)' }}>
                     <span style={{ fontSize: '10px', color: '#f1c21b', lineHeight: 1.4 }}>
-                      Consent verified at domain level before every cross-org agent action. Martin Pharmacy Med review blocked — diagnosis scope insufficient.
+                      Consent verified at domain level before every cross-org agent action. Pharmacy network Med review blocked — diagnosis scope insufficient.
                     </span>
                   </div>
                 </div>
@@ -812,15 +766,15 @@ export default function Consumer360Screen() {
               Journey-Aware Context
             </h2>
             <p style={{ fontSize: '14px', color: '#8d8d8d' }}>
-              The system knows where Maria is in her care journey — and what signals are expected vs unexpected at this stage.
+              {`The system knows where ${firstName} is in their care journey — and what signals are expected vs unexpected at this stage.`}
             </p>
           </div>
 
           {/* Journey timeline */}
-          <JourneyTimeline visible={journeyVisible} />
+          <JourneyTimeline visible={journeyVisible} firstName={firstName} episodeLabel={episodeLabel} journey={journey} />
 
           {/* Channel History Timeline */}
-          <ChannelHistoryTimeline visible={journeyVisible} />
+          <ChannelHistoryTimeline visible={journeyVisible} data={channelData} />
 
           {/* Journey context for orchestration */}
           {journeyVisible && (
@@ -880,7 +834,7 @@ export default function Consumer360Screen() {
                 <div className="flex items-center gap-2">
                   <span className="font-mono uppercase" style={{ fontSize: '10px', color: '#ff7eb6', letterSpacing: '0.1em' }}>HOUSEHOLD</span>
                   <div className="rounded px-1.5 py-0.5" style={{ background: 'rgba(255,126,182,0.12)', border: '1px solid rgba(255,126,182,0.35)' }}>
-                    <span className="font-mono" style={{ fontSize: '8px', color: '#ff7eb6' }}>3 MEMBERS</span>
+                    <span className="font-mono" style={{ fontSize: '8px', color: '#ff7eb6' }}>{household.length} MEMBERS</span>
                   </div>
                 </div>
                 <span style={{ fontSize: '14px', color: '#6f6f6f', transform: householdOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
@@ -888,11 +842,7 @@ export default function Consumer360Screen() {
               {householdOpen && (
                 <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {/* Household members */}
-                  {[
-                    { id: 'MARIA_SD_001', name: 'Maria Redhawk', role: 'Primary member', risk: 'HIGH 7.8', riskColor: '#fa4d56', initials: 'MR' },
-                    { id: 'SD CHIP', name: 'Sophia Reyes', role: 'Dependent, age 2', risk: 'MODERATE', riskColor: '#f1c21b', initials: 'SR', note: 'No PCP · 6 gaps' },
-                    { id: 'ELENA_SD_003', name: 'Elena Redhawk', role: 'Mother (lives 15mi away)', risk: 'Medicare', riskColor: '#78a9ff', initials: 'ER', note: 'Maria is caregiver · Separate residence' },
-                  ].map((member) => (
+                  {household.map((member) => (
                     <div key={member.id} className="flex items-center gap-2.5 rounded px-2.5 py-2" style={{ background: 'rgba(38,38,38,0.6)', border: '1px solid rgba(57,57,57,0.5)' }}>
                       <div className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, background: 'rgba(255,126,182,0.12)', border: '1px solid rgba(255,126,182,0.35)' }}>
                         <span className="font-semibold" style={{ fontSize: '9px', color: '#ff7eb6' }}>{member.initials}</span>
@@ -913,11 +863,7 @@ export default function Consumer360Screen() {
                   {/* Outreach load */}
                   <div className="rounded px-2.5 py-2 flex flex-col gap-2" style={{ background: 'rgba(241,194,27,0.06)', border: '1px solid rgba(241,194,27,0.25)' }}>
                     <span className="font-mono" style={{ fontSize: '9px', color: '#f1c21b', letterSpacing: '0.08em' }}>HOUSEHOLD OUTREACH LOAD — THIS WEEK</span>
-                    {[
-                      { name: 'Maria', used: 2, cap: 3, color: '#f1c21b' },
-                      { name: 'Sophia', used: 0, cap: 3, color: '#42be65' },
-                      { name: 'Elena', used: 1, cap: 3, color: '#c084fc', note: 'A1C reminder pending' },
-                    ].map((item) => (
+                    {household.slice(0, 3).map((m, i) => ({ name: m.name.split(' ')[0], used: [2, 0, 1][i] ?? 0, cap: 3, color: ['#f1c21b', '#42be65', '#c084fc'][i] || '#8d8d8d', note: '' })).map((item) => (
                       <div key={item.name} className="flex items-center gap-2">
                         <span style={{ fontSize: '10px', color: '#8d8d8d', width: 36 }}>{item.name}</span>
                         <div className="flex gap-1">
@@ -936,7 +882,7 @@ export default function Consumer360Screen() {
                   {/* Combined outreach opportunity */}
                   <div className="rounded px-2.5 py-2 flex flex-col gap-1" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.25)' }}>
                     <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.08em' }}>COMBINED OUTREACH OPPORTUNITY</span>
-                    <span style={{ fontSize: '10px', color: '#c6c6c6', lineHeight: 1.4 }}>Maria + Sophia: single message — cardiac + pediatric update</span>
+                    <span style={{ fontSize: '10px', color: '#c6c6c6', lineHeight: 1.4 }}>{household.length > 1 ? `${firstName} + ${household[1].name.split(' ')[0]}: single message — combined update` : `${firstName}: consolidated single-touch outreach`}</span>
                     <span style={{ fontSize: '9px', color: '#6f6f6f' }}>Reduces household outreach load · Improves engagement likelihood</span>
                   </div>
 
@@ -944,11 +890,11 @@ export default function Consumer360Screen() {
                   <div className="rounded px-2.5 py-2 flex flex-col gap-1.5" style={{ background: 'rgba(120,169,255,0.06)', border: '1px solid rgba(120,169,255,0.25)' }}>
                     <span className="font-mono" style={{ fontSize: '9px', color: '#78a9ff', letterSpacing: '0.08em' }}>HOUSEHOLD PREFERENCES</span>
                     {[
-                      { label: 'Combined outreach', value: 'PREFERRED — Maria confirmed' },
-                      { label: 'Timing', value: 'Weekdays 9–11am (Maria + Sophia)' },
+                      { label: 'Combined outreach', value: `PREFERRED — ${firstName} confirmed` },
+                      { label: 'Timing', value: `Weekdays 9–11am${household.length > 1 ? ` (${firstName} + ${household[1].name.split(' ')[0]})` : ''}` },
                       { label: 'Language', value: 'English (all household members)' },
-                      { label: 'Channel', value: 'Portal primary — Maria' },
-                      { label: 'Care manager', value: 'Sarah Johnson — covers Maria + Sophia' },
+                      { label: 'Channel', value: `Portal primary — ${firstName}` },
+                      { label: 'Care manager', value: `${reg.careManager} — covers ${household.map((m) => m.name.split(' ')[0]).slice(0, 2).join(' + ')}` },
                     ].map((pref) => (
                       <div key={pref.label} className="flex items-start justify-between gap-2">
                         <span style={{ fontSize: '9px', color: '#6f6f6f', flexShrink: 0 }}>{pref.label}</span>

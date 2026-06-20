@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import { getPatientById, type RegistryPatient } from '@/lib/patientRegistry';
+import { useDemoStore } from '@/uhg/store/demoStore';
 import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
-import { useDemoStore } from '@/uhg/store/demoStore';
 
 interface AgentEntry {
   id: string;
@@ -74,6 +75,69 @@ const TIERS: { id: string; label: string; sublabel: string; color: string; agent
     ],
   },
 ];
+
+// ─── Agent dispatch engine ──────────────────────────────────────────────────────
+// Context-driven dispatch: each member's knowledge-graph context produces a set of active
+// trigger codes; the domain coalition is the set of dispatchable agents whose trigger fires.
+// Always-on (Tier 1) + governance (Tier 4) run for every scenario. Exported for the controller
+// (renders the coalition) and the marketplace drawdown (counts + highlights dispatched agents).
+
+export type TriggerCode = 'CARE_GAP' | 'AUTH_EXPIRY' | 'SDOH' | 'CAREGIVER' | 'BH' | 'COST';
+
+export interface CoalitionAgent {
+  id: string;        // controller panel id
+  libId: string;     // agent-library registry id (for highlight)
+  name: string;
+  role: 'PRIMARY' | 'CONCURRENT' | 'SUPPORTING' | 'COMPLIANCE' | 'SPECIALIST';
+  color: string;
+  trigger: TriggerCode;
+}
+
+// The dispatchable domain agents (these become the controller's agent panels)
+export const DOMAIN_COALITION: CoalitionAgent[] = [
+  { id: 'agent-care',      libId: 'care-mgmt',       name: 'Clinical Care Agent',          role: 'PRIMARY',    color: '#0C55B8', trigger: 'CARE_GAP' },
+  { id: 'agent-provider',  libId: 'sdoh-intel',      name: 'Social / SDOH Agent',          role: 'CONCURRENT', color: '#8b5cf6', trigger: 'SDOH' },
+  { id: 'agent-util',      libId: 'util-mgmt',       name: 'Eligibility Agent',            role: 'SUPPORTING', color: '#f59e0b', trigger: 'AUTH_EXPIRY' },
+  { id: 'agent-appeals',   libId: 'appeals',         name: 'Behavioral Health Agent',      role: 'COMPLIANCE', color: '#ef4444', trigger: 'BH' },
+  { id: 'agent-caregiver', libId: 'caregiver-intel', name: 'Caregiver Intelligence Agent', role: 'SPECIALIST', color: '#c084fc', trigger: 'CAREGIVER' },
+  { id: 'agent-financial', libId: 'financial-intel', name: 'Financial Intelligence Agent', role: 'SPECIALIST', color: '#10b981', trigger: 'COST' },
+];
+
+// Always-on foundation agents (Tier 1) — run for every scenario
+const ALWAYS_ON_LIB_IDS = ['graph-intel', 'identity', 'consent', 'person-state'];
+
+// Evaluate a member's active trigger codes from their knowledge-graph context.
+export function activeTriggers(p: RegistryPatient): Set<TriggerCode> {
+  const t = new Set<TriggerCode>(['CARE_GAP', 'AUTH_EXPIRY', 'COST']);
+  const sdoh =
+    /barrier|mile|insecur|waitlist|instab|assistance|not enrolled|expired|lapsed/i.test(
+      `${p.transportStatus || ''} ${p.foodSecurity || ''} ${p.housingStatus || ''} ${p.snapStatus || ''}`,
+    ) ||
+    /low income|rural/i.test(p.disparityFlag || '') ||
+    (p.careGaps || []).some((g) => g.domain === 'Social' && g.status !== 'Closed');
+  if (sdoh) t.add('SDOH');
+  if (p.household?.caregiverFor?.length) t.add('CAREGIVER');
+  if (p.bhRisk && p.bhRisk !== 'Low') t.add('BH');
+  return t;
+}
+
+// The dispatched domain coalition for a member (ordered, deterministic).
+export function dispatchAgentsForPatient(p: RegistryPatient): CoalitionAgent[] {
+  // Maria Redhawk — flagship authored coalition (the canonical 4-agent walkthrough).
+  if (p.platformId === 'MARIA_SD_001') {
+    const core = ['agent-care', 'agent-provider', 'agent-util', 'agent-appeals'];
+    return DOMAIN_COALITION.filter((a) => core.includes(a.id));
+  }
+  const active = activeTriggers(p);
+  return DOMAIN_COALITION.filter((a) => active.has(a.trigger));
+}
+
+// Marketplace drawdown — which library agent ids are dispatched/active for this member.
+export function dispatchedLibIds(p: RegistryPatient): Set<string> {
+  const ids = new Set<string>(ALWAYS_ON_LIB_IDS);
+  dispatchAgentsForPatient(p).forEach((a) => ids.add(a.libId));
+  return ids;
+}
 
 const STATUS_CONFIG = {
   active: { label: 'ACTIVE', color: '#42be65', bg: 'rgba(66,190,101,0.12)' },
@@ -322,7 +386,12 @@ function RegisterAgentModal({ onClose }: { onClose: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function AgentLibraryPage() {
-  const { currentScreenId, setScreen, goNext, goPrev } = useDemoStore();
+  // Screen navigation (Up/Down arrows) is handled centrally by PresenterControls.
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const dispatched = dispatchedLibIds(reg);
+  const totalAgents = TIERS.reduce((n, t) => n + t.agents.length, 0);
+  const govCount = TIERS.find((t) => t.id === 't4')?.agents.length ?? 0;
   const [selectedAgent, setSelectedAgent] = useState<AgentEntry | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [expandedTier, setExpandedTier] = useState<string | null>('t3');
@@ -346,14 +415,14 @@ export default function AgentLibraryPage() {
               </span>
             </div>
             <span className="text-white font-semibold" style={{ fontSize: '20px' }}>
-              31 Agents — 5 Tiers
+              {totalAgents} Agents — {TIERS.length} Tiers
             </span>
           </div>
           <div className="flex items-center gap-3">
             {[
-              { label: 'Total Registered', value: '31', color: '#f4f4f4' },
-              { label: 'Active This Scenario', value: '8', color: '#42be65' },
-              { label: 'Governance Overlay', value: '9', color: '#f1c21b' },
+              { label: 'Total Registered', value: String(totalAgents), color: '#f4f4f4' },
+              { label: 'Active This Scenario', value: String(dispatched.size), color: '#42be65' },
+              { label: 'Governance Overlay', value: String(govCount), color: '#f1c21b' },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-end">
                 <span className="font-mono font-bold" style={{ fontSize: '16px', color: stat.color }}>{stat.value}</span>
@@ -402,14 +471,16 @@ export default function AgentLibraryPage() {
                       {tier.agents.map((agent) => {
                         const statusCfg = STATUS_CONFIG[agent.status];
                         const isSelected = selectedAgent?.id === agent.id;
+                        const isDispatched = dispatched.has(agent.id);
                         return (
                           <button
                             key={agent.id}
                             onClick={() => setSelectedAgent(isSelected ? null : agent)}
                             className="rounded flex flex-col gap-1.5 text-left transition-all duration-200"
                             style={{
-                              background: isSelected ? `${agent.color}12` : 'rgba(28,28,28,0.7)',
-                              border: `1px solid ${isSelected ? agent.color + '50' : 'rgba(57,57,57,0.5)'}`,
+                              background: isSelected ? `${agent.color}12` : isDispatched ? `${agent.color}0c` : 'rgba(28,28,28,0.7)',
+                              border: `1px solid ${isSelected ? agent.color + '50' : isDispatched ? agent.color + '70' : 'rgba(57,57,57,0.5)'}`,
+                              boxShadow: isDispatched ? `0 0 10px ${agent.color}40` : 'none',
                               padding: '10px 12px',
                               cursor: 'pointer',
                             }}
@@ -421,14 +492,15 @@ export default function AgentLibraryPage() {
                                   style={{ width: 6, height: 6, background: agent.color, boxShadow: `0 0 4px ${agent.color}60` }}
                                 />
                               </div>
-                              <div
-                                className="rounded px-1.5 py-0.5"
-                                style={{ background: statusCfg.bg }}
-                              >
-                                <span className="font-mono" style={{ fontSize: '8px', color: statusCfg.color, letterSpacing: '0.06em' }}>
-                                  {statusCfg.label}
-                                </span>
-                              </div>
+                              {isDispatched ? (
+                                <div className="rounded px-1.5 py-0.5" style={{ background: `${agent.color}22`, border: `1px solid ${agent.color}55` }}>
+                                  <span className="font-mono font-bold" style={{ fontSize: '8px', color: agent.color, letterSpacing: '0.06em' }}>DISPATCHED</span>
+                                </div>
+                              ) : (
+                                <div className="rounded px-1.5 py-0.5" style={{ background: statusCfg.bg }}>
+                                  <span className="font-mono" style={{ fontSize: '8px', color: statusCfg.color, letterSpacing: '0.06em' }}>{statusCfg.label}</span>
+                                </div>
+                              )}
                             </div>
                             <span className="font-semibold" style={{ fontSize: '11px', color: '#f4f4f4', lineHeight: 1.2 }}>{agent.name}</span>
                             <span style={{ fontSize: '9px', color: '#6f6f6f', lineHeight: 1.4 }}>{agent.function.substring(0, 60)}...</span>
@@ -543,7 +615,7 @@ export default function AgentLibraryPage() {
         </div>
       </div>
 
-      <PresenterControls />
+      <PresenterControls currentScreenId="agent-library" />
       {showRegisterModal && <RegisterAgentModal onClose={() => setShowRegisterModal(false)} />}
     </ScreenLayout>
   );

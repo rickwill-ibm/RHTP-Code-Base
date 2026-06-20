@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import GovernanceBorder from '@/uhg/components/shared/GovernanceBorder';
 import { useDemoStore } from '@/uhg/store/demoStore';
-import { scenario } from '@/uhg/data/scenario';
+import { scenarioFor } from '@/uhg/data/scenarioRegistry';
+import { getPatientById } from '@/lib/patientRegistry';
+import { journeyForPatient } from '@/uhg/data/journeys';
 import { SignalGeneratorEngine, Signal } from '@/uhg/lib/signalGenerator';
 import JourneyStatePanel from '@/uhg/components/shared/JourneyStatePanel';
 
@@ -49,61 +51,8 @@ interface LiveStats {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const REASONING_LINES = [
-  { id: 'rl-01', text: 'SCENARIO INTAKE → MARIA_SD_001 — complexity HIGH — 4 conditions detected', delay: 0 },
-  { id: 'rl-02', text: 'DECOMPOSING → building constraint hierarchy...', delay: 700 },
-  { id: 'rl-03', text: '  constraint hierarchy: appeal deadline HARD STOP | eligibility BLOCKS auth renewal | follow-up TIME-BOUND 30d', delay: 1400 },
-  { id: 'rl-04', text: 'DOMAIN OWNERSHIP ASSIGNED:', delay: 2100 },
-  { id: 'rl-05', text: '  Clinical Care Agent PRIMARY — owns conditions 1+4 | Social / SDOH Agent CONCURRENT — owns condition 2', delay: 2800 },
-  { id: 'rl-06', text: '  Eligibility Agent SUPPORTING — owns condition 1 | Behavioral Health Agent COMPLIANCE — owns condition 3', delay: 3200 },
-  { id: 'rl-07', text: 'GOVERNANCE active monitoring — policy boundary enforcement ON — audit trail initialized', delay: 3800 },
-  { id: 'rl-08', text: 'DISPATCHING → all domain agents activating concurrently at T+0.0s ──────────────────────────────────', delay: 4600 },
-];
-
-const AGENT_PANELS: AgentPanelData[] = [
-  {
-    id: 'agent-care', name: 'Clinical Care Agent', role: 'PRIMARY', roleColor: '#0C55B8', owns: [1, 4],
-    color: 'rgba(12,85,184,0.1)', borderColor: 'rgba(12,85,184,0.35)',
-    activities: [
-      { id: 'ca-01', text: 'Assess → Auth CAREGAP_HBA1C renewal workflow initiated — HbA1c lab order', type: 'info', timestamp: 'T+0.0s' },
-      { id: 'ca-02', text: 'Review → Clinical evidence package assembling — 3 records queued', type: 'info', timestamp: 'T+0.8s' },
-      { id: 'ca-03', text: 'Approve → Care gap CAREGAP_001 closure protocol activated — HbA1c order placed', type: 'success', timestamp: 'T+1.4s' },
-      { id: 'ca-04', text: 'Monitor → SDOH risk protocol ACTIVE — 30d monitoring window open', type: 'warning', timestamp: 'T+2.1s' },
-      { id: 'ca-05', text: 'Notify → Outreach scheduled 10am — PORTAL channel — combined auth+gap message', type: 'success', timestamp: 'T+2.8s' },
-    ],
-  },
-  {
-    id: 'agent-provider', name: 'Social / SDOH Agent', role: 'CONCURRENT', roleColor: '#8b5cf6', owns: [2],
-    color: 'rgba(139,92,246,0.08)', borderColor: 'rgba(139,92,246,0.3)',
-    activities: [
-      { id: 'pa-01', text: 'Inform → Auth status notification queued → Bennett County Health EHR system', type: 'info', timestamp: 'T+0.0s' },
-      { id: 'pa-02', text: 'Assess → Eligibility gap PROVIDER_001 flagged — 21 days remaining', type: 'warning', timestamp: 'T+0.6s' },
-      { id: 'pa-03', text: 'Assist → Eligibility renewal initiated — Bennett County Health', type: 'info', timestamp: 'T+1.2s' },
-      { id: 'pa-04', text: 'Resolve → Episode continuity alert issued — postpartum episode continuity PRESERVED', type: 'success', timestamp: 'T+1.9s' },
-      { id: 'pa-05', text: 'Escalate → Provider enablement contact initiated — NPI 1234567890 notified', type: 'info', timestamp: 'T+2.5s' },
-    ],
-  },
-  {
-    id: 'agent-util', name: 'Eligibility Agent', role: 'SUPPORTING', roleColor: '#f59e0b', owns: [1],
-    color: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.28)',
-    activities: [
-      { id: 'ua-01', text: 'Detect → Supporting Clinical Care Agent on condition 1 — auth contested review', type: 'info', timestamp: 'T+0.0s' },
-      { id: 'ua-02', text: 'Investigate → Clinical necessity criteria pulled — SD Medicaid coverage policy', type: 'info', timestamp: 'T+0.9s' },
-      { id: 'ua-03', text: 'Prevent → Clinical criteria met — supporting documentation assembled', type: 'success', timestamp: 'T+1.7s' },
-      { id: 'ua-04', text: 'Recover → Eligibility review submitted — integrity check passed — expected response 4hr', type: 'info', timestamp: 'T+2.3s' },
-    ],
-  },
-  {
-    id: 'agent-appeals', name: 'Behavioral Health Agent', role: 'COMPLIANCE', roleColor: '#ef4444', owns: [3],
-    color: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.28)',
-    activities: [
-      { id: 'aa-01', text: 'Assess → Appeal condition 3 — CRITICAL regulatory deadline T-72h', type: 'critical', timestamp: 'T+0.0s' },
-      { id: 'aa-02', text: 'Review → SD Medicaid review requirements verified — clinical necessity determination required', type: 'warning', timestamp: 'T+0.7s' },
-      { id: 'aa-03', text: 'Prepare → Appeal response draft assembling — 3 supporting records attached', type: 'info', timestamp: 'T+1.5s' },
-      { id: 'aa-04', text: 'HOLD → ACTION READY: Automated appeal response — GOVERNANCE INTERCEPT REQUIRED', type: 'critical', timestamp: 'T+2.2s' },
-    ],
-  },
-];
+// sc.reasoningLines and sc.agentPanels are now sourced per active citizen from
+// scenarioFor(activeCitizenId).reasoningLines / .agentPanels — see scenarioRegistry.ts.
 
 const SCENARIO_SEVERITY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   HIGH: { bg: 'rgba(239,68,68,0.12)', text: '#ef4444', border: 'rgba(239,68,68,0.35)' },
@@ -170,17 +119,12 @@ function fmtMs(ms: number): string {
 
 // ─── Agent Status Bar (top-level summary) ─────────────────────────────────────
 
-function AgentStatusBar({ metrics, agentStatuses, intercepted }: {
+function AgentStatusBar({ metrics, agentStatuses, intercepted, agents }: {
   metrics: Record<string, AgentRuntimeMetrics>;
   agentStatuses: Record<string, AgentStatus>;
   intercepted: boolean;
+  agents: { id: string; name: string; roleColor: string }[];
 }) {
-  const agents = [
-    { id: 'agent-care',    name: 'Care',        roleColor: '#0C55B8' },
-    { id: 'agent-provider',name: 'Provider',    roleColor: '#8b5cf6' },
-    { id: 'agent-util',    name: 'Eligibility', roleColor: '#f59e0b' },
-    { id: 'agent-appeals', name: 'Behavioral Health',     roleColor: '#ef4444' },
-  ];
 
   return (
     <div
@@ -547,7 +491,40 @@ const AGENT_DECISION_TREES: Record<string, DecisionTreeData> = {
 
 // ─── Decision Tree Modal ──────────────────────────────────────────────────────
 
+interface DTTokens { id: string; name: string; firstName: string; org: string; topGapName: string; gapId: string; episode: string; contract: string; day: number; window: number; }
+
+function personalizeDT(s: string, t: DTTokens): string {
+  return s
+    .replace(/Maria Redhawk/g, t.name)
+    .replace(/CAREGAP_HBA1C/g, t.gapId)
+    .replace(/CAREGAP_001/g, t.gapId)
+    .replace(/HbA1c/g, t.topGapName)
+    .replace(/Bennett County Health/g, t.org)
+    .replace(/Day 34 of 90-day post-acute postpartum episode/g, `Day ${t.day} of ${t.window}-day ${t.episode} episode`)
+    .replace(/Day 34 of 90-day/g, `Day ${t.day} of ${t.window}-day`)
+    .replace(/Day 34/g, `Day ${t.day}`)
+    .replace(/post-acute postpartum/gi, `post-acute ${t.episode}`)
+    .replace(/postpartum episode/gi, `${t.episode} episode`)
+    .replace(/postpartum/gi, t.episode)
+    .replace(/diabetes episode/g, `${t.episode} episode`)
+    .replace(/SD Medicaid coverage policy/g, `${t.contract} coverage policy`)
+    .replace(/Q4 SD Medicaid/g, t.contract)
+    .replace(/\bMaria\b/g, t.firstName);
+}
+
 function DecisionTreeModal({ data, onClose }: { data: DecisionTreeData; onClose: () => void }) {
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const journey = journeyForPatient(reg);
+  const topGap = (reg.careGaps || []).find((g) => g.domain === 'Clinical' && g.status !== 'Closed') || reg.careGaps?.[0];
+  const t: DTTokens = {
+    id: reg.platformId, name: reg.name, firstName: reg.name.split(' ')[0],
+    org: reg.organization.replace(/ \(.*\)/, ''),
+    topGapName: topGap ? topGap.name.replace(/ \(.*\)/, '') : 'Care gap',
+    gapId: topGap ? `CAREGAP_${topGap.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8)}` : 'CAREGAP_001',
+    episode: reg.episodeType, contract: reg.contract, day: journey.currentDay, window: journey.windowDays,
+  };
+  const px = (v: string) => personalizeDT(v, t);
   return (
     <div
       className="absolute inset-0 z-50 flex items-center justify-center fade-in"
@@ -614,7 +591,7 @@ function DecisionTreeModal({ data, onClose }: { data: DecisionTreeData; onClose:
                   >
                     <span className="font-mono" style={{ fontSize: '9px', color: node.color || '#78a9ff', letterSpacing: '0.08em' }}>{node.label}</span>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#c6c6c6', lineHeight: 1.5 }}>{node.value}</span>
+                  <span style={{ fontSize: '12px', color: '#c6c6c6', lineHeight: 1.5 }}>{px(node.value)}</span>
                 </div>
               ))}
             </div>
@@ -639,7 +616,7 @@ function DecisionTreeModal({ data, onClose }: { data: DecisionTreeData; onClose:
                   >
                     <span className="font-mono" style={{ fontSize: '9px', color: node.color || '#f59e0b', letterSpacing: '0.08em' }}>{node.label}</span>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#c6c6c6', lineHeight: 1.5 }}>{node.value}</span>
+                  <span style={{ fontSize: '12px', color: '#c6c6c6', lineHeight: 1.5 }}>{px(node.value)}</span>
                 </div>
               ))}
             </div>
@@ -661,7 +638,7 @@ function DecisionTreeModal({ data, onClose }: { data: DecisionTreeData; onClose:
                   <div className="flex-shrink-0 mt-1">
                     <span style={{ fontSize: '12px', color: '#ef4444' }}>✕</span>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#8d8d8d', lineHeight: 1.5 }}>{node.value}</span>
+                  <span style={{ fontSize: '12px', color: '#8d8d8d', lineHeight: 1.5 }}>{px(node.value)}</span>
                 </div>
               ))}
             </div>
@@ -679,14 +656,14 @@ function DecisionTreeModal({ data, onClose }: { data: DecisionTreeData; onClose:
             >
               <div className="flex items-start gap-3">
                 <span style={{ fontSize: '16px', flexShrink: 0 }}>►</span>
-                <span className="font-semibold text-white" style={{ fontSize: '14px', lineHeight: 1.4 }}>{data.finalAction.label}</span>
+                <span className="font-semibold text-white" style={{ fontSize: '14px', lineHeight: 1.4 }}>{px(data.finalAction.label)}</span>
               </div>
               <div
                 className="rounded px-4 py-3"
                 style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}
               >
                 <div className="font-mono mb-1.5" style={{ fontSize: '9px', color: '#6f6f6f', letterSpacing: '0.1em' }}>RATIONALE</div>
-                <p style={{ fontSize: '12px', color: '#a8a8a8', lineHeight: 1.65 }}>{data.finalAction.rationale}</p>
+                <p style={{ fontSize: '12px', color: '#a8a8a8', lineHeight: 1.65 }}>{px(data.finalAction.rationale)}</p>
               </div>
             </div>
           </section>
@@ -698,7 +675,7 @@ function DecisionTreeModal({ data, onClose }: { data: DecisionTreeData; onClose:
           style={{ borderTop: `1px solid ${data.agentColor}20`, background: 'rgba(0,0,0,0.2)' }}
         >
           <span className="font-mono" style={{ fontSize: '10px', color: '#4b5563', letterSpacing: '0.08em' }}>
-            DECISION TREE — {data.agentName.toUpperCase()} — MARIA_SD_001
+            DECISION TREE — {data.agentName.toUpperCase()} — {t.id}
           </span>
           <button
             onClick={onClose}
@@ -720,11 +697,13 @@ const INITIAL_METRICS: Record<string, AgentRuntimeMetrics> = {
   'agent-provider': { state: 'idle', queueDepth: 0, execTimeMs: 0, tasksCompleted: 0 },
   'agent-util':     { state: 'idle', queueDepth: 0, execTimeMs: 0, tasksCompleted: 0 },
   'agent-appeals':  { state: 'idle', queueDepth: 0, execTimeMs: 0, tasksCompleted: 0 },
+  'agent-caregiver':{ state: 'idle', queueDepth: 0, execTimeMs: 0, tasksCompleted: 0 },
+  'agent-financial':{ state: 'idle', queueDepth: 0, execTimeMs: 0, tasksCompleted: 0 },
 };
 
 // Initial queue depths per agent (tasks to process)
 const AGENT_INITIAL_QUEUE: Record<string, number> = {
-  'agent-care': 5, 'agent-provider': 5, 'agent-util': 4, 'agent-appeals': 4,
+  'agent-care': 5, 'agent-provider': 5, 'agent-util': 4, 'agent-appeals': 4, 'agent-caregiver': 4, 'agent-financial': 4,
 };
 
 // ─── Controller 5 Cognitive Functions ────────────────────────────────────────
@@ -748,16 +727,32 @@ const STRATEGIC_AGENTS = [
   { id: 'sa-network',    label: 'Network Optimization',detail: 'Network adequacy · Provider alignment · Gaps', color: '#8b5cf6' },
 ];
 
-export default function ControllerScreen() {
+function ControllerScreenInner() {
   const setScreen = useDemoStore((s) => s.setScreen);
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const sc = useMemo(() => scenarioFor(activeCitizenId), [activeCitizenId]);
+  // Per-citizen tokens for the authored "resolved" caregiver/med-management + consent threads,
+  // so they bind to the active patient + their cared-for (caregiverFor) member instead of Maria/Elena.
+  const reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const firstName = reg.name.split(' ')[0];
+  const orgName = reg.organization.replace(/ \(.*\)/, '');
+  const pcpName = reg.pcp || orgName;
+  const cg = reg.household?.caregiverFor?.[0];
+  const cgName = cg?.name ?? 'cared-for member';
+  const cgFirst = cg ? cg.name.split(' ')[0] : 'cared-for member';
+  const cgMed1 = cg?.meds?.[0]?.name ?? 'Medication A';
+  const cgMed2 = cg?.meds?.[1]?.name ?? cg?.meds?.[0]?.name ?? 'Medication B';
+  const cgPrescriber = cg?.prescriber ?? orgName;
+  const cgPharmacy = cg?.pharmacy ?? 'Pharmacy';
+  const careMgrName = reg.careManager || 'Care Manager';
   const governanceInterceptTriggered = useDemoStore((s) => s.governanceInterceptTriggered);
-  const [agentStatus, setAgentStatus] = useState<Record<string, AgentStatus>>({
-    'agent-care': 'idle', 'agent-provider': 'idle', 'agent-util': 'idle', 'agent-appeals': 'idle',
-  });
+  const [agentStatus, setAgentStatus] = useState<Record<string, AgentStatus>>(() =>
+    Object.fromEntries(sc.agentPanels.map((a) => [a.id, 'idle' as AgentStatus])),
+  );
   const [visibleReasoningLines, setVisibleReasoningLines] = useState<string[]>([]);
-  const [visibleActivities, setVisibleActivities] = useState<Record<string, number>>({
-    'agent-care': 0, 'agent-provider': 0, 'agent-util': 0, 'agent-appeals': 0,
-  });
+  const [visibleActivities, setVisibleActivities] = useState<Record<string, number>>(() =>
+    Object.fromEntries(sc.agentPanels.map((a) => [a.id, 0])),
+  );
   const [dispatched, setDispatched] = useState(false);
   const [governanceState, setGovernanceState] = useState<'purple' | 'amber'>('purple');
   const [interceptBanner, setInterceptBanner] = useState(false);
@@ -776,7 +771,9 @@ export default function ControllerScreen() {
   const [queueCountdown, setQueueCountdown] = useState({ 'SCN-002': '4:32', 'SCN-003': '7:15', 'SCN-004': '2:48' });
   const [liveStats, setLiveStats] = useState<LiveStats>(BASE_LIVE_STATS);
   // Real-time agent runtime metrics
-  const [agentMetrics, setAgentMetrics] = useState<Record<string, AgentRuntimeMetrics>>(INITIAL_METRICS);
+  const [agentMetrics, setAgentMetrics] = useState<Record<string, AgentRuntimeMetrics>>(() =>
+    Object.fromEntries(sc.agentPanels.map((a) => [a.id, { state: 'idle' as AgentState, queueDepth: 0, execTimeMs: 0, tasksCompleted: 0 }])),
+  );
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const popIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const metricsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -810,7 +807,7 @@ export default function ControllerScreen() {
       setAgentMetrics((prev) => {
         const next = { ...prev };
         const statuses = agentStatusRef.current;
-        AGENT_PANELS.forEach((agent) => {
+        sc.agentPanels.forEach((agent) => {
           const status = statuses[agent.id];
           const m = { ...next[agent.id] };
           if (status === 'activating') {
@@ -920,7 +917,7 @@ export default function ControllerScreen() {
   useEffect(() => {
     if (!triggerDismissed) return;
 
-    REASONING_LINES.forEach((line) => {
+    sc.reasoningLines.forEach((line) => {
       const t = setTimeout(() => {
         setVisibleReasoningLines((prev) => [...prev, line.id]);
       }, line.delay);
@@ -929,7 +926,7 @@ export default function ControllerScreen() {
 
     const dispatchTimer = setTimeout(() => {
       setDispatched(true);
-      AGENT_PANELS.forEach((agent) => {
+      sc.agentPanels.forEach((agent) => {
         setAgentStatus((prev) => ({ ...prev, [agent.id]: 'activating' }));
         const activeTimer = setTimeout(() => {
           setAgentStatus((prev) => ({ ...prev, [agent.id]: 'active' }));
@@ -1101,6 +1098,7 @@ export default function ControllerScreen() {
           metrics={agentMetrics}
           agentStatuses={agentStatus}
           intercepted={governanceState === 'amber'}
+          agents={sc.agentPanels.map((a) => ({ id: a.id, name: a.name.replace(/ (Intelligence )?Agent$/, '').replace('Social / SDOH', 'SDOH').replace('Clinical Care', 'Care').replace('Behavioral Health', 'Behavioral'), roleColor: a.roleColor }))}
         />
 
         {/* Main Layout */}
@@ -1114,11 +1112,11 @@ export default function ControllerScreen() {
               <div className="flex items-center gap-2 mb-3">
                 <span className="font-mono uppercase tracking-wider" style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.12em' }}>SCENARIO INTAKE</span>
                 <div className="rounded px-2 py-0.5" style={{ background: 'rgba(250,77,86,0.15)', border: '1px solid rgba(250,77,86,0.35)' }}>
-                  <span className="font-mono" style={{ fontSize: '10px', color: '#fa4d56' }}>MARIA_SD_001</span>
+                  <span className="font-mono" style={{ fontSize: '10px', color: '#fa4d56' }}>{sc.id}</span>
                 </div>
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                {scenario.conditions.map((cond) => {
+                {sc.conditions.map((cond) => {
                   const sevStyle = SCENARIO_SEVERITY_COLORS[cond.severity] || SCENARIO_SEVERITY_COLORS.LOW;
                   return (
                     <div key={`cond-${cond.id}`} className="rounded px-3 py-2.5 flex items-start gap-2" style={{ background: sevStyle.bg, border: `1px solid ${sevStyle.border}` }}>
@@ -1168,14 +1166,14 @@ export default function ControllerScreen() {
                 )}
               </div>
               <div className="font-mono flex flex-col gap-2 flex-1">
-                {REASONING_LINES.map((line) => (
+                {sc.reasoningLines.map((line) => (
                   <div key={line.id} className="transition-all duration-300" style={{ opacity: visibleReasoningLines.includes(line.id) ? 1 : 0, transform: visibleReasoningLines.includes(line.id) ? 'translateY(0)' : 'translateY(4px)' }}>
                     <span style={{ fontSize: '12px', lineHeight: 1.65, color: line.text.startsWith('  ') ? '#8d8d8d' : line.text.includes('DISPATCHING') ? '#42be65' : line.text.includes('GOVERNANCE') ? '#8b5cf6' : line.text.includes('DECOMPOSING') || line.text.includes('INTAKE') ? '#78a9ff' : '#c6c6c6', fontWeight: line.text.includes('DISPATCHING') ? 600 : 400 }}>
                       {line.text}
                     </span>
                   </div>
                 ))}
-                {visibleReasoningLines.length > 0 && visibleReasoningLines.length < REASONING_LINES.length && (
+                {visibleReasoningLines.length > 0 && visibleReasoningLines.length < sc.reasoningLines.length && (
                   <span className="typewriter-cursor font-mono" style={{ fontSize: '12px', color: '#FF6310' }} />
                 )}
               </div>
@@ -1215,10 +1213,10 @@ export default function ControllerScreen() {
                         </div>
                       </div>
                       <span style={{ fontSize: '10px', color: '#f4f4f4', lineHeight: 1.4 }}>
-                        Lisinopril (Bennett County Health) + Metformin (Dr. Patel) — same molecule — two active fills — two pharmacies
+                        {`${cgMed1} (${orgName}) + ${cgMed2} (${cgPrescriber}) — interaction risk — two active fills across prescribers`}
                       </span>
                       <div className="flex flex-col gap-0.5 mt-1">
-                        <span style={{ fontSize: '9px', color: '#f87171' }}>Confirm Maria aware of both prescriptions · Verify INR monitoring ownership</span>
+                        <span style={{ fontSize: '9px', color: '#f87171' }}>{`Confirm ${firstName} aware of both prescriptions · Verify monitoring ownership`}</span>
                         <span style={{ fontSize: '9px', color: '#f59e0b' }}>Med review enrolled partial · Prescriber alerts dispatched · Consent expansion pending</span>
                       </div>
                     </div>
@@ -1245,7 +1243,7 @@ export default function ControllerScreen() {
                       <span style={{ fontSize: '9px', color: '#06b6d4', fontWeight: 700 }}>SC</span>
                     </div>
                     <div>
-                      <span className="font-semibold" style={{ fontSize: '12px', color: '#f4f4f4' }}>Sarah Johnson</span>
+                      <span className="font-semibold" style={{ fontSize: '12px', color: '#f4f4f4' }}>{careMgrName}</span>
                       <span style={{ fontSize: '10px', color: '#8d8d8d', marginLeft: 6 }}>H1ab updated · barrier-aware brief loaded</span>
                     </div>
                   </div>
@@ -1290,13 +1288,13 @@ export default function ControllerScreen() {
                   </div>
                   <div className="rounded px-2.5 py-2 flex items-start gap-2" style={{ background: 'rgba(250,77,86,0.1)', border: '1px solid rgba(250,77,86,0.35)' }}>
                     <span style={{ fontSize: '10px', color: '#fa4d56', flexShrink: 0 }}>⚠</span>
-                    <span style={{ fontSize: '10px', color: '#f4f4f4', lineHeight: 1.4 }}>Lisinopril (Bennett County Health · CVS) + Metformin (Dr. Patel · Walgreens) — same molecule — two active fills</span>
+                    <span style={{ fontSize: '10px', color: '#f4f4f4', lineHeight: 1.4 }}>{`${cgMed1} (${orgName} · CVS) + ${cgMed2} (${cgPrescriber} · Walgreens) — interaction risk — two active fills`}</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     {[
-                      { label: 'Martin Pharmacy Med review', value: 'Enrolled — fill history only (partial)', color: '#f59e0b' },
-                      { label: 'Prescriber alerts', value: 'Bennett County Health + Dr. Patel — dispatched', color: '#42be65' },
-                      { label: 'Consent expansion', value: 'Queued — Maria outreach pending', color: '#78a9ff' },
+                      { label: `${cgPharmacy} Med review`, value: 'Enrolled — fill history only (partial)', color: '#f59e0b' },
+                      { label: 'Prescriber alerts', value: `${orgName} + ${cgPrescriber} — dispatched`, color: '#42be65' },
+                      { label: 'Consent expansion', value: `Queued — ${firstName} outreach pending`, color: '#78a9ff' },
                       { label: 'Re-activates if', value: 'Prescriber response not received in 48h', color: '#f1c21b' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-start gap-2">
@@ -1312,7 +1310,7 @@ export default function ControllerScreen() {
                     <span style={{ fontSize: '10px', color: '#8d8d8d' }}>CONSENT.DOMAIN.BOUNDARY.002 — intercept logged</span>
                     <button
                       onClick={() => setMtmInterceptBanner(true)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '9px', color: '#fa4d56', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(250,77,86,0.35)' }}
+                      style={{ background: 'none', cursor: 'pointer', fontSize: '9px', color: '#fa4d56', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(250,77,86,0.35)' }}
                     >
                       VIEW ↗
                     </button>
@@ -1329,7 +1327,7 @@ export default function ControllerScreen() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="rounded-full" style={{ width: 7, height: 7, background: '#42be65', flexShrink: 0, boxShadow: '0 0 5px #42be65' }} />
-                      <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#8b5cf6', letterSpacing: '0.1em' }}>PROVIDER INTELLIGENCE · DR. CHEN</span>
+                      <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#8b5cf6', letterSpacing: '0.1em' }}>{`PROVIDER INTELLIGENCE · ${pcpName.toUpperCase()}`}</span>
                     </div>
                     <div className="rounded px-1.5 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.4)' }}>
                       <span className="font-mono" style={{ fontSize: '8px', color: '#42be65' }}>DELIVERED ✓</span>
@@ -1337,11 +1335,11 @@ export default function ControllerScreen() {
                   </div>
                   <div className="rounded px-2.5 py-2 flex items-start gap-2" style={{ background: 'rgba(66,190,101,0.08)', border: '1px solid rgba(66,190,101,0.3)' }}>
                     <span style={{ fontSize: '10px', color: '#42be65', flexShrink: 0 }}>✓</span>
-                    <span style={{ fontSize: '10px', color: '#f4f4f4', lineHeight: 1.4 }}>CDS Hook fired — appointment: 2024-11-15 10:00am · FHIR R4 · Bennett County Health EHR</span>
+                    <span style={{ fontSize: '10px', color: '#f4f4f4', lineHeight: 1.4 }}>{`CDS Hook fired — appointment: 2024-11-15 10:00am · FHIR R4 · ${orgName} EHR`}</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     {[
-                      { label: 'Duplicate therapy alert', value: 'Dispatched to EHR — Lisinopril + Metformin flagged', color: '#fa4d56' },
+                      { label: 'Interaction alert', value: `Dispatched to EHR — ${cgMed1} + ${cgMed2} flagged`, color: '#fa4d56' },
                       { label: 'HbA1c care gap', value: 'Prompted — 47-day window flagged in brief', color: '#f1c21b' },
                       { label: 'Auth pre-approval', value: 'Visible in EHR — ready to order at visit', color: '#42be65' },
                       { label: 'SDOH context', value: 'Transport barrier surfaced — clinic referral risk noted', color: '#8b5cf6' },
@@ -1357,7 +1355,7 @@ export default function ControllerScreen() {
                   </div>
                   <div className="rounded px-2 py-1.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
                     <span style={{ fontSize: '10px', color: '#8d8d8d', lineHeight: 1.4 }}>
-                      Bennett County Health opens his EHR at 9:58am — full context pre-assembled before Maria arrives
+                      {`${orgName} opens the EHR at 9:58am — full context pre-assembled before ${firstName} arrives`}
                     </span>
                   </div>
                 </div>
@@ -1382,8 +1380,8 @@ export default function ControllerScreen() {
                     </div>
                   )}
                 </div>
-                <div className="flex-1 grid gap-2.5 p-3 min-h-0" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
-                  {AGENT_PANELS.map((agent) => (
+                <div className="flex-1 grid gap-2.5 p-3 min-h-0" style={{ gridTemplateColumns: `repeat(${sc.agentPanels.length > 4 ? 3 : 2}, 1fr)`, gridTemplateRows: `repeat(${Math.ceil(sc.agentPanels.length / (sc.agentPanels.length > 4 ? 3 : 2))}, 1fr)` }}>
+                  {sc.agentPanels.map((agent) => (
                     <AgentPanel
                       key={agent.id}
                       agent={agent}
@@ -1404,13 +1402,13 @@ export default function ControllerScreen() {
                 <span className="font-mono uppercase tracking-wider" style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.12em' }}>LIVE SCENARIO QUEUE</span>
                 <div className="flex items-center gap-2">
                   <span style={{ fontSize: '11px', color: '#6f6f6f' }}>Background auto-resolved:</span>
-                  <span className="font-mono font-semibold text-tabular" style={{ fontSize: '14px', color: '#42be65' }}>{scenario.backgroundAutoResolved}</span>
+                  <span className="font-mono font-semibold text-tabular" style={{ fontSize: '14px', color: '#42be65' }}>{sc.backgroundAutoResolved}</span>
                 </div>
               </div>
               <div className="rounded px-3 py-2 mb-2 flex items-center justify-between" style={{ background: 'rgba(250,77,86,0.1)', border: '1px solid rgba(250,77,86,0.35)' }}>
                 <div className="flex items-center gap-2">
                   <div className="rounded-full" style={{ width: 7, height: 7, background: '#fa4d56', animation: 'authPulse 1s ease-in-out infinite' }} />
-                  <span className="font-mono font-semibold" style={{ fontSize: '13px', color: '#fa4d56' }}>MARIA_SD_001</span>
+                  <span className="font-mono font-semibold" style={{ fontSize: '13px', color: '#fa4d56' }}>{sc.id}</span>
                   <span style={{ fontSize: '12px', color: '#8d8d8d' }}>Complexity HIGH — 4 agents active</span>
                 </div>
                 <div className="rounded px-2 py-0.5" style={{ background: 'rgba(250,77,86,0.2)', border: '1px solid rgba(250,77,86,0.4)' }}>
@@ -1418,7 +1416,7 @@ export default function ControllerScreen() {
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                {scenario.otherScenarios.map((s) => (
+                {sc.otherScenarios.map((s) => (
                   <div key={s.id} className="flex items-center justify-between px-3 py-1.5 rounded" style={{ background: 'rgba(57,57,57,0.3)', border: '1px solid rgba(57,57,57,0.5)' }}>
                     <div className="flex items-center gap-2">
                       <div className="rounded-full" style={{ width: 5, height: 5, background: '#f1c21b' }} />
@@ -1526,11 +1524,7 @@ export default function ControllerScreen() {
                 <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.14em' }}>PHASE 1 — TRIGGER THRESHOLD CROSSED</span>
                 <div style={{ flex: 1, height: 1, background: 'rgba(57,57,57,0.8)' }} />
               </div>
-              {[
-                { sig: 'AUTH_EXPIRY', detail: 'CAREGAP_HBA1C expiring T-4 days — HbA1c lab order contested', color: '#f1c21b', ts: '14:31:18' },
-                { sig: 'CARE_GAP', detail: 'HbA1c gap CAREGAP_001 open 45 days — diabetes episode active', color: '#fa4d56', ts: '14:31:19' },
-                { sig: 'BEHAVIORAL', detail: 'Portal engagement 2x/week — high receptivity window detected', color: '#42be65', ts: '14:31:20' },
-              ].map((s, i) => (
+              {sc.trigger.signals.map((s, i) => (
                 visibleSignalCount > i ? (
                   <div
                     key={s.sig}
@@ -1587,19 +1581,19 @@ export default function ControllerScreen() {
                     {
                       icon: '◆',
                       label: 'SDOH PROFILE DISCOVERED',
-                      detail: 'Graph query returned: Financial ELEVATED · Transport PROBABLE · Caregiver Burden HIGH',
+                      detail: sc.trigger.sdohProfile,
                       color: '#f97316',
                     },
                     {
                       icon: '◆',
                       label: 'FAMILY CONTEXT',
-                      detail: 'Sophia — 6 active care gaps · Elena — Lisinopril ⚠ INR overdue',
+                      detail: sc.trigger.familyContext,
                       color: '#a78bfa',
                     },
                     {
                       icon: '◆',
                       label: 'JOURNEY POSITION',
-                      detail: 'Day 34 postpartum episode · Q4 SD Medicaid quality window critical · CAREGAP_HBA1C T-4',
+                      detail: sc.trigger.journeyPosition,
                       color: '#34d399',
                     },
                   ].map((item, i) => (
@@ -1799,7 +1793,7 @@ export default function ControllerScreen() {
                 <span className="font-mono font-semibold" style={{ fontSize: '12px', color: '#fa4d56', letterSpacing: '0.08em' }}>CONSENT.PROXY.SCOPE.BOUNDARY.001</span>
               </div>
               <p style={{ fontSize: '15px', color: '#c6c6c6', lineHeight: 1.6 }}>
-                Clinical Care Agent attempted to share Elena Redhawk (MBR-003) medication list with Maria's care coordinator. Maria holds scoped proxy consent — medication management only. Third-party disclosure is explicitly excluded from consent scope.
+                {`Clinical Care Agent attempted to share ${cgName} medication list with ${firstName}'s care coordinator. ${firstName} holds scoped proxy consent — medication management only. Third-party disclosure is explicitly excluded from consent scope.`}
               </p>
             </div>
             <div className="rounded p-4 flex flex-col gap-3" style={{ background: '#262626', border: '1px solid rgba(57,57,57,0.8)' }}>
@@ -1808,10 +1802,10 @@ export default function ControllerScreen() {
               </div>
               <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 {[
-                  { id: 'cs1', label: 'Proxy Holder', value: 'Maria Redhawk (MBR-001) — CAREGIVER_FOR Elena Redhawk (MBR-003)', color: '#c6c6c6' },
+                  { id: 'cs1', label: 'Proxy Holder', value: `${reg.name} (${reg.platformId}) — CAREGIVER_FOR ${cgName}`, color: '#c6c6c6' },
                   { id: 'cs2', label: 'Consent Scope', value: 'Medication management · Appointment coordination · Care gap notifications', color: '#42be65' },
                   { id: 'cs3', label: 'Attempted Action', value: 'Share medication list with third-party care coordinator', color: '#fa4d56' },
-                  { id: 'cs4', label: 'Scope Verdict', value: 'EXCLUDED — third-party disclosure not authorized by Elena', color: '#fa4d56' },
+                  { id: 'cs4', label: 'Scope Verdict', value: `EXCLUDED — third-party disclosure not authorized by ${cgFirst}`, color: '#fa4d56' },
                 ].map((item) => (
                   <div key={item.id} className="flex flex-col gap-1">
                     <span style={{ fontSize: '12px', color: '#8d8d8d' }}>{item.label}</span>
@@ -1827,14 +1821,14 @@ export default function ControllerScreen() {
                 <span className="font-mono uppercase" style={{ fontSize: '9px', color: '#8b5cf6', letterSpacing: '0.12em' }}>SUPERVISED AUTONOMY — CONSENT ARCHITECTURE</span>
               </div>
               <p style={{ fontSize: '13px', color: '#c6c6c6', lineHeight: 1.65, fontStyle: 'italic' }}>
-                The system didn't just verify that Maria has proxy consent. It verified that{' '}
+                The system didn't just verify that {firstName} has proxy consent. It verified that{' '}
                 <span style={{ color: '#8b5cf6', fontWeight: 600, fontStyle: 'normal' }}>this specific action</span>
-                {' '}— sharing Elena's medication list with a third party — falls outside the scope of that consent. That distinction is the difference between compliance theater and compliance architecture.
+                {' '}— sharing {cgFirst}'s medication list with a third party — falls outside the scope of that consent. That distinction is the difference between compliance theater and compliance architecture.
               </p>
               <div className="flex flex-col gap-1.5">
                 {[
-                  { label: 'Resolution Option A', value: 'Elena must grant expanded scope for third-party disclosure', color: '#f59e0b' },
-                  { label: 'Resolution Option B', value: 'Care coordinator contacts Elena directly — no proxy required', color: '#f59e0b' },
+                  { label: 'Resolution Option A', value: `${cgFirst} must grant expanded scope for third-party disclosure`, color: '#f59e0b' },
+                  { label: 'Resolution Option B', value: `Care coordinator contacts ${cgFirst} directly — no proxy required`, color: '#f59e0b' },
                   { label: 'Audit', value: 'Blocked action logged — agent ID, timestamp, scope analysis recorded', color: '#42be65' },
                 ].map((r) => (
                   <div key={r.label} className="flex items-start gap-2">
@@ -1851,7 +1845,7 @@ export default function ControllerScreen() {
               <div className="flex items-center gap-3">
                 <div className="rounded px-3 py-1.5 flex items-center gap-2" style={{ background: 'rgba(250,77,86,0.12)', border: '1px solid rgba(250,77,86,0.3)' }}>
                   <div className="rounded-full" style={{ width: 6, height: 6, background: '#fa4d56' }} />
-                  <span className="font-mono" style={{ fontSize: '12px', color: '#fa4d56' }}>Action blocked — Elena's consent boundary enforced</span>
+                  <span className="font-mono" style={{ fontSize: '12px', color: '#fa4d56' }}>{`Action blocked — ${cgFirst}'s consent boundary enforced`}</span>
                 </div>
                 <div className="rounded px-3 py-1.5 flex items-center gap-2" style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)' }}>
                   <div className="rounded-full" style={{ width: 6, height: 6, background: '#8b5cf6' }} />
@@ -1906,11 +1900,11 @@ export default function ControllerScreen() {
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-mono font-semibold" style={{ fontSize: '12px', color: '#fa4d56', letterSpacing: '0.08em' }}>CONSENT.DOMAIN.BOUNDARY.002</span>
                 <div className="rounded px-2 py-0.5" style={{ background: 'rgba(241,194,27,0.15)', border: '1px solid rgba(241,194,27,0.4)' }}>
-                  <span className="font-mono" style={{ fontSize: '9px', color: '#f1c21b' }}>AUDIT_20241115_144405_MARTIN PHARMACY_CONSENT_001</span>
+                  <span className="font-mono" style={{ fontSize: '9px', color: '#f1c21b' }}>{`AUDIT_20241115_144405_${cgPharmacy.toUpperCase().replace(/ /g,'_')}_CONSENT_001`}</span>
                 </div>
               </div>
               <p style={{ fontSize: '15px', color: '#c6c6c6', lineHeight: 1.6 }}>
-                A duplicate therapy condition was identified: <span style={{ color: '#fa4d56', fontWeight: 600 }}>Lisinopril 5mg (Bennett County Health · CVS #4821)</span> and <span style={{ color: '#f1c21b', fontWeight: 600 }}>Metformin 5mg (Dr. Patel · Walgreens #7734)</span> — same molecule, two active fills, two prescribers unaware of each other. Med review enrollment requires sharing diagnosis codes and postpartum episode context with Martin Pharmacy. Maria&apos;s Martin Pharmacy consent is <span style={{ color: '#f1c21b', fontWeight: 600 }}>LIMITED — fill history only</span>. Diagnosis codes are excluded.
+                A duplicate-therapy condition was identified: <span style={{ color: '#fa4d56', fontWeight: 600 }}>{`${cgMed1} (${orgName} · CVS #4821)`}</span> and <span style={{ color: '#f1c21b', fontWeight: 600 }}>{`${cgMed2} (${cgPrescriber} · Walgreens #7734)`}</span> — two active fills, two prescribers unaware of each other. Med review enrollment requires sharing diagnosis codes and episode context with {cgPharmacy}. {firstName}&apos;s {cgPharmacy} consent is <span style={{ color: '#f1c21b', fontWeight: 600 }}>LIMITED — fill history only</span>. Diagnosis codes are excluded.
               </p>
             </div>
 
@@ -1924,7 +1918,7 @@ export default function ControllerScreen() {
                 {[
                   { label: 'INR Stability', value: 'Unpredictable — dual anticoagulant load accumulates', color: '#fa4d56' },
                   { label: 'Bleeding Risk', value: 'ELEVATED — combined Lisinopril Sodium effect', color: '#fa4d56' },
-                  { label: 'Prescriber Awareness', value: 'Bennett County Health and Dr. Patel unaware of each other\'s prescription', color: '#f1c21b' },
+                  { label: 'Prescriber Awareness', value: `${orgName} and ${cgPrescriber} unaware of each other's prescription`, color: '#f1c21b' },
                   { label: 'Med review Effectiveness', value: 'Reduced — reconciliation incomplete without diagnosis context', color: '#f59e0b' },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-0.5">
@@ -1937,12 +1931,12 @@ export default function ControllerScreen() {
 
             {/* Consent domain analysis */}
             <div className="rounded p-4 flex flex-col gap-3" style={{ background: '#262626', border: '1px solid rgba(57,57,57,0.8)' }}>
-              <span className="font-mono uppercase" style={{ fontSize: '10px', color: '#8d8d8d', letterSpacing: '0.1em' }}>CONSENT DOMAIN ANALYSIS — MARTIN PHARMACY</span>
+              <span className="font-mono uppercase" style={{ fontSize: '10px', color: '#8d8d8d', letterSpacing: '0.1em' }}>{`CONSENT DOMAIN ANALYSIS — ${cgPharmacy.toUpperCase()}`}</span>
               <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                 {[
                   { label: 'Granted Scope', value: 'FILL_HISTORY', color: '#42be65' },
                   { label: 'Requested Scope', value: 'DIAGNOSIS_CODES · EPISODE_CONTEXT · Med review_ENROLLMENT', color: '#fa4d56' },
-                  { label: 'Verdict', value: 'BLOCKED — diagnosis codes excluded from Martin Pharmacy consent scope', color: '#fa4d56' },
+                  { label: 'Verdict', value: `BLOCKED — diagnosis codes excluded from ${cgPharmacy} consent scope`, color: '#fa4d56' },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-1">
                     <span style={{ fontSize: '11px', color: '#6f6f6f' }}>{item.label}</span>
@@ -1960,10 +1954,10 @@ export default function ControllerScreen() {
               </div>
               <div className="flex flex-col gap-2">
                 {[
-                  { num: '1', label: 'Prescriber alerts dispatched', detail: 'Bennett County Health (NPI 1234567890) + Dr. Patel notified — duplicate therapy flag — reconciliation required', status: 'DISPATCHED', statusColor: '#42be65' },
-                  { num: '2', label: 'Med review enrolled — fill history only', detail: 'Martin Pharmacy Med review initiated with fill history — flags duplicate, no clinical context — partial effectiveness', status: 'ACTIVE', statusColor: '#f59e0b' },
-                  { num: '3', label: 'Consent expansion request queued', detail: 'Member outreach to request expanded Martin Pharmacy consent — Sarah Johnson 10am outreach includes consent ask', status: 'QUEUED', statusColor: '#78a9ff' },
-                  { num: '4', label: 'Care manager briefed — Sarah Johnson', detail: 'H1ab view updated — duplicate therapy critical alert loaded — manual reconciliation option available', status: 'COMPLETE', statusColor: '#42be65' },
+                  { num: '1', label: 'Prescriber alerts dispatched', detail: `${orgName} + ${cgPrescriber} notified — duplicate therapy flag — reconciliation required`, status: 'DISPATCHED', statusColor: '#42be65' },
+                  { num: '2', label: 'Med review enrolled — fill history only', detail: `${cgPharmacy} Med review initiated with fill history — flags duplicate, no clinical context — partial effectiveness`, status: 'ACTIVE', statusColor: '#f59e0b' },
+                  { num: '3', label: 'Consent expansion request queued', detail: `Member outreach to request expanded ${cgPharmacy} consent — ${careMgrName} 10am outreach includes consent ask`, status: 'QUEUED', statusColor: '#78a9ff' },
+                  { num: '4', label: `Care manager briefed — ${careMgrName}`, detail: 'H1ab view updated — duplicate therapy critical alert loaded — manual reconciliation option available', status: 'COMPLETE', statusColor: '#42be65' },
                 ].map((opt) => (
                   <div key={opt.num} className="flex items-start gap-3 rounded px-3 py-2" style={{ background: `${opt.statusColor}08`, border: `1px solid ${opt.statusColor}25` }}>
                     <div className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 20, height: 20, background: `${opt.statusColor}20`, border: `1px solid ${opt.statusColor}50` }}>
@@ -2015,4 +2009,9 @@ export default function ControllerScreen() {
       )}
     </ScreenLayout>
   );
+}
+
+export default function ControllerScreen() {
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  return <ControllerScreenInner key={activeCitizenId} />;
 }

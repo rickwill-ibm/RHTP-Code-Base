@@ -1,180 +1,104 @@
 'use client';
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import { useDemoStore } from '@/uhg/store/demoStore';
+import { contextFor } from '@/uhg/data/citizenContext';
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+// All four fragmentation layers are derived per active citizen from contextFor(activeCitizenId)
+// inside the component (see buildFragmentation). Default = Maria Redhawk.
 
-const INTERNAL_ENTITIES = [
-  {
-    id: 'uhc',
-    name: 'SD Medicaid',
-    abbr: 'SD MEDICAID',
-    color: '#3b82f6',
-    sees: ['Eligibility & benefits', 'Claims & renewal', 'SNAP/WIC/LIHEAP'],
-    blindTo: 'Clinical episodes, SDOH barriers, BH (42 CFR gated)',
-  },
-  {
-    id: 'optumhealth',
-    name: 'Bennett County Health',
-    abbr: 'BENNETT CAH',
-    color: '#22c55e',
-    sees: ['Clinical encounters', 'EHR record', 'Care protocols'],
-    blindTo: 'Medicaid auth status, pharmacy fills, social services',
-  },
-  {
-    id: 'optumrx',
-    name: 'Martin Pharmacy',
-    abbr: 'MARTIN RX',
-    color: '#a855f7',
-    sees: ['Family fills (Elena + Sophia)', 'Adherence', 'Refill timing'],
-    blindTo: 'Clinical episodes, diagnoses, claims context',
-  },
-  {
-    id: 'rally',
-    name: 'RHTP Care Management',
-    abbr: 'RHTP CM',
-    color: '#f59e0b',
-    sees: ['Care plan & tasks', 'Open care gaps', 'CM: Sarah Johnson'],
-    blindTo: 'Benefit enrollment, live pharmacy signals',
-  },
-  {
-    id: 'change',
-    name: 'CBO / Social Services',
-    abbr: 'CBO/SOCIAL',
-    color: '#06b6d4',
-    sees: ['SNAP/WIC/LIHEAP', 'Housing waitlist', 'Childcare subsidy'],
-    blindTo: 'The whole person — no clinical, eligibility, or BH link',
-  },
-];
+const ENTITY_COLORS = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#06b6d4', '#f97316'];
 
-const SYSTEMS = [
-  {
-    id: 'claims',
-    name: 'MMIS / CLAIMS',
-    color: '#3b82f6',
-    knows: ['Cost trajectory', 'Procedure codes', 'Billing history'],
-    blindSpot: 'No clinical context',
-  },
-  {
-    id: 'ehr',
-    name: 'CAH EHR',
-    color: '#22c55e',
-    knows: ['Clinical record', 'Diagnosis history', 'Medication list'],
-    blindSpot: 'No Medicaid auth status',
-  },
-  {
-    id: 'auth',
-    name: 'ELIGIBILITY',
-    color: '#f59e0b',
-    knows: ['Medicaid active', 'Renewal T+89d', 'Benefit status'],
-    blindSpot: 'No care gap view',
-  },
-  {
-    id: 'care',
-    name: 'RHTP CARE MGMT',
-    color: '#a855f7',
-    knows: ['Care plan active', 'HbA1c gap open', 'PND 427d overdue'],
-    blindSpot: 'No benefit-enrollment link',
-  },
-  {
-    id: 'h1ab',
-    name: 'PHARMACY',
-    color: '#06b6d4',
-    knows: ['Martin Pharmacy', 'Family fills (Elena + Sophia)', 'Refill sync'],
-    blindSpot: 'No live clinical signals',
-    badge: 'FAMILY HUB',
-  },
-  {
-    id: 'employer',
-    name: 'BH · 42 CFR',
-    color: '#f97316',
-    knows: ['Edinburgh PND 11', 'Postpartum Support referral', 'Consent-gated'],
-    blindSpot: 'Walled off — no system sees BH data',
-    badge: '42 CFR PART 2',
-  },
-];
+function abbrev(system: string): string {
+  const head = system.split(' · ')[0];
+  return head.toUpperCase().slice(0, 14);
+}
 
-const ROLES = [
-  {
-    id: 'patient',
-    label: 'PATIENT',
-    color: '#3b82f6',
-    bg: 'rgba(59,130,246,0.07)',
-    border: 'rgba(59,130,246,0.30)',
-    items: ['Postpartum · Day 427', 'Pre-diabetic A1C 6.2%', 'HbA1c gap open'],
-    livesIn: 'CAH EHR + Medicaid claims',
-  },
-  {
-    id: 'caregiver',
-    label: 'CAREGIVER',
-    subtitle: 'Elena Redhawk, 66',
-    color: '#f59e0b',
-    bg: 'rgba(245,158,11,0.07)',
-    border: 'rgba(245,158,11,0.30)',
-    items: ['Maria is caregiver', 'Medicare beneficiary', 'Lives 15 miles from Maria'],
-    livesIn: 'Medicare · Separate residence (15mi from Maria)',
-  },
-  {
-    id: 'parent',
-    label: 'PARENT',
-    subtitle: 'Sophia, age 2',
-    color: '#ec4899',
-    bg: 'rgba(236,72,153,0.07)',
-    border: 'rgba(236,72,153,0.30)',
-    items: ['Well-Child 24-mo overdue', 'CHIP active', 'Pediatric care'],
+function buildFragmentation(citizenId: string) {
+  const ctx = contextFor(citizenId);
+  const first = ctx.name.split(' ')[0];
+
+  // Layer 1 — internal entities (first 5 fragmented source systems)
+  const internalEntities = ctx.sources.slice(0, 5).map((s, i) => ({
+    id: `ent-${i}`,
+    name: s.system.split(' · ')[0],
+    abbr: abbrev(s.system),
+    color: s.color || ENTITY_COLORS[i % ENTITY_COLORS.length],
+    sees: s.sees.slice(0, 3),
+    blindTo: s.blindTo,
+  }));
+
+  // Layer 2 — six source systems, six versions of the citizen
+  const systems = ctx.sources.slice(0, 6).map((s, i) => {
+    const isBH = /behavioral|bh|42 cfr/i.test(s.system);
+    const isRx = /pharmacy|rx/i.test(s.system);
+    return {
+      id: `sys-${i}`,
+      name: abbrev(s.system),
+      color: s.color || ENTITY_COLORS[i % ENTITY_COLORS.length],
+      knows: s.sees.slice(0, 3),
+      blindSpot: s.blindTo,
+      badge: isBH ? '42 CFR PART 2' : isRx && ctx.household.dependents.length ? 'FAMILY HUB' : undefined,
+    };
+  });
+
+  // Layer 3 — roles / personas (patient + caregiver-for + dependent)
+  const roles: {
+    id: string; label: string; subtitle?: string; color: string; bg: string; border: string; items: string[]; livesIn: string;
+  }[] = [
+    {
+      id: 'patient', label: 'PATIENT', color: '#3b82f6', bg: 'rgba(59,130,246,0.07)', border: 'rgba(59,130,246,0.30)',
+      items: [
+        `${ctx.journey.episode} · Day ${ctx.journey.daysActive}`,
+        ctx.signals[0]?.label || 'Open care gap',
+        ctx.signals[1]?.label || ctx.barriers[0]?.label || 'Risk-stratified',
+      ],
+      livesIn: 'CAH EHR + Medicaid claims',
+    },
+  ];
+  ctx.household.caregiverFor.slice(0, 1).forEach((cg) => roles.push({
+    id: 'caregiver', label: 'CAREGIVER', subtitle: cg.name, color: '#f59e0b', bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.30)',
+    items: [`${first} is caregiver`, cg.detail, cg.consent],
+    livesIn: 'Separate residence · proxy consent',
+  }));
+  ctx.household.dependents.slice(0, 1).forEach((dep) => roles.push({
+    id: 'parent', label: 'PARENT', subtitle: dep.name, color: '#ec4899', bg: 'rgba(236,72,153,0.07)', border: 'rgba(236,72,153,0.30)',
+    items: [dep.detail, 'CHIP active', dep.consent],
     livesIn: 'CHIP enrollment only',
-  },
-];
+  }));
 
-const GAPS = [
-  { label: 'IDENTITY', detail: 'Records split across SD Medicaid, CAH, pharmacy, CBO — no single source' },
-  { label: 'CONSENT', detail: '42 CFR Part 2 gates BH; Elena proxy consent PENDING' },
-  { label: 'RELATIONSHIPS', detail: 'Sophia and Elena invisible — no household graph' },
-  { label: 'PREFERENCES', detail: 'SMS-only (3-7pm) known only to outreach log' },
-  { label: 'CAREGIVER PROXY', detail: 'No system aware Maria has legal proxy for Elena' },
-  { label: 'JOURNEY CONTEXT', detail: 'No system knows she is Day 427 postpartum — unmanaged' },
-  { label: 'ROLES', detail: 'Patient + Caregiver + Parent — never held simultaneously' },
-];
+  // Layer 4 — whole-person gaps
+  const depNames = ctx.household.dependents.map((d) => d.name).join(' & ');
+  const cgName = ctx.household.caregiverFor[0]?.name;
+  const gaps = [
+    { label: 'IDENTITY', detail: `Records split across ${ctx.sources.slice(0, 4).map((s) => s.system.split(' · ')[0]).join(', ')} — no single source` },
+    { label: 'CONSENT', detail: `42 CFR Part 2 gates BH${cgName ? `; ${cgName} proxy consent PENDING` : ''}` },
+    { label: 'RELATIONSHIPS', detail: depNames || cgName ? `${[depNames, cgName].filter(Boolean).join(' & ')} invisible — no household graph` : 'No household graph across systems' },
+    { label: 'PREFERENCES', detail: `${ctx.channel.primary} (${ctx.channel.window}) known only to outreach log` },
+    { label: 'CAREGIVER PROXY', detail: cgName ? `No system aware ${first} has legal proxy for ${cgName}` : 'No proxy/relationship awareness across systems' },
+    { label: 'JOURNEY CONTEXT', detail: `No system knows she is Day ${ctx.journey.daysActive} ${ctx.journey.episode} — unmanaged` },
+    { label: 'ROLES', detail: `${roles.map((r) => r.label[0] + r.label.slice(1).toLowerCase()).join(' + ')} — never held simultaneously` },
+  ];
+
+  return { first, internalEntities, systems, roles, gaps };
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function FragmentationScreen() {
   const setScreen = useDemoStore((s) => s?.setScreen);
-  const navigateNext = useDemoStore((s) => s?.navigateNext);
-  const navigatePrev = useDemoStore((s) => s?.navigatePrev);
-
-  const navLock = useRef(false);
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const { first, internalEntities: INTERNAL_ENTITIES, systems: SYSTEMS, roles: ROLES, gaps: GAPS } =
+    useMemo(() => buildFragmentation(activeCitizenId), [activeCitizenId]);
 
   useEffect(() => {
     setScreen?.('fragmentation');
   }, [setScreen]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (navLock.current || e.repeat) return;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        navLock.current = true;
-        navigateNext?.();
-        setTimeout(() => { navLock.current = false; }, 700);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        navLock.current = true;
-        navigatePrev?.();
-        setTimeout(() => { navLock.current = false; }, 700);
-      }
-    },
-    [navigateNext, navigatePrev]
-  );
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  // Up/Down arrow navigation is handled centrally by PresenterControls (ORCHESTRATE_FLOW).
 
   return (
     <ScreenLayout
@@ -276,7 +200,7 @@ export default function FragmentationScreen() {
 
         {/* ── LAYER 2: Six External Systems ── */}
         <div style={{ flexShrink: 0, marginBottom: 10 }}>
-          <LayerDivider color="#f59e0b" label="LAYER 2 — SIX MORE SD SYSTEMS — SIX MORE VERSIONS OF MARIA " />
+          <LayerDivider color="#f59e0b" label={`LAYER 2 — SIX MORE SD SYSTEMS — SIX MORE VERSIONS OF ${first.toUpperCase()} `} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
             {SYSTEMS.map((sys) => (
               <div

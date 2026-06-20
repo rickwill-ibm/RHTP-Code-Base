@@ -63,6 +63,31 @@ export const SCREEN_ROUTES: Record<ScreenId, string> = {
   'leave-behind': '/leave-behind',
 };
 
+// ─── Agentic Orchestrate flow ───────────────────────────────────────────────────
+// The actual pages live under /uhg-orchestrate/*. This ordered list is the single
+// source of truth for Up/Down arrow navigation across the orchestrate screens
+// (see PresenterControls). Order follows the demo narrative arc.
+export interface OrchestrateStep { route: string; label: string }
+export const ORCHESTRATE_FLOW: OrchestrateStep[] = [
+  { route: '/uhg-orchestrate/fragmentation-split-system-view', label: 'Fragmentation' },
+  { route: '/uhg-orchestrate/cdp-assembly-split', label: 'CDP Assembly' },
+  { route: '/uhg-orchestrate/consumer-360', label: 'Consumer 360' },
+  { route: '/uhg-orchestrate/whole-person-care', label: 'Whole Person Care' },
+  { route: '/uhg-orchestrate/signal-disposition-engine', label: 'Signal Disposition' },
+  { route: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', label: 'Agentic Super Orchestration' },
+  { route: '/uhg-orchestrate/agent-impact-dashboard', label: 'Agent Impact' },
+  { route: '/uhg-orchestrate/family-sofia', label: 'Family · Sophia' },
+  { route: '/uhg-orchestrate/caregiver-elena', label: 'Caregiver · Elena' },
+  { route: '/uhg-orchestrate/portfolio-scale', label: 'Portfolio Scale' },
+  { route: '/uhg-orchestrate/reporting-dashboard', label: 'Reporting Dashboard' },
+  { route: '/uhg-orchestrate/agent-library', label: 'Agent Library' },
+];
+
+export function orchestrateIndexFor(pathname: string | null | undefined): number {
+  if (!pathname) return -1;
+  return ORCHESTRATE_FLOW.findIndex((s) => pathname === s.route || pathname.endsWith(s.route));
+}
+
 export const SCREEN_LABELS: Record<ScreenId, string> = {
   'burning-platform': 'Burning Platform',
   'opening': 'Opening',
