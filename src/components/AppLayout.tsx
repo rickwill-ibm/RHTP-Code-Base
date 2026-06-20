@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
   { key: 'uhg-whole-person', label: 'Whole Person Care Intelligence', icon: 'SparklesIcon', href: '/uhg-orchestrate/whole-person-care', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-signal-disposition', label: 'Signal Disposition Engine', icon: 'BoltIcon', href: '/uhg-orchestrate/signal-disposition-engine', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-super-orchestration', label: 'Agentic Super Orchestration', icon: 'CpuChipIcon', href: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', group: 'Agentic_Orchestrate-Screens' },
-  { key: 'uhg-super-agent', label: 'AGENTIC MARKETPLACE', icon: 'CpuChipIcon', href: '/uhg-orchestrate/agent-library', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-super-agent', label: 'Agentic Super Agent', icon: 'CpuChipIcon', href: '/uhg-orchestrate/agent-library', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-family-thread', label: 'Family Thread — Dependents', icon: 'HomeIcon', href: '/uhg-orchestrate/family-sofia', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-caregiver', label: 'Caregiver Intelligence — Elena', icon: 'UserIcon', href: '/uhg-orchestrate/caregiver-elena', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-agent-impact', label: 'Agent Impact Dashboard', icon: 'ChartBarIcon', href: '/uhg-orchestrate/agent-impact-dashboard', group: 'Agentic_Orchestrate-Screens' },
