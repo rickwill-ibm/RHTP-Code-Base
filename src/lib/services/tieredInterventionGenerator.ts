@@ -132,14 +132,18 @@ export class TieredInterventionGenerator {
     // TIER 2: Transportation (if not root cause but still a barrier)
     if (analysis.rootCause.type !== 'transportation' && 
         context.barriers.transportation.severity === 'high') {
-      interventions.push(this.generateCaregiverFriendlyTransportation(context));
+      interventions.push(this.generateHomeBasedLabTesting(context));
     }
     
     // TIER 3: Care delivery optimization
     interventions.push(this.generateCareDeliveryOptimization(context));
     
     // TIER 4: Clinical care
-    interventions.push(this.generateClinicalCareIntervention(context));
+    // Add depression screening (Tier 3)
+    interventions.push(this.generateDepressionScreening(context));
+    
+    // Add well-child visit (Tier 4) - only required in-person visit
+    interventions.push(this.generateWellChildVisit(context));
     
     // TIER 5: Sustainability
     interventions.push(this.generateSustainabilityIntervention(context));
@@ -275,54 +279,32 @@ export class TieredInterventionGenerator {
   }
   
   /**
-   * TIER 2: Caregiver-friendly transportation
+   * TIER 2: Home-Based Lab Testing (Barrier-Aware)
+   * ELIMINATES need for transportation by using at-home test kit
    */
-  private generateCaregiverFriendlyTransportation(
+  private generateHomeBasedLabTesting(
     context: HolisticPatientContext
   ): TieredIntervention {
     
-    // Get distance to nearest LabCorp (rural context)
-    const distanceToLabCorp = context.accessProfile.distanceToNearestFacility || 45; // miles
-    const travelTime = Math.round(distanceToLabCorp / 45 * 60); // minutes at 45mph
-    const labLocation = context.accessProfile.nearestLabLocation || 'Rapid City';
-    
     // Calculate specific dates
-    const labDate = this.calculateSpecificDate(14); // 2 weeks from now
-    const pickupTime = '9:15 AM';
-    const appointmentTime = '10:00 AM';
-    const returnTime = '11:30 AM';
+    const kitOrderDate = this.calculateSpecificDate(3); // 3 days from now
+    const resultsDate = this.calculateSpecificDate(14); // 2 weeks from now
     
     const actions: InterventionAction[] = [
       {
-        action: 'Activate Unite Us transportation services',
-        provider: 'Unite Us - (800) 555-RIDE',
-        timeline: 'Immediate (within 48 hours)',
-        expectedOutcome: 'Transportation account activated, rides can be scheduled',
-        modality: 'phone',
+        action: 'Order at-home HbA1c test kit',
+        provider: 'Quest Diagnostics Home Testing',
+        timeline: `${kitOrderDate} (ships within 3-5 business days)`,
+        expectedOutcome: 'Mail-order kit arrives at home. Patient collects finger-stick sample, mails back in prepaid envelope. Results in 5-7 days.',
+        modality: 'home-visit', // Home-based service
         status: 'pending'
       },
       {
-        action: `Schedule LabCorp appointment for HbA1c + Comprehensive Metabolic Panel`,
-        provider: `LabCorp - 1234 Medical Plaza Dr, ${labLocation}, SD 57701`,
-        timeline: `${labDate} at ${appointmentTime}`,
-        expectedOutcome: `A1C gap closed, diabetes control assessed. Fasting required (8 hours, water only after 2am). Results in 48 hours.`,
-        modality: 'in-person',
-        status: 'pending'
-      },
-      {
-        action: `Arrange Unite Us transportation pickup and return`,
-        provider: 'Unite Us + Care Coordinator',
-        timeline: `${labDate}: Pickup ${pickupTime}, Return ${returnTime}`,
-        expectedOutcome: `Round-trip from home to LabCorp ${labLocation} (${distanceToLabCorp} miles, ${travelTime * 2} min total). Medicaid NEMT covered.`,
-        modality: 'in-person',
-        status: 'pending'
-      },
-      {
-        action: 'Confirm respite care coverage during lab visit',
-        provider: 'Care Coordinator',
-        timeline: `${labDate} 9:00 AM - 12:00 PM`,
-        expectedOutcome: 'Sophia with Autism support worker, Elena at adult day care. Backup contact confirmed.',
-        modality: 'in-person',
+        action: 'Schedule telehealth appointment to review A1C results',
+        provider: 'Primary Care Provider',
+        timeline: `${resultsDate} at 2:00 PM`,
+        expectedOutcome: 'Review A1C results via video visit. Adjust pre-diabetes management plan if needed (target A1C < 5.7%). No travel required.',
+        modality: 'telehealth',
         status: 'pending'
       }
     ];
@@ -330,22 +312,22 @@ export class TieredInterventionGenerator {
     return {
       tier: 2,
       priority: 'high',
-      category: 'transportation',
-      title: 'Coordinate Transportation for Clinical Care',
-      description: `Arrange transportation to LabCorp (${distanceToLabCorp} miles) during respite care windows`,
-      rationale: `Rural distance (${distanceToLabCorp} miles) requires careful coordination with respite care schedule. Batch appointments to minimize trips.`,
+      category: 'care-delivery-optimization',
+      title: 'Complete HbA1c Lab Test (Home-Based)',
+      description: `Use at-home lab kit to eliminate transportation barrier`,
+      rationale: `BARRIER-AWARE: ${context.patient.name} has transportation and childcare barriers. Home lab kit eliminates need for 94-mile round trip and childcare coordination.`,
       actions,
       successMetrics: [
-        'Transportation scheduled for lab appointment',
-        'Respite care active during travel time',
-        'All in-person care batched on same day',
-        'Zero missed appointments due to transportation'
+        'A1C gap closed within 2 weeks',
+        'Zero transportation burden',
+        'Zero childcare coordination needed',
+        'HbA1c < 5.7% (pre-diabetes target)'
       ],
       blockerAddressed: 'transportation',
       dependsOn: ['Tier 1: Respite care established'],
-      estimatedTimeframe: 'Weeks 2-3',
-      estimatedCost: 0,
-      burdenScore: 35 // Higher burden due to rural distance
+      estimatedTimeframe: 'Weeks 1-2',
+      estimatedCost: 0, // Covered by Medicaid
+      burdenScore: 10 // Very low burden - no travel required
     };
   }
   
@@ -420,109 +402,97 @@ export class TieredInterventionGenerator {
   }
   
   /**
-   * TIER 4: Clinical care intervention
+   * TIER 3: Depression Screening (Digital + Telehealth Follow-up)
+   * BARRIER-AWARE: Use digital screening to minimize burden
    */
-  private generateClinicalCareIntervention(
+  private generateDepressionScreening(
     context: HolisticPatientContext
   ): TieredIntervention {
     
-    const actions: InterventionAction[] = [];
-    const labLocation = context.accessProfile.nearestLabLocation || 'Rapid City';
+    const screeningDate = this.calculateSpecificDate(7); // Week 1
+    const followupDate = this.calculateSpecificDate(14); // Week 2
     
-    // Calculate specific dates for each action
-    const labDate = this.calculateSpecificDate(21); // Week 3
-    const pndDate = this.calculateSpecificDate(28); // Week 4
-    const pcpFollowupDate = this.calculateSpecificDate(35); // Week 5
-    const cardioDate = this.calculateSpecificDate(35); // Week 5
-    const eyeExamDate = this.calculateSpecificDate(42); // Week 6
+    const actions: InterventionAction[] = [
+      {
+        action: 'Complete Edinburgh Postnatal Depression Scale via patient portal',
+        provider: 'Care Manager (via MyChart patient portal)',
+        timeline: `${screeningDate} (self-administered, 10-15 minutes)`,
+        expectedOutcome: 'Complete 10-question screening online. Score calculated automatically. No appointment needed.',
+        modality: 'phone', // Digital/portal screening - closest valid modality
+        status: 'pending'
+      },
+      {
+        action: 'Telehealth follow-up if screening indicates clinical concern',
+        provider: 'Behavioral Health Specialist - Zoom video visit',
+        timeline: `${followupDate} at 2:00 PM (conditional)`,
+        expectedOutcome: 'If Edinburgh PND score > 10, schedule telehealth counseling session. Develop mental health support plan. Referral to therapy if needed.',
+        modality: 'telehealth',
+        status: 'pending'
+      }
+    ];
     
-    // PRIMARY FOCUS: Address A1C gap (most critical for diabetes management)
-    const hasA1CGap = context.clinicalProfile.openCareGaps.some(g => g.type === 'HEDIS_CDC');
-    if (hasA1CGap) {
-      actions.push({
-        action: `Complete HbA1c + Comprehensive Metabolic Panel at LabCorp`,
-        provider: `LabCorp - 1234 Medical Plaza Dr, ${labLocation}, SD 57701`,
-        timeline: `${labDate} at 10:00 AM`,
-        expectedOutcome: 'A1C gap closed, diabetes control assessed. Fasting required (8 hours). Results available in 48 hours for PCP review.',
+    return {
+      tier: 3,
+      priority: 'critical', // 427 days overdue
+      category: 'clinical-care',
+      title: 'Complete Edinburgh Postnatal Depression Screening',
+      description: `Digital screening via patient portal with conditional telehealth follow-up`,
+      rationale: `BARRIER-AWARE: ${context.patient.name} has been postpartum for 427 days without depression screening. Digital portal eliminates transportation and childcare barriers.`,
+      actions,
+      successMetrics: [
+        'Edinburgh PND screening completed within 1 week',
+        'Mental health support plan in place if needed',
+        'Zero transportation burden',
+        'Zero childcare coordination needed'
+      ],
+      blockerAddressed: 'clinical-complexity',
+      dependsOn: ['Tier 1: Respite care established'],
+      estimatedTimeframe: 'Weeks 1-2',
+      estimatedCost: 0,
+      burdenScore: 5 // Very low burden - digital screening
+    };
+  }
+  
+  /**
+   * TIER 4: Well-Child Visit (In-Person - Required)
+   * BARRIER-AWARE: Schedule AFTER transportation secured, bundle with any other in-person needs
+   */
+  private generateWellChildVisit(
+    context: HolisticPatientContext
+  ): TieredIntervention {
+    
+    const visitDate = this.calculateSpecificDate(28); // Week 4 - after transportation secured
+    
+    const actions: InterventionAction[] = [
+      {
+        action: 'Schedule 24-month well-child visit for Sophia',
+        provider: 'Pediatrician at Bennett County Health (CAH)',
+        timeline: `${visitDate} at 10:00 AM`,
+        expectedOutcome: 'Complete developmental screening, growth assessment, and immunizations. Required in-person visit.',
         modality: 'in-person',
         status: 'pending'
-      });
-      
-      actions.push({
-        action: 'Schedule telehealth follow-up to review A1C results',
-        provider: 'Dr. James Whitfield, Primary Care - MyChart video visit',
-        timeline: `${pcpFollowupDate} at 2:00 PM`,
-        expectedOutcome: 'Review A1C results, adjust diabetes medications if needed (target A1C < 8.0%). Discuss diet and exercise plan.',
-        modality: 'telehealth',
-        status: 'pending'
-      });
-    }
-    
-    // Address other care gaps with rural-appropriate modalities
-    context.clinicalProfile.openCareGaps.forEach(gap => {
-      if (gap.type === 'HEDIS_CBP') {
-        actions.push({
-          action: 'Schedule telehealth cardiology consultation for hypertension',
-          provider: 'Dr. Michael Chen, Cardiology - MyChart video visit',
-          timeline: `${cardioDate} at 3:00 PM`,
-          expectedOutcome: 'BP medication review and adjustment. Bring 7-day BP log (3x daily readings). Target BP < 130/80.',
-          modality: 'telehealth',
-          status: 'pending'
-        });
-      } else if (gap.type === 'HEDIS_EED') {
-        actions.push({
-          action: 'Schedule diabetic eye exam (batch with quarterly labs)',
-          provider: `Dr. Lisa Park, Ophthalmology - Same building as LabCorp ${labLocation}`,
-          timeline: `${eyeExamDate} at 11:00 AM`,
-          expectedOutcome: 'Dilated eye exam for diabetic retinopathy screening. Bring sunglasses. Same transportation as lab visit.',
-          modality: 'in-person',
-          status: 'pending'
-        });
-      } else if (gap.type === 'Depression_Screening') {
-        actions.push({
-          action: 'Schedule telehealth Edinburgh Postnatal Depression screening',
-          provider: 'Dr. Sarah Johnson, Behavioral Health - Zoom video visit',
-          timeline: `${pndDate} at 2:00 PM`,
-          expectedOutcome: 'Complete Edinburgh PND Scale (10 questions, 30 min). Support plan if score > 10. Referral to therapy if needed.',
-          modality: 'telehealth',
-          status: 'pending'
-        });
       }
-    });
-    
-    // Add diabetes self-management education
-    if (context.clinicalProfile.chronicConditions.some(c => c.name.includes('Diabetes'))) {
-      actions.push({
-        action: 'Enroll in virtual Diabetes Self-Management Education (DSME) program',
-        provider: 'Sarah Martinez, Certified Diabetes Educator - Weekly Zoom sessions',
-        timeline: `Starting ${pcpFollowupDate}, 8-week program`,
-        expectedOutcome: 'Complete 8-week DSME course. Topics: nutrition, medication, monitoring, foot care. Certificate upon completion.',
-        modality: 'telehealth',
-        status: 'pending'
-      });
-    }
+    ];
     
     return {
       tier: 4,
-      priority: 'high', // Changed from moderate - clinical gaps are critical
+      priority: 'high',
       category: 'clinical-care',
-      title: 'Close Clinical Care Gaps (A1C, Depression, Eye Exam)',
-      description: `Address primary A1C gap and other clinical needs using rural-appropriate care delivery`,
-      rationale: `With respite care (Tier 1) and transportation (Tier 2) in place, ${context.patient.name} can now complete essential clinical care. Prioritize A1C testing to assess diabetes control.`,
+      title: 'Complete Well-Child Visit (In-Person)',
+      description: `Schedule Sophia's 24-month well-child visit after transportation assistance is in place`,
+      rationale: `BARRIER-AWARE: This is the ONLY required in-person visit. Scheduled after transportation assistance (Tier 1) is secured. Bundle with any other necessary in-person care to minimize trips.`,
       actions,
       successMetrics: [
-        'A1C gap closed within 3 weeks',
-        'All HEDIS care gaps closed within 90 days',
-        'HbA1c < 8.0% (target)',
-        'BP < 130/80',
-        'Depression screening completed',
-        'Diabetic eye exam completed'
+        'Well-child visit completed',
+        'Developmental screening completed',
+        'Immunizations up to date',
+        'Transportation coordinated via Unite Us'
       ],
       blockerAddressed: 'clinical-complexity',
-      dependsOn: ['Tier 1-3: Barriers addressed'],
-      estimatedTimeframe: 'Weeks 4-12',
+      dependsOn: ['Tier 1: Transportation assistance secured'],
+      estimatedTimeframe: 'Week 4',
       estimatedCost: 0,
-      burdenScore: 10 // Very low - care adapted to patient's needs
+      burdenScore: 25 // Moderate burden - requires in-person visit
     };
   }
   

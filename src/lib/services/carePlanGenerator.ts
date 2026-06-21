@@ -237,7 +237,7 @@ function createReferralsForCareGaps(
       patientId: patient.id,
       patientDOB: patient.dob,
       referringProvider: patient.primaryCareProvider,
-      referringOrganization: 'TCOC Primary Care Network',
+      referringOrganization: (patient as any).organization || patient.primaryCareProvider,
       referralDate: new Date().toISOString().split('T')[0],
       urgency: gap.daysOpen > 90 ? 'urgent' : 'routine',
       specialistType,
@@ -293,7 +293,7 @@ export function generateComprehensiveCarePlan(input: ComprehensivePlanInput): Ge
     }
 
     // Step 4: Assemble care team based on needs
-    const careTeam = assembleCareTeam(analysis);
+    const careTeam = assembleCareTeam(analysis, patient);
 
     // Step 5: Determine sharing strategy
     const sharedWith = determineSharing(analysis);
@@ -374,7 +374,7 @@ function analyzePatientData(input: ComprehensivePlanInput): PatientAnalysis {
   const specialtiesNeeded = identifySpecialties(hccSuspects, careGaps, alerts);
 
   // Detect SDoH needs (simulated - in real system would come from patient data)
-  const sdohNeeds = detectSDoHNeeds(patient, alerts);
+  const sdohNeeds = detectSDoHNeeds(patient, alerts, careGaps);
 
   // Identify medication issues
   const medicationIssues = identifyMedicationIssues(patient, alerts);
@@ -442,20 +442,66 @@ function identifySpecialties(
   return Array.from(specialties);
 }
 
-function detectSDoHNeeds(patient: Patient, alerts: UtilizationAlert[]): string[] {
+function detectSDoHNeeds(
+  patient: Patient,
+  alerts: UtilizationAlert[],
+  careGaps: CareGap[]
+): string[] {
   const needs: string[] = [];
 
-  // Simulate SDoH detection based on patient data and alerts
-  if (patient.riskTier === 'Critical' || patient.riskTier === 'High') {
-    // High-risk patients often have SDoH needs
-    if (Math.random() > 0.5) needs.push('Transportation assistance needed');
-    if (Math.random() > 0.6) needs.push('Medication cost concerns');
-  }
+  // ONLY use actual documented SDoH needs from care gaps
+  // NO RANDOM GENERATION - NO HALLUCINATIONS
+  
+  careGaps.forEach(gap => {
+    // Only process social-related gaps (check measure name for social indicators)
+    const isSocialGap = gap.measureName.toLowerCase().includes('social') ||
+                        gap.measureName.toLowerCase().includes('transportation') ||
+                        gap.measureName.toLowerCase().includes('childcare') ||
+                        gap.measureName.toLowerCase().includes('food') ||
+                        gap.measureName.toLowerCase().includes('housing') ||
+                        gap.measureName.toLowerCase().includes('wic') ||
+                        gap.measureName.toLowerCase().includes('snap') ||
+                        gap.measureName.toLowerCase().includes('liheap');
+    
+    if (!isSocialGap) {
+      return; // Skip non-social gaps
+    }
 
-  // Check alerts for SDoH indicators
+    // Check for transportation barriers
+    if (gap.measureName.toLowerCase().includes('transportation') ||
+        gap.measureName.toLowerCase().includes('transport')) {
+      needs.push(`Transportation barrier: ${gap.notes || 'documented'}`);
+    }
+    
+    // Check for childcare needs
+    if (gap.measureName.toLowerCase().includes('childcare') ||
+        gap.measureName.toLowerCase().includes('child care')) {
+      needs.push(`Childcare support: ${gap.notes || 'subsidy enrollment needed'}`);
+    }
+    
+    // Check for food security
+    if (gap.measureName.toLowerCase().includes('wic') ||
+        gap.measureName.toLowerCase().includes('food') ||
+        gap.measureName.toLowerCase().includes('snap')) {
+      needs.push(`Food security: ${gap.notes || 'benefit enrollment needed'}`);
+    }
+    
+    // Check for housing
+    if (gap.measureName.toLowerCase().includes('housing') ||
+        gap.measureName.toLowerCase().includes('liheap') ||
+        gap.measureName.toLowerCase().includes('utility')) {
+      needs.push(`Housing/utility support: ${gap.notes || 'assistance needed'}`);
+    }
+  });
+
+  // Check alerts for documented SDoH issues ONLY
   alerts.forEach(alert => {
     if (alert.description.toLowerCase().includes('readmission')) {
       needs.push('Post-discharge support needed');
+    }
+    if (alert.description.toLowerCase().includes('housing') &&
+        !needs.some(n => n.includes('Housing'))) {
+      needs.push('Housing stability support needed');
     }
   });
 
@@ -516,6 +562,138 @@ function identifyUrgentActions(
 function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
   const goals: CarePlanGoal[] = [];
   let goalCounter = 1;
+  let interventionCounter = 1;
+
+  // Check for barriers to inform goal/intervention design
+  const hasTransportationBarrier = analysis.sdohNeeds.some(need =>
+    need.toLowerCase().includes('transportation')
+  );
+  const hasCaregiverBurden = analysis.sdohNeeds.some(need =>
+    need.toLowerCase().includes('childcare') || need.toLowerCase().includes('caregiver')
+  );
+
+  // Goals for SDoH needs - PRIORITIZE FIRST (barrier-first approach)
+  if (analysis.sdohNeeds.length > 0) {
+    const sdohGoal: CarePlanGoal = {
+      id: `goal-${goalCounter++}`,
+      description: `Address Social Determinants of Health barriers`,
+      target: 'All identified barriers have support services in place',
+      status: 'Not Started',
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      progress: 0,
+      notes: 'Priority: Address barriers FIRST to enable clinical care completion',
+      interventions: []
+    };
+
+    // Add specific interventions for each SDoH need
+    analysis.sdohNeeds.forEach(need => {
+      const modality = determineOptimalModality('SDoH_Referral', hasTransportationBarrier, hasCaregiverBurden);
+      sdohGoal.interventions!.push({
+        id: `intervention-${interventionCounter++}`,
+        type: 'Referral',
+        description: `${need} - Community resource connection`,
+        status: 'Pending',
+        provider: 'Social Services / Community Resources',
+        notes: `${modality.notes}. No appointment needed - can be completed remotely.`,
+      });
+    });
+
+    goals.push(sdohGoal);
+  }
+
+  // Goals for quality gaps - with barrier-aware interventions
+  analysis.qualityGaps.forEach(gap => {
+    const qualityGoal: CarePlanGoal = {
+      id: `goal-${goalCounter++}`,
+      description: `Close ${gap.measureName} quality gap`,
+      target: gap.closureRequirement,
+      status: gap.status === 'In Progress' ? 'In Progress' : 'Not Started',
+      dueDate: gap.dueDate,
+      progress: gap.status === 'In Progress' ? 30 : 0,
+      notes: `${gap.program} measure - ${gap.daysOpen} days open`,
+      interventions: []
+    };
+
+    // Add barrier-aware interventions based on gap type
+    if (gap.measureName.toLowerCase().includes('lab') || gap.measureName.toLowerCase().includes('a1c') || gap.measureName.toLowerCase().includes('hba1c')) {
+      // Lab tests - use home kit if transportation barrier
+      if (hasTransportationBarrier) {
+        qualityGoal.interventions!.push({
+          id: `intervention-${interventionCounter++}`,
+          type: 'Procedure',
+          description: 'Order at-home lab test kit',
+          status: 'Pending',
+          provider: 'Quest Diagnostics Home Testing',
+          notes: 'Mail-order kit, self-collection at home, mail back for processing. Results in 5-7 days.',
+        });
+        qualityGoal.interventions!.push({
+          id: `intervention-${interventionCounter++}`,
+          type: 'Appointment',
+          description: 'Telehealth follow-up to review lab results',
+          status: 'Pending',
+          provider: 'Primary Care Provider',
+          notes: 'Video visit via MyChart to discuss results and adjust care plan.',
+        });
+      } else {
+        qualityGoal.interventions!.push({
+          id: `intervention-${interventionCounter++}`,
+          type: 'Appointment',
+          description: 'Schedule lab test',
+          status: 'Pending',
+          notes: 'In-person lab visit',
+        });
+      }
+    } else if (gap.measureName.toLowerCase().includes('depression') || gap.measureName.toLowerCase().includes('phq') || gap.measureName.toLowerCase().includes('edinburgh')) {
+      // Behavioral health screenings - use digital portal
+      qualityGoal.interventions!.push({
+        id: `intervention-${interventionCounter++}`,
+        type: 'Monitoring',
+        description: 'Complete screening via patient portal',
+        status: 'Pending',
+        provider: 'Care Manager (via patient portal)',
+        notes: 'Self-administered digital screening (10-15 minutes). No appointment needed.',
+      });
+      qualityGoal.interventions!.push({
+        id: `intervention-${interventionCounter++}`,
+        type: 'Appointment',
+        description: 'Telehealth follow-up if screening indicates need',
+        status: 'Pending',
+        provider: 'Behavioral Health Specialist',
+        notes: 'Conditional - only scheduled if screening score indicates clinical concern.',
+      });
+    } else if (gap.measureName.toLowerCase().includes('well-child') || gap.measureName.toLowerCase().includes('physical exam') || gap.measureName.toLowerCase().includes('immunization')) {
+      // Physical exams - must be in-person but note barriers
+      if (hasTransportationBarrier) {
+        qualityGoal.interventions!.push({
+          id: `intervention-${interventionCounter++}`,
+          type: 'Appointment',
+          description: 'Schedule in-person visit (after transportation secured)',
+          status: 'Pending',
+          notes: 'Required in-person visit. Schedule AFTER transportation assistance is in place (Goal 1). Bundle with any other necessary in-person care.',
+        });
+      } else {
+        qualityGoal.interventions!.push({
+          id: `intervention-${interventionCounter++}`,
+          type: 'Appointment',
+          description: 'Schedule in-person visit',
+          status: 'Pending',
+          notes: 'Required for physical examination and/or immunizations.',
+        });
+      }
+    } else {
+      // Default - use telehealth if barriers exist
+      const modality = determineOptimalModality('Follow_Up', hasTransportationBarrier, hasCaregiverBurden);
+      qualityGoal.interventions!.push({
+        id: `intervention-${interventionCounter++}`,
+        type: 'Appointment',
+        description: `Address ${gap.measureName} (${modality.modality})`,
+        status: 'Pending',
+        notes: modality.notes,
+      });
+    }
+
+    goals.push(qualityGoal);
+  });
 
   // Goals for HCC documentation
   analysis.hccOpportunities.forEach(hcc => {
@@ -527,19 +705,6 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
       dueDate: hcc.submissionDeadline,
       progress: 0,
       notes: `RAF Delta: +${hcc.estimatedRafDelta.toFixed(2)}, Revenue: $${hcc.estimatedRevenueDelta.toLocaleString()}`,
-    });
-  });
-
-  // Goals for quality gaps
-  analysis.qualityGaps.forEach(gap => {
-    goals.push({
-      id: `goal-${goalCounter++}`,
-      description: `Close ${gap.measureName} quality gap`,
-      target: gap.closureRequirement,
-      status: gap.status === 'In Progress' ? 'In Progress' : 'Not Started',
-      dueDate: gap.dueDate,
-      progress: gap.status === 'In Progress' ? 30 : 0,
-      notes: `${gap.program} measure - ${gap.daysOpen} days open`,
     });
   });
 
@@ -558,177 +723,228 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
     }
   });
 
-  // Goals for SDoH needs
-  analysis.sdohNeeds.forEach(need => {
-    goals.push({
-      id: `goal-${goalCounter++}`,
-      description: `Address: ${need}`,
-      target: 'Need resolved or support in place',
-      status: 'Not Started',
-      dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      progress: 0,
-    });
-  });
-
   return goals;
+}
+
+/**
+ * Determine best care modality based on patient barriers
+ * Prioritizes home-based and telehealth when barriers exist
+ */
+function determineOptimalModality(
+  interventionType: string,
+  hasTransportationBarrier: boolean,
+  hasCaregiverBurden: boolean
+): { modality: string; notes: string } {
+  // For SDoH referrals - always digital/remote enrollment
+  if (interventionType === 'SDoH_Referral') {
+    return {
+      modality: 'digital',
+      notes: 'Remote enrollment via patient portal or phone'
+    };
+  }
+
+  // For behavioral health screenings - prioritize digital
+  if (interventionType === 'BH_Screening') {
+    return {
+      modality: 'digital',
+      notes: 'Self-administered via patient portal (10-15 minutes)'
+    };
+  }
+
+  // For lab tests - use home kits if transportation barrier exists
+  if (interventionType === 'Lab_Test' && hasTransportationBarrier) {
+    return {
+      modality: 'home-based',
+      notes: 'At-home test kit (mail-order, self-collection, mail back)'
+    };
+  }
+
+  // For follow-up appointments - default to telehealth if barriers exist
+  if (interventionType === 'Follow_Up' && (hasTransportationBarrier || hasCaregiverBurden)) {
+    return {
+      modality: 'telehealth',
+      notes: 'Video visit via MyChart or phone call'
+    };
+  }
+
+  // For physical exams/procedures - must be in-person but note barriers
+  if (interventionType === 'Physical_Exam') {
+    if (hasTransportationBarrier) {
+      return {
+        modality: 'in-person',
+        notes: 'Required in-person visit - schedule after transportation assistance secured'
+      };
+    }
+    return {
+      modality: 'in-person',
+      notes: 'Required for physical examination'
+    };
+  }
+
+  // Default to telehealth if any barriers exist
+  if (hasTransportationBarrier || hasCaregiverBurden) {
+    return {
+      modality: 'telehealth',
+      notes: 'Video visit to minimize travel burden'
+    };
+  }
+
+  return {
+    modality: 'in-person',
+    notes: 'Standard office visit'
+  };
 }
 
 function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[] {
   const interventions: CarePlanIntervention[] = [];
   let interventionCounter = 1;
 
-  // Referrals for each specialty needed
+  // Check for barriers to determine optimal modalities
+  const hasTransportationBarrier = analysis.sdohNeeds.some(need =>
+    need.toLowerCase().includes('transportation')
+  );
+  const hasCaregiverBurden = analysis.sdohNeeds.some(need =>
+    need.toLowerCase().includes('childcare') || need.toLowerCase().includes('caregiver')
+  );
+
+  // Referrals for each specialty needed - always referrals, not appointments
   analysis.specialtiesNeeded.forEach(specialty => {
     interventions.push({
       id: `intervention-${interventionCounter++}`,
       type: 'Referral',
-      description: `${specialty} consultation`,
+      description: `${specialty} consultation (referral pending)`,
       status: 'Pending',
       provider: `${specialty} specialist (to be assigned)`,
-      notes: `Auto-assigned based on patient conditions`,
+      notes: `Referral will be sent electronically. Specialist will contact patient to schedule.`,
     });
   });
 
-  // Monitoring for chronic conditions
+  // Monitoring for chronic conditions - always home-based
   if (analysis.primaryConditions.length > 0) {
     interventions.push({
       id: `intervention-${interventionCounter++}`,
       type: 'Monitoring',
-      description: 'Home monitoring program',
+      description: 'Home monitoring program enrollment',
       status: 'Pending',
       frequency: 'Daily',
-      notes: `Monitor: ${analysis.primaryConditions.slice(0, 2).join(', ')}`,
+      notes: `Remote monitoring for: ${analysis.primaryConditions.slice(0, 2).join(', ')}. Equipment shipped to home.`,
     });
   }
 
-  // Medication review if needed
+  // Medication review - use telehealth if barriers exist
   if (analysis.medicationIssues.length > 0) {
+    const modality = determineOptimalModality('Follow_Up', hasTransportationBarrier, hasCaregiverBurden);
     interventions.push({
       id: `intervention-${interventionCounter++}`,
-      type: 'Medication',
-      description: 'Comprehensive medication review',
+      type: 'Appointment',
+      description: `Medication review (${modality.modality})`,
       status: 'Pending',
-      notes: analysis.medicationIssues.join('; '),
+      notes: `${modality.notes}. Review: ${analysis.medicationIssues.join('; ')}`,
     });
   }
 
-  // Education for quality gaps
+  // Education for quality gaps - always digital/remote
   if (analysis.qualityGaps.length > 0) {
     interventions.push({
       id: `intervention-${interventionCounter++}`,
       type: 'Education',
-      description: 'Patient education on preventive care',
+      description: 'Patient education materials (digital)',
       status: 'Pending',
-      notes: `Address: ${analysis.qualityGaps.map(g => g.measureName).slice(0, 2).join(', ')}`,
+      notes: `Educational resources sent via patient portal. Topics: ${analysis.qualityGaps.map(g => g.measureName).slice(0, 2).join(', ')}`,
     });
   }
 
-  // Follow-up appointments
+  // Follow-up appointments - barrier-aware modality
+  const followUpModality = determineOptimalModality('Follow_Up', hasTransportationBarrier, hasCaregiverBurden);
   interventions.push({
     id: `intervention-${interventionCounter++}`,
     type: 'Appointment',
-    description: 'Care plan review appointment',
+    description: `Care plan review (${followUpModality.modality})`,
     status: 'Pending',
     scheduledDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    notes: 'Review progress on all goals and interventions',
+    notes: `${followUpModality.notes}. Review progress on all goals and interventions.`,
   });
 
-  // SDoH interventions
+  // SDoH interventions - ALWAYS referrals, never appointments
   if (analysis.sdohNeeds.length > 0) {
-    interventions.push({
-      id: `intervention-${interventionCounter++}`,
-      type: 'Referral',
-      description: 'Social services referral',
-      status: 'Pending',
-      provider: 'Social Work',
-      notes: `Address: ${analysis.sdohNeeds.join('; ')}`,
+    analysis.sdohNeeds.forEach(need => {
+      const modality = determineOptimalModality('SDoH_Referral', hasTransportationBarrier, hasCaregiverBurden);
+      interventions.push({
+        id: `intervention-${interventionCounter++}`,
+        type: 'Referral',
+        description: `${need} - Community resource referral`,
+        status: 'Pending',
+        provider: 'Social Services / Community Resources',
+        notes: `${modality.notes}. No appointment needed - enrollment can be completed remotely.`,
+      });
     });
   }
 
   return interventions;
 }
 
-function assembleCareTeam(analysis: PatientAnalysis): CareTeamMember[] {
+function assembleCareTeam(
+  analysis: PatientAnalysis,
+  patient: Patient
+): CareTeamMember[] {
   const team: CareTeamMember[] = [];
   let teamCounter = 1;
 
-  // Primary care physician (always included - always in network)
+  // Use patient's ACTUAL primary care provider - NO FAKE NAMES
   team.push({
     id: `team-${teamCounter++}`,
-    name: 'Dr. James Whitfield',
+    name: patient.primaryCareProvider || 'Primary Care Provider (to be assigned)',
     role: 'Primary Care Physician',
     relationship: 'Primary',
-    phone: '(312) 555-0100',
-    email: 'j.whitfield@tcoc.health',
+    phone: patient.phone || 'See patient record',
+    email: `contact@${(patient.primaryCareProvider || 'provider').toLowerCase().replace(/\s+/g, '')}.health`,
     networkTier: 'Preferred',
-    npi: '1234567890',
+    npi: 'See patient record',
   });
 
-  // Add specialists based on needs with network tier assignments
-  const specialtyMap: Record<string, {
-    role: string;
-    name: string;
-    phone: string;
-    networkTier: 'Preferred' | 'In-Network' | 'Out-of-Network';
-    npi: string;
-  }> = {
-    'Cardiology': {
-      role: 'Cardiologist',
-      name: 'Dr. Emily Chen',
-      phone: '(312) 555-0200',
-      networkTier: 'Preferred',
-      npi: '1234567891'
-    },
-    'Endocrinology': {
-      role: 'Endocrinologist',
-      name: 'Dr. Michael Rodriguez',
-      phone: '(312) 555-0210',
-      networkTier: 'In-Network',
-      npi: '1234567892'
-    },
-    'Nephrology': {
-      role: 'Nephrologist',
-      name: 'Dr. Sarah Johnson',
-      phone: '(312) 555-0220',
-      networkTier: 'In-Network',
-      npi: '1234567893'
-    },
-    'Pulmonology': {
-      role: 'Pulmonologist',
-      name: 'Dr. David Lee',
-      phone: '(312) 555-0230',
-      networkTier: 'Preferred',
-      npi: '1234567894'
-    },
-    'Care Management': {
+  // Add care manager if assigned (check if property exists)
+  const careManager = (patient as any).careManager;
+  if (careManager && typeof careManager === 'string') {
+    team.push({
+      id: `team-${teamCounter++}`,
+      name: careManager,
       role: 'Care Manager',
-      name: 'Angela Torres, NP',
-      phone: '(312) 555-0150',
+      relationship: 'Care Manager',
+      phone: 'See care team assignment',
+      email: `${careManager.toLowerCase().replace(/\s+/g, '')}@careteam.health`,
       networkTier: 'Preferred',
-      npi: '1234567895'
-    },
-    'Social Work': {
-      role: 'Social Worker',
-      name: 'Maria Garcia, LCSW',
-      phone: '(312) 555-0160',
-      networkTier: 'Preferred',
-      npi: '1234567896'
-    },
-  };
+      npi: 'See care team assignment',
+    });
+  }
 
+  // Add specialists based on patient's documented care team ONLY
+  // NO HARDCODED FAKE SPECIALISTS
   analysis.specialtiesNeeded.forEach(specialty => {
-    const specialistInfo = specialtyMap[specialty];
-    if (specialistInfo) {
+    // Only add if this is a care coordination role, not a clinical specialist
+    if (specialty === 'Care Management' || specialty === 'Social Work') {
+      const roleName = specialty === 'Care Management' ? 'Care Manager' : 'Social Worker';
       team.push({
         id: `team-${teamCounter++}`,
-        name: specialistInfo.name,
-        role: specialistInfo.role,
-        specialty: specialty,
+        name: `${specialty} (to be assigned)`,
+        role: roleName,
         relationship: specialty === 'Care Management' ? 'Care Manager' : 'Consultant',
-        phone: specialistInfo.phone,
-        email: `${specialistInfo.name.toLowerCase().replace(/[,.\s]/g, '')}@tcoc.health`,
-        networkTier: specialistInfo.networkTier,
-        npi: specialistInfo.npi,
+        phone: 'See care team assignment',
+        email: `${specialty.toLowerCase().replace(/\s+/g, '')}@careteam.health`,
+        networkTier: 'Preferred',
+        npi: 'Pending assignment',
+      });
+    } else {
+      // For clinical specialists, create referral but don't add fake names
+      team.push({
+        id: `team-${teamCounter++}`,
+        name: `${specialty} Specialist (referral pending)`,
+        role: `${specialty} Specialist`,
+        specialty: specialty,
+        relationship: 'Consultant',
+        phone: 'Pending referral',
+        email: 'Pending referral',
+        networkTier: 'In-Network',
+        npi: 'Pending referral',
       });
     }
   });
@@ -1042,7 +1258,7 @@ function convertHolisticToStandardPlan(
     tieredIntervention.actions.forEach(action => {
       const intervention: CarePlanIntervention = {
         id: `intervention-holistic-${interventionCounter++}`,
-        type: mapModalityToType(action.modality),
+        type: mapModalityToType(action.modality, action.action), // Pass action description for smart type detection
         description: action.action,
         status: mapStatusToStandard(action.status),
         provider: action.provider,
@@ -1058,8 +1274,8 @@ function convertHolisticToStandardPlan(
     goals.push(goal);
   });
   
-  // Build care team from holistic plan
-  const careTeam = buildCareTeamFromHolisticPlan(holisticPlan);
+  // Build care team from holistic plan - pass patient data to avoid hallucinations
+  const careTeam = buildCareTeamFromHolisticPlan(holisticPlan, patient);
   
   // Create title and description
   const title = `Holistic Care Plan - ${holisticPlan.rootCauseAnalysis.primaryBlocker.type === 'caregiver-burden' ? 
@@ -1119,17 +1335,57 @@ function convertHolisticToStandardPlan(
 }
 
 /**
- * Map modality to intervention type
+ * Map modality and action description to correct intervention type
+ * BARRIER-AWARE: Social services should be Referrals, not Appointments
  */
-function mapModalityToType(modality?: string): CarePlanIntervention['type'] {
+function mapModalityToType(modality?: string, actionDescription?: string): CarePlanIntervention['type'] {
+  // Check action description for keywords that indicate intervention type
+  const description = (actionDescription || '').toLowerCase();
+  
+  // Social service enrollments/referrals - NEVER appointments
+  if (description.includes('enroll') ||
+      description.includes('connect with') ||
+      description.includes('activate unite us') ||
+      description.includes('medicaid') ||
+      description.includes('support group') ||
+      description.includes('caregiver alliance') ||
+      description.includes('autism family support') ||
+      description.includes('adult day care') ||
+      description.includes('respite care program')) {
+    return 'Referral';
+  }
+  
+  // Monitoring/screening activities
+  if (description.includes('monitor') ||
+      description.includes('screening') ||
+      description.includes('assessment')) {
+    return 'Monitoring';
+  }
+  
+  // Education/information
+  if (description.includes('education') ||
+      description.includes('training') ||
+      description.includes('information')) {
+    return 'Education';
+  }
+  
+  // Procedures (labs, tests)
+  if (description.includes('lab') ||
+      description.includes('test') ||
+      description.includes('procedure')) {
+    return 'Procedure';
+  }
+  
+  // Now check modality for remaining cases
   if (!modality) return 'Appointment';
   
   const modalityMap: Record<string, CarePlanIntervention['type']> = {
     'telehealth': 'Appointment',
     'in-person': 'Appointment',
     'home-visit': 'Monitoring',
-    'phone': 'Education',
+    'phone': 'Referral', // Phone calls for enrollment = Referral
     'mobile-clinic': 'Appointment',
+    'digital': 'Monitoring', // Digital screenings = Monitoring
   };
   
   return modalityMap[modality] || 'Appointment';
@@ -1182,74 +1438,80 @@ function calculateDateFromWeek(weekString: string): string {
 /**
  * Build care team from holistic plan
  */
-function buildCareTeamFromHolisticPlan(holisticPlan: HolisticCarePlan): CareTeamMember[] {
+function buildCareTeamFromHolisticPlan(holisticPlan: HolisticCarePlan, patient: Patient): CareTeamMember[] {
   const team: CareTeamMember[] = [];
   let teamCounter = 1;
   
-  // Always include PCP
+  // Use patient's ACTUAL primary care provider - NO FAKE NAMES
   team.push({
     id: `team-${teamCounter++}`,
-    name: 'Dr. James Whitfield',
+    name: patient.primaryCareProvider || 'Primary Care Provider (to be assigned)',
     role: 'Primary Care Physician',
     relationship: 'Primary',
-    phone: '(312) 555-0100',
-    email: 'j.whitfield@tcoc.health',
+    phone: patient.phone || 'See patient record',
+    email: `contact@${(patient.primaryCareProvider || 'provider').toLowerCase().replace(/\s+/g, '')}.health`,
     networkTier: 'Preferred',
-    npi: '1234567890',
+    npi: 'See patient record',
   });
   
-  // Add care manager for complex cases
-  team.push({
-    id: `team-${teamCounter++}`,
-    name: 'Angela Torres, NP',
-    role: 'Care Manager',
-    relationship: 'Care Manager',
-    phone: '(312) 555-0150',
-    email: 'atorres@tcoc.health',
-    networkTier: 'Preferred',
-    npi: '1234567895',
-  });
-  
-  // Add social worker if caregiver burden
-  if (holisticPlan.rootCauseAnalysis.primaryBlocker.type === 'caregiver-burden') {
+  // Add care manager if assigned - NO FAKE NAMES
+  const careManager = (patient as any).careManager;
+  if (careManager && typeof careManager === 'string') {
     team.push({
       id: `team-${teamCounter++}`,
-      name: 'Maria Garcia, LCSW',
-      role: 'Social Worker',
-      relationship: 'Consultant',
-      phone: '(312) 555-0160',
-      email: 'mgarcia@tcoc.health',
+      name: careManager,
+      role: 'Care Manager',
+      relationship: 'Care Manager',
+      phone: 'See care team assignment',
+      email: `${careManager.toLowerCase().replace(/\s+/g, '')}@careteam.health`,
       networkTier: 'Preferred',
-      npi: '1234567896',
+      npi: 'See care team assignment',
     });
   }
   
-  // Extract specialists from interventions
+  // Add social worker if caregiver burden - NO FAKE NAMES
+  if (holisticPlan.rootCauseAnalysis.primaryBlocker.type === 'caregiver-burden') {
+    team.push({
+      id: `team-${teamCounter++}`,
+      name: 'Social Worker (to be assigned)',
+      role: 'Social Worker',
+      relationship: 'Consultant',
+      phone: 'Pending assignment',
+      email: 'Pending assignment',
+      networkTier: 'Preferred',
+      npi: 'Pending assignment',
+    });
+  }
+  
+  // Extract specialists from interventions - NO FAKE NAMES
   const specialistProviders = new Set<string>();
   holisticPlan.interventions.forEach(intervention => {
     intervention.actions.forEach(action => {
-      if (action.provider && !action.provider.includes('Team') && 
+      if (action.provider && !action.provider.includes('Team') &&
           !action.provider.includes('Services') && !action.provider.includes('Program')) {
         specialistProviders.add(action.provider);
       }
     });
   });
   
-  // Add specialists (simplified - in production would map to actual providers)
+  // Add specialists as pending referrals - NO FAKE NAMES
   specialistProviders.forEach(provider => {
-    if (provider.toLowerCase().includes('cardio')) {
-      team.push({
-        id: `team-${teamCounter++}`,
-        name: 'Dr. Emily Chen',
-        role: 'Cardiologist',
-        specialty: 'Cardiology',
-        relationship: 'Consultant',
-        phone: '(312) 555-0200',
-        email: 'echen@tcoc.health',
-        networkTier: 'Preferred',
-        npi: '1234567891',
-      });
-    }
+    const specialty = provider.includes('Cardio') ? 'Cardiology' :
+                     provider.includes('Endo') ? 'Endocrinology' :
+                     provider.includes('Nephro') ? 'Nephrology' :
+                     provider.includes('Pulmo') ? 'Pulmonology' : provider;
+    
+    team.push({
+      id: `team-${teamCounter++}`,
+      name: `${specialty} Specialist (referral pending)`,
+      role: `${specialty} Specialist`,
+      specialty: specialty,
+      relationship: 'Consultant',
+      phone: 'Pending referral',
+      email: 'Pending referral',
+      networkTier: 'In-Network',
+      npi: 'Pending referral',
+    });
   });
   
   return team;
