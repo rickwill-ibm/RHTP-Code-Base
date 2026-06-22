@@ -5,6 +5,8 @@ import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import { useDemoStore } from '@/uhg/store/demoStore';
+import { getPatientById } from '@/lib/patientRegistry';
+import { journeyForPatient } from '@/uhg/data/journeys';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,14 +35,15 @@ interface SequencingStep {
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const SIGNAL_EVALUATIONS: SignalEvaluation[] = [
+function buildSignalEvaluations(firstName: string, org: string, topGapName: string, episode: string, day: number, contract: string, sdohSummary: string): SignalEvaluation[] {
+  return [
   {
     id: 'sig-auth',
     signalType: 'AUTH_EXPIRY',
     severity: 'HIGH',
-    journeyContext: 'Post-acute cardiac, Day 34, auth window critical',
+    journeyContext: `${episode}, Day ${day}, auth window critical`,
     competingSignals: 'None blocking',
-    dependencyCheck: 'Bennett County Health eligibility — active but expiring',
+    dependencyCheck: `${org} eligibility — active but expiring`,
     decision: 'ACT_NOW',
     decisionDetail: 'ACT NOW — but sequence AFTER eligibility check',
     rationale: [
@@ -52,9 +55,9 @@ const SIGNAL_EVALUATIONS: SignalEvaluation[] = [
   },
   {
     id: 'sig-caregap',
-    signalType: 'CARE_GAP — HbA1c',
+    signalType: `CARE_GAP — ${topGapName}`,
     severity: 'HIGH',
-    journeyContext: 'Q4 SD Medicaid quality window — care gap closure CRITICAL',
+    journeyContext: `${contract} quality window — care gap closure CRITICAL`,
     competingSignals: 'None blocking',
     dependencyCheck: 'SDOH: Food security MODERATE · Transport barrier PROBABLE · Financial strain ELEVATED',
     decision: 'ACT_NOW',
@@ -86,13 +89,13 @@ const SIGNAL_EVALUATIONS: SignalEvaluation[] = [
     id: 'sig-sdoh',
     signalType: 'SDOH — Multi-barrier profile',
     severity: 'HIGH',
-    journeyContext: 'Financial ELEVATED · Transport PROBABLE · Caregiver burden HIGH',
+    journeyContext: sdohSummary,
     competingSignals: 'Modifies ALL active signal dispositions',
     dependencyCheck: 'SDOH Intelligence Agent — profile assembled from 8 signal sources',
     decision: 'SEQUENCE',
     decisionDetail: 'SEQUENCE — SDOH context modifies intervention type',
     rationale: [
-      'Without SDOH: system schedules appointment — Maria cannot get there',
+      `Without SDOH: system schedules appointment — ${firstName} cannot get there`,
       'With SDOH: home kit ordered, copay program flagged, caregiver-sensitive message',
       'SDOH context changes the intervention, not just the timing',
     ],
@@ -102,26 +105,29 @@ const SIGNAL_EVALUATIONS: SignalEvaluation[] = [
     id: 'sig-mtm',
     signalType: 'Med review_ALERT — DUPLICATE_THERAPY',
     severity: 'CRITICAL',
-    journeyContext: 'Postpartum episode Day 34 — anticoagulation critical — A1C last recorded 22d ago',
+    journeyContext: `${episode} Day ${day} — ${topGapName} monitoring`,
     competingSignals: 'Elevates urgency — cardiac episode context amplifies bleeding risk',
     dependencyCheck: 'Martin Pharmacy consent domain — LIMITED — diagnosis codes EXCLUDED — Med review partial only',
     decision: 'ACT_NOW',
     decisionDetail: 'ACT NOW — URGENT — patient safety risk',
     rationale: [
-      'Lisinopril (CVS #4821, Bennett County Health) + Metformin (Walgreens #7734, Bennett County Health) — same molecule — two active fills',
+      `Lisinopril (CVS #4821, ${org}) + Metformin (Walgreens #7734, ${org}) — same molecule — two active fills`,
       'Duplicate BP med therapy creates active bleeding risk — A1C instability during cardiac recovery is a readmission predictor',
-      'Martin Pharmacy consent scope insufficient for full Med review — prescriber alerts dispatched to Bennett County Health + Bennett County Health — consent expansion queued',
+      `Martin Pharmacy consent scope insufficient for full Med review — prescriber alerts dispatched to ${org} — consent expansion queued`,
     ],
     color: '#fa4d56',
   },
-];
+  ];
+}
 
-const SEQUENCING_STEPS: SequencingStep[] = [
-  { id: 'seq-1', step: 1, action: 'Eligibility verification', reason: 'Must confirm Bennett County Health status before auth can finalize', color: '#8b5cf6' },
+function buildSequencingSteps(org: string, topGapName: string): SequencingStep[] {
+  return [
+  { id: 'seq-1', step: 1, action: 'Eligibility verification', reason: `Must confirm ${org} status before auth can finalize`, color: '#8b5cf6' },
   { id: 'seq-2', step: 2, action: 'Auth evidence assembly', reason: 'Clinical package built while eligibility confirms', color: '#f1c21b' },
   { id: 'seq-3', step: 3, action: 'SDOH-modified outreach', reason: 'Home kit + financial assist + brief caregiver-sensitive message', color: '#c084fc' },
-  { id: 'seq-4', step: 4, action: 'Food resource referral', reason: 'SNAP-eligible programs flagged — HbA1c gap partially food-driven', color: '#f59e0b' },
-];
+  { id: 'seq-4', step: 4, action: 'Food resource referral', reason: `SNAP-eligible programs flagged — ${topGapName} gap partially food-driven`, color: '#f59e0b' },
+  ];
+}
 
 const DECISION_CONFIG: Record<DispositionDecision, { color: string; bg: string; border: string; label: string; glow: string }> = {
   ACT_NOW:   { color: '#42be65', bg: 'rgba(66,190,101,0.22)',  border: 'rgba(66,190,101,0.7)',  label: '► ACT NOW',    glow: '0 0 18px rgba(66,190,101,0.4)' },
@@ -205,7 +211,7 @@ const OUTREACH_ROWS: OutreachRow[] = [
     reason: 'Only active communication this cycle',
     channel: 'PORTAL',
     channelColor: '#42be65',
-    lastTouch: 'Day 34 · Active session',
+    lastTouch: 'Recent · Active session',
   },
   {
     team: 'Martin Pharmacy Med review outreach',
@@ -301,8 +307,26 @@ function EvaluationCard({ eval: ev, visible, index }: { eval: SignalEvaluation; 
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function SignalDispositionEngineScreen() {
+function SignalDispositionEngineInner() {
   const setScreen = useDemoStore((s) => s.setScreen);
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const __reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const __org = __reg.organization.replace(/ \(.*\)/, '');
+  const __firstName = __reg.name.split(' ')[0];
+  const __tg = (__reg.careGaps || []).find((g) => g.domain === 'Clinical' && g.status !== 'Closed') || __reg.careGaps?.[0];
+  const __topGapName = __tg ? __tg.name.replace(/ \(.*\)/, '') : 'Care gap';
+  const __journey = journeyForPatient(__reg);
+  const __episode = __reg.episodeType;
+  const __sdohBits: string[] = [];
+  if (__reg.household?.caregiverFor?.length) __sdohBits.push('Caregiver HIGH');
+  if (/mile|barrier|high/i.test(__reg.transportStatus || '')) __sdohBits.push('Transport PROBABLE');
+  else if (/active|unite|referral/i.test(__reg.transportStatus || '')) __sdohBits.push('Transport MANAGED');
+  if (/not enrolled|expired|lapsed/i.test(__reg.snapStatus || '') || /low income/i.test(__reg.disparityFlag || '')) __sdohBits.push('Financial ELEVATED');
+  if (/insecur|desert/i.test(__reg.foodSecurity || '')) __sdohBits.push('Food MODERATE');
+  if (__reg.bhRisk !== 'Low') __sdohBits.push(`Behavioral ${__reg.bhRisk === 'High' || __reg.bhRisk === 'Crisis' ? 'ELEVATED' : 'MODERATE'}`);
+  const __sdohSummary = __sdohBits.slice(0, 3).join(' · ') || 'Low SDOH burden';
+  const SIGNAL_EVALUATIONS = buildSignalEvaluations(__firstName, __org, __topGapName, __episode, __journey.currentDay, __reg.contract, __sdohSummary);
+  const SEQUENCING_STEPS = buildSequencingSteps(__org, __topGapName);
   const [visibleEvals, setVisibleEvals] = useState(0);
   const [showSuppressionCheck, setShowSuppressionCheck] = useState(false);
   const [showSequencing, setShowSequencing] = useState(false);
@@ -313,12 +337,12 @@ export default function SignalDispositionEngineScreen() {
 
   const ENGINE_INIT_LINES = [
     'SIGNAL DISPOSITION ENGINE — 14:31:20',
-    'Loading journey context for MARIA_SD_001...',
-    'Consumer journey: Post-acute cardiac, Day 34/90 — loaded',
-    'Provider journey: Bennett County Health — eligibility constraint — loaded',
-    'Operational journey: Q4 SD Medicaid quality window — loaded',
-    'SDOH Intelligence Agent: loading barrier profile for MARIA_SD_001...',
-    'SDOH profile: Financial ELEVATED · Transport PROBABLE · Caregiver HIGH — loaded',
+    `Loading journey context for ${__reg.platformId}...`,
+    `Consumer journey: ${__episode}, Day ${__journey.currentDay}/${__journey.windowDays} — loaded`,
+    `Provider journey: ${__org} — eligibility constraint — loaded`,
+    `Operational journey: ${__reg.contract} quality window — loaded`,
+    `SDOH Intelligence Agent: loading barrier profile for ${__reg.platformId}...`,
+    `SDOH profile: ${__sdohSummary} — loaded`,
     `Evaluating ${SIGNAL_EVALUATIONS.length} signals against active journey + SDOH context...`,
   ];
 
@@ -436,10 +460,10 @@ export default function SignalDispositionEngineScreen() {
             <div className="flex-shrink-0 p-4" style={{ borderTop: '1px solid rgba(57,57,57,0.6)', background: '#262626' }}>
               <span className="font-mono uppercase" style={{ fontSize: '9px', color: '#6f6f6f', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>JOURNEY + SDOH CONTEXT LOADED</span>
               {[
-                { label: 'Consumer', value: 'Day 34/90 · HIGH sensitivity', color: '#fa4d56' },
+                { label: 'Consumer', value: `Day ${__journey.currentDay}/${__journey.windowDays} · HIGH sensitivity`, color: '#fa4d56' },
                 { label: 'Provider', value: 'Eligibility constraint active', color: '#78a9ff' },
-                { label: 'Operational', value: 'Q4 SD Medicaid quality · TCOC at ceiling', color: '#42be65' },
-                { label: 'SDOH', value: 'Financial ELEVATED · Transport PROBABLE', color: '#c084fc' },
+                { label: 'Operational', value: `${__reg.contract} quality · TCOC at ceiling`, color: '#42be65' },
+                { label: 'SDOH', value: __sdohSummary, color: '#c084fc' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between mb-2">
                   <span style={{ fontSize: '11px', color: '#6f6f6f' }}>{item.label}</span>
@@ -468,7 +492,7 @@ export default function SignalDispositionEngineScreen() {
                 >
                   <div className="flex items-center gap-2">
                     <div className="rounded-full" style={{ width: 9, height: 9, background: '#42be65', boxShadow: '0 0 8px rgba(66,190,101,0.6)' }} />
-                    <span className="font-mono font-bold" style={{ fontSize: '13px', color: '#42be65', letterSpacing: '0.1em' }}>ENTERPRISE OUTREACH COORDINATION CHECK — MARIA_SD_001</span>
+                    <span className="font-mono font-bold" style={{ fontSize: '13px', color: '#42be65', letterSpacing: '0.1em' }}>ENTERPRISE OUTREACH COORDINATION CHECK — {__reg.platformId}</span>
                   </div>
                   {/* Column headers */}
                   <div className="grid gap-0 px-1" style={{ gridTemplateColumns: '1fr 90px 110px' }}>
@@ -592,4 +616,11 @@ export default function SignalDispositionEngineScreen() {
       </div>
     </ScreenLayout>
   );
+}
+
+// Re-mount per active citizen so the engine console + signal evaluations re-animate
+// with the selected member's data instead of retaining the previously loaded citizen.
+export default function SignalDispositionEngineScreen() {
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  return <SignalDispositionEngineInner key={activeCitizenId} />;
 }

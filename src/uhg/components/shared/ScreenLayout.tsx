@@ -46,7 +46,7 @@ export default function ScreenLayout({
             />
           </div>
 
-          {/* Right: UHG Brand */}
+          {/* Right: RHTP Brand */}
           <div style={{ minWidth: 240 }} className="flex justify-end">
             <div
               className="rounded px-3 py-1.5"
@@ -59,7 +59,7 @@ export default function ScreenLayout({
                 className="font-semibold text-white tracking-wider"
                 style={{ fontSize: '11px', letterSpacing: '0.14em' }}
               >
-                UHG ORCHESTRATE
+                RHTP ORCHESTRATE
               </span>
             </div>
           </div>

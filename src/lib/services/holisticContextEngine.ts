@@ -271,15 +271,9 @@ export class HolisticContextEngine {
             description: 'Blood pressure control',
             hedisCode: 'CBP',
             priority: 'high'
-          },
-          {
-            id: 'CG_MARIA_003',
-            type: 'HEDIS_EED',
-            description: 'Diabetic eye exam overdue',
-            hedisCode: 'EED',
-            dueDate: '2026-07-15',
-            priority: 'moderate'
           }
+          // REMOVED: Diabetic eye exam - Maria is PRE-diabetic, not diabetic
+          // Eye exams are not indicated for pre-diabetic patients per clinical guidelines
         ],
         medications: [
           { name: 'Metformin', dosage: '1000mg', frequency: 'BID', class: 'Antidiabetic' },
@@ -344,25 +338,25 @@ export class HolisticContextEngine {
           {
             name: 'Sophia',
             relationship: 'child',
-            age: 8,
-            healthStatus: 'special-needs',
+            age: 2, // 24 months old
+            healthStatus: 'healthy', // NO autism, NO special needs
             careRequirements: {
-              dailyCareHours: 6,
-              medicalAppointments: 2,
-              specialNeeds: ['Autism Spectrum Disorder', 'Speech therapy', 'Occupational therapy'],
-              canBeLeftAlone: false
+              dailyCareHours: 8, // Toddler requires full-time care
+              medicalAppointments: 1, // Well-child visit needed
+              specialNeeds: [], // NO special needs
+              canBeLeftAlone: false // Toddler cannot be left alone
             }
           },
           {
             name: 'Elena',
-            relationship: 'parent',
-            age: 68,
-            healthStatus: 'frail',
+            relationship: 'child', // INFANT daughter, NOT elderly parent
+            age: 0, // Infant (less than 1 year old)
+            healthStatus: 'healthy', // Healthy infant
             careRequirements: {
-              dailyCareHours: 4,
-              medicalAppointments: 3,
-              specialNeeds: ['Mobility assistance', 'Medication management', 'Fall risk'],
-              canBeLeftAlone: false
+              dailyCareHours: 12, // Infant requires constant care
+              medicalAppointments: 0, // No overdue appointments
+              specialNeeds: [], // NO special needs
+              canBeLeftAlone: false // Infant cannot be left alone
             }
           }
         ],

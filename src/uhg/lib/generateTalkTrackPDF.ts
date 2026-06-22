@@ -506,7 +506,7 @@ function buildHTMLDocument(): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UHG Orchestrate — Demo Talk Track</title>
+  <title>RHTP Orchestrate — Demo Talk Track</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -887,7 +887,7 @@ function buildHTMLDocument(): string {
   <div class="cover" style="position: relative;">
     <div class="cover-eyebrow">UnitedHealth Group · Confidential</div>
     <div class="cover-title">Demo Talk Track</div>
-    <div class="cover-subtitle">UHG Orchestrate — Full Presenter Guide</div>
+    <div class="cover-subtitle">RHTP Orchestrate — Full Presenter Guide</div>
     <div class="cover-divider"></div>
     <div class="cover-meta">
       <div class="cover-meta-row">
@@ -1141,7 +1141,7 @@ export function downloadTalkTrackPDF(): void {
     // Fallback: direct download as HTML if popup blocked
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'UHG-Orchestrate-Demo-Talk-Track.html';
+    a.download = 'RHTP-Orchestrate-Demo-Talk-Track.html';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

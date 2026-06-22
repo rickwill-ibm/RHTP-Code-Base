@@ -6,6 +6,8 @@ import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import { useDemoStore } from '@/uhg/store/demoStore';
 import { personaFor } from '@/uhg/data/persona';
+import { contextFor } from '@/uhg/data/citizenContext';
+import { getPatientById } from '@/lib/patientRegistry';
 
 interface SdohDomain {
   id: string;
@@ -25,91 +27,84 @@ interface CarePlanMod {
   color: string;
 }
 
-const SDOH_DOMAINS: SdohDomain[] = [
-  {
-    id: 'financial',
-    label: 'Financial Strain',
-    status: 'ELEVATED',
-    level: 'ELEVATED',
-    score: 82,
-    signals: ['2 unpaid claims >90d', 'Rx abandonment detected', 'Income tier: LOW-MODERATE'],
-    color: '#fa4d56',
-    amplifies: 'Prescription Abandonment',
-  },
-  {
-    id: 'caregiver',
-    label: 'Caregiver Burden',
-    status: 'HIGH',
-    level: 'HIGH',
-    score: 88,
-    signals: ['Elena (71) + Sophia (2) simultaneous', 'Portal engagement HIGH — digital lifeline', 'Social support: LIMITED'],
-    color: '#c084fc',
-    amplifies: 'Readmission Risk',
-  },
-  {
-    id: 'transport',
-    label: 'Transportation',
-    status: 'BLOCKER',
-    level: 'PROBABLE',
-    score: 68,
-    signals: ['Vehicle access: Unknown', 'Transit score: LOW (suburban)', '2 missed appts in 12 months', 'HbA1c clinic appointment: BLOCKED'],
-    color: '#ef4444',
-    amplifies: 'HbA1c Care Gap — BLOCKED',
-  },
-  {
-    id: 'food',
-    label: 'Food Security',
-    status: 'MODERATE',
-    level: 'MODERATE',
-    score: 55,
-    signals: ['SNAP enrollment: None detected', 'Food desert proximity: MODERATE', 'Diabetes mgmt risk: HIGH'],
-    color: '#f59e0b',
-    amplifies: 'HbA1c Care Gap',
-  },
-  {
-    id: 'isolation',
-    label: 'Social Isolation',
-    status: 'MODERATE',
-    level: 'MODERATE',
-    score: 52,
-    signals: ['Caregiver role limits social time', 'Portal = primary connection', 'Community engagement: LOW'],
-    color: '#78a9ff',
-    amplifies: 'Engagement Drop-off',
-  },
-];
+function buildSdohDomains(reg: NonNullable<ReturnType<typeof getPatientById>>, ctx: ReturnType<typeof contextFor>, topGapName: string, caregiverSignal: string): SdohDomain[] {
+  // Maria Redhawk — authored verbatim (flagship)
+  if (reg.platformId === 'MARIA_SD_001') {
+    return [
+      { id: 'financial', label: 'Financial Strain', status: 'ELEVATED', level: 'ELEVATED', score: 82, signals: ['2 unpaid claims >90d', 'Rx abandonment detected', 'Income tier: LOW-MODERATE'], color: '#fa4d56', amplifies: 'Prescription Abandonment' },
+      { id: 'caregiver', label: 'Caregiver Burden', status: 'HIGH', level: 'HIGH', score: 88, signals: [caregiverSignal, 'Portal engagement HIGH — digital lifeline', 'Social support: LIMITED'], color: '#c084fc', amplifies: 'Readmission Risk' },
+      { id: 'transport', label: 'Transportation', status: 'BLOCKER', level: 'PROBABLE', score: 68, signals: ['Vehicle access: Unknown', 'Transit score: LOW (suburban)', '2 missed appts in 12 months', `${topGapName} appointment: BLOCKED`], color: '#ef4444', amplifies: `${topGapName} Care Gap — BLOCKED` },
+      { id: 'food', label: 'Food Security', status: 'MODERATE', level: 'MODERATE', score: 55, signals: ['SNAP enrollment: None detected', 'Food desert proximity: MODERATE', 'Diabetes mgmt risk: HIGH'], color: '#f59e0b', amplifies: `${topGapName} Care Gap` },
+      { id: 'isolation', label: 'Social Isolation', status: 'MODERATE', level: 'MODERATE', score: 52, signals: ['Caregiver role limits social time', 'Portal = primary connection', 'Community engagement: LOW'], color: '#78a9ff', amplifies: 'Engagement Drop-off' },
+    ];
+  }
 
-const CARE_PLAN_MODS: CarePlanMod[] = [
-  {
-    standard: 'Schedule clinic lab appointment',
-    sdohInformed: 'Home lab kit ordered — eliminates transportation barrier',
-    barrier: 'Transportation',
-    color: '#f1c21b',
-  },
-  {
-    standard: '"Your HbA1c lab is due. Please schedule."',
-    sdohInformed: 'Brief caregiver-sensitive message — acknowledges complexity, offers home option',
-    barrier: 'Caregiver Burden',
-    color: '#c084fc',
-  },
-  {
-    standard: 'Standard medication refill reminder',
-    sdohInformed: 'Generic metformin substitution flagged + manufacturer copay program identified',
-    barrier: 'Financial Strain',
-    color: '#fa4d56',
-  },
-  {
-    standard: 'Clinic referral for diabetes nutrition',
-    sdohInformed: 'Telehealth option added + 2 SNAP-eligible programs nearby flagged',
-    barrier: 'Food Security',
-    color: '#f59e0b',
-  },
-  {
-    standard: 'Standard care gap outreach protocol',
-    sdohInformed: 'SDOH-aware sequencing: home kit → financial assist → food resource → follow-up',
-    barrier: 'Multi-barrier',
-    color: '#42be65',
-  },
-];
+  type Lvl = SdohDomain['level'];
+  const lvlColor: Record<Lvl, string> = { ELEVATED: '#fa4d56', HIGH: '#c084fc', PROBABLE: '#ef4444', MODERATE: '#f59e0b', LIMITED: '#78a9ff' };
+  const mk = (id: string, label: string, level: Lvl, score: number, signals: string[], amplifies: string, status?: string): SdohDomain =>
+    ({ id, label, status: status ?? level, level, score, signals: signals.filter(Boolean), color: lvlColor[level], amplifies });
+  const D: SdohDomain[] = [];
+  const has = (id: string) => D.some((d) => d.id === id);
+
+  if (reg.bhRisk !== 'Low') {
+    const lvl: Lvl = reg.bhRisk === 'Crisis' || reg.bhRisk === 'High' ? 'ELEVATED' : 'MODERATE';
+    D.push(mk('bh', 'Behavioral Health', lvl, lvl === 'ELEVATED' ? 84 : 60, [reg.bhScoreLabel, reg.bhReferralStatus, `Screen: ${reg.bhScreeningLabel}`], 'Engagement & Adherence'));
+  }
+  if (ctx.household.caregiverFor.length) {
+    D.push(mk('caregiver', 'Caregiver Burden', 'HIGH', 80, [caregiverSignal, 'Manages a dependent medication regimen', 'Social support: LIMITED'], 'Readmission Risk'));
+  }
+  const t = reg.transportStatus || '';
+  if (/barrier|high|mile/i.test(t)) D.push(mk('transport', 'Transportation', 'PROBABLE', 68, ['Vehicle access: limited', reg.ruralDistance || t, `${topGapName} appointment: BLOCKED`], `${topGapName} Care Gap — BLOCKED`, 'BLOCKER'));
+  else if (/active|unite us|referral/i.test(t)) D.push(mk('transport', 'Transportation', 'LIMITED', 32, [`NEMT active — ${t}`, 'Rides coordinated'], 'Access — managed', 'MANAGED'));
+  if (/expired|lapsed|not enrolled|waitlist/i.test(reg.snapStatus || '') || /low income/i.test(reg.disparityFlag || '')) D.push(mk('financial', 'Financial Strain', 'ELEVATED', 76, [reg.snapStatus, reg.disparityFlag, 'Rx abandonment risk'], 'Prescription Abandonment'));
+  if (/insecur|desert/i.test(reg.foodSecurity || '')) D.push(mk('food', 'Food Security', 'MODERATE', 55, [reg.foodSecurity, 'Food resource referral indicated'], `${topGapName} adherence`));
+  if (/waitlist|instab|unstable|assistance/i.test(reg.housingStatus || '')) D.push(mk('housing', 'Housing Instability', 'MODERATE', 50, [reg.housingStatus, 'Housing navigation indicated'], 'Care continuity'));
+  if (/single|isolat|rural|seasonal/i.test(reg.cohortFlag || '') || /rural/i.test(reg.disparityFlag || '')) D.push(mk('isolation', 'Social Isolation', 'MODERATE', 45, [reg.cohortFlag, reg.disparityFlag], 'Engagement Drop-off'));
+  if (/asian|language|interpreter|mandarin|spanish/i.test(reg.disparityFlag || '') || /interpreter/i.test(ctx.household.caregiverFor[0]?.consent || '')) D.push(mk('language', 'Language & Cultural Access', 'MODERATE', 42, [reg.disparityFlag, `Primary language: ${reg.language}`], 'Care comprehension'));
+
+  // Social care gaps → domains (ties to the member's flagged barrier count)
+  (reg.careGaps || []).filter((g) => g.domain === 'Social' && g.status !== 'Closed').forEach((g, i) => {
+    const n = g.name.toLowerCase();
+    let id = `social-${i}`;
+    if (/transport/.test(n)) id = 'transport';
+    else if (/food|snap|wic|nutrition/.test(n)) id = 'food';
+    else if (/hous|liheap|utility/.test(n)) id = 'housing';
+    else if (/financ|cost|subsid|copay|adherence/.test(n)) id = 'financial';
+    if (!has(id)) D.push(mk(id, g.name.replace(/ \(.*\)/, ''), 'MODERATE', 48, [g.name, `Assigned: ${g.assignedTo}`], 'Care-plan adherence'));
+  });
+
+  if (!D.length) D.push(mk('screen', 'Whole-Person Screen', 'LIMITED', 25, ['PRAPARE completed — low SDOH burden', 'No active barriers flagged'], 'Routine monitoring'));
+  D.sort((a, b) => b.score - a.score);
+  return D.slice(0, 6);
+}
+
+function buildCarePlanMods(reg: NonNullable<ReturnType<typeof getPatientById>>, topGapName: string, domains: SdohDomain[]): CarePlanMod[] {
+  if (reg.platformId === 'MARIA_SD_001') {
+    return [
+      { standard: 'Schedule clinic lab appointment', sdohInformed: 'Home lab kit ordered — eliminates transportation barrier', barrier: 'Transportation', color: '#f1c21b' },
+      { standard: `"Your ${topGapName} is due. Please schedule."`, sdohInformed: 'Brief caregiver-sensitive message — acknowledges complexity, offers home option', barrier: 'Caregiver Burden', color: '#c084fc' },
+      { standard: 'Standard medication refill reminder', sdohInformed: 'Preferred generic substitution flagged + manufacturer copay program identified', barrier: 'Financial Strain', color: '#fa4d56' },
+      { standard: 'Clinic referral for diabetes nutrition', sdohInformed: 'Telehealth option added + 2 SNAP-eligible programs nearby flagged', barrier: 'Food Security', color: '#f59e0b' },
+      { standard: 'Standard care gap outreach protocol', sdohInformed: 'SDOH-aware sequencing: home kit → financial assist → food resource → follow-up', barrier: 'Multi-barrier', color: '#42be65' },
+    ];
+  }
+  const modFor = (d: SdohDomain): { standard: string; sdohInformed: string } => {
+    if (d.id === 'transport') return d.status === 'BLOCKER'
+      ? { standard: 'Schedule clinic appointment', sdohInformed: 'Home lab kit or NEMT — eliminates the trip' }
+      : { standard: 'Assume patient can attend', sdohInformed: 'Confirm active NEMT ride before each appointment' };
+    if (d.id === 'caregiver') return { standard: `"Your ${topGapName} is due. Please schedule."`, sdohInformed: 'Brief caregiver-sensitive message — offers home option' };
+    if (d.id === 'bh') return { standard: 'Standard BH referral letter mailed', sdohInformed: 'Warm handoff within 42 CFR Part 2 consent scope' };
+    if (d.id === 'financial') return { standard: 'Standard medication refill reminder', sdohInformed: 'Generic substitution + manufacturer copay program' };
+    if (d.id === 'food') return { standard: 'Nutrition clinic referral', sdohInformed: 'Telehealth option + SNAP/WIC programs flagged' };
+    if (d.id === 'housing') return { standard: 'Standard discharge instructions', sdohInformed: 'Housing navigation + utility (LIHEAP) assistance' };
+    if (d.id === 'isolation') return { standard: 'Standard outreach cadence', sdohInformed: 'Preferred-channel, community-linked outreach' };
+    if (d.id === 'language') return { standard: 'English-only materials sent', sdohInformed: 'Interpreter + translated materials scheduled' };
+    return { standard: `Standard ${d.label} protocol`, sdohInformed: `SDOH-informed ${d.label} intervention` };
+  };
+  const mods: CarePlanMod[] = domains.slice(0, 4).map((d) => ({ ...modFor(d), barrier: d.label, color: d.color }));
+  mods.push({ standard: 'Standard care gap outreach protocol', sdohInformed: 'SDOH-aware sequencing: keystone barrier → resource referral → follow-up', barrier: 'Multi-barrier', color: '#42be65' });
+  return mods;
+}
 
 const LEVEL_CONFIG: Record<SdohDomain['level'], { color: string; bg: string; border: string }> = {
   ELEVATED: { color: '#fa4d56', bg: 'rgba(250,77,86,0.15)', border: 'rgba(250,77,86,0.5)' },
@@ -121,7 +116,18 @@ const LEVEL_CONFIG: Record<SdohDomain['level'], { color: string; bg: string; bor
 
 export default function WholePersonCareScreen() {
   const setScreen = useDemoStore((s) => s.setScreen);
-  const __persona = personaFor(useDemoStore((s) => s.activeCitizenId));
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const __persona = personaFor(activeCitizenId);
+  const __ctx = contextFor(activeCitizenId);
+  const __reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const __topGapEntry = (__reg.careGaps || []).find((g) => g.domain === 'Clinical' && g.status !== 'Closed') || __reg.careGaps?.[0];
+  const topGapName = __topGapEntry ? __topGapEntry.name.replace(/ \(.*\)/, '') : 'Care gap';
+  const caregiverSignal = __ctx.household.caregiverFor.length
+    ? `${__ctx.household.caregiverFor[0].name}${__ctx.household.dependents[0] ? ' + ' + __ctx.household.dependents[0].name : ''} simultaneous care load`
+    : 'Lives independently — low caregiver load';
+  const SDOH_DOMAINS = buildSdohDomains(__reg, __ctx, topGapName, caregiverSignal);
+  const CARE_PLAN_MODS = buildCarePlanMods(__reg, topGapName, SDOH_DOMAINS);
+  const signalCount = SDOH_DOMAINS.reduce((acc, d) => acc + d.signals.length, 0);
   const [visibleDomains, setVisibleDomains] = useState(0);
   const [visibleMods, setVisibleMods] = useState(0);
   const [showAmplifies, setShowAmplifies] = useState(false);
@@ -191,7 +197,7 @@ export default function WholePersonCareScreen() {
           <div className="flex items-center gap-3">
             <div className="rounded px-3 py-1" style={{ background: 'rgba(57,57,57,0.5)', border: '1px solid rgba(100,100,100,0.4)' }}>
               <span className="font-mono" style={{ fontSize: 10, color: '#8d8d8d', letterSpacing: '0.1em' }}>
-                5 DOMAINS · 8 SIGNAL SOURCES
+                {SDOH_DOMAINS.length} DOMAINS · {signalCount} SIGNAL SOURCES
               </span>
             </div>
           </div>
@@ -217,7 +223,7 @@ export default function WholePersonCareScreen() {
               style={{ borderBottom: '1px solid rgba(57,57,57,0.4)', background: '#1c1c1c' }}
             >
               <span className="font-mono uppercase" style={{ fontSize: 10, color: '#6f6f6f', letterSpacing: '0.12em' }}>
-                SDOH Profile — 5 Domains
+                SDOH Profile — {SDOH_DOMAINS.length} Domains
               </span>
             </div>
 
@@ -226,7 +232,7 @@ export default function WholePersonCareScreen() {
                 const cfg = LEVEL_CONFIG[domain.level];
                 const visible = visibleDomains > i;
                 const isSelected = selectedDomain === domain.id;
-                const isBlocker = domain.id === 'transport';
+                const isBlocker = domain.status === 'BLOCKER';
                 return (
                   <button
                     key={domain.id}
@@ -514,10 +520,10 @@ export default function WholePersonCareScreen() {
                   </p>
                   <div className="flex items-center gap-6 mt-4 pt-4" style={{ borderTop: '1px solid rgba(192,132,252,0.2)' }}>
                     {[
-                      { label: 'Barriers identified', value: '5', color: '#c084fc' },
-                      { label: 'Interventions modified', value: '5', color: '#42be65' },
-                      { label: 'Signal sources', value: '8', color: '#78a9ff' },
-                      { label: 'AMPLIFIES edges', value: '5', color: '#fa4d56' },
+                      { label: 'Barriers identified', value: String(SDOH_DOMAINS.length), color: '#c084fc' },
+                      { label: 'Interventions modified', value: String(CARE_PLAN_MODS.length), color: '#42be65' },
+                      { label: 'Signal sources', value: String(signalCount), color: '#78a9ff' },
+                      { label: 'AMPLIFIES edges', value: String(SDOH_DOMAINS.length), color: '#fa4d56' },
                     ].map((stat) => (
                       <div key={stat.label} className="flex flex-col gap-0.5">
                         <span className="font-mono font-bold" style={{ fontSize: 22, color: stat.color, lineHeight: 1 }}>{stat.value}</span>

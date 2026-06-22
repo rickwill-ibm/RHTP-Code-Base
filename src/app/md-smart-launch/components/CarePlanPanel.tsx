@@ -42,13 +42,13 @@ const CHRONIC_CONDITIONS = [
   },
 ];
 
+// NOTE: These are DEMO goals for non-Maria patients. For Maria, use generated care plan.
 const CARE_GOALS = [
-  { id: 'goal-1', category: 'Clinical', goal: 'Achieve A1C < 8.0% within 6 months', owner: 'Dr. James Chen', targetDate: '2026-10-16', status: 'In Progress', priority: 'high' },
-  { id: 'goal-2', category: 'Clinical', goal: 'Resolve duplicate anticoagulant therapy and maintain safe medication regimen', owner: 'Dr. James Chen', targetDate: '2026-06-20', status: 'In Progress', priority: 'critical' },
+  { id: 'goal-1', category: 'Clinical', goal: 'Achieve A1C < 8.0% within 6 months', owner: 'Primary Care', targetDate: '2026-10-16', status: 'In Progress', priority: 'high' },
+  { id: 'goal-2', category: 'Clinical', goal: 'Resolve duplicate anticoagulant therapy and maintain safe medication regimen', owner: 'Primary Care', targetDate: '2026-06-20', status: 'In Progress', priority: 'critical' },
   { id: 'goal-3', category: 'Clinical', goal: 'Route HbA1c testing to Labcorp and confirm result return to PCP workflow', owner: 'Labcorp', targetDate: '2026-06-18', status: 'In Progress', priority: 'high' },
   { id: 'goal-4', category: 'SDoH', goal: 'Transportation barrier routed to Unite Us and outreach initiated', owner: 'Unite Us', targetDate: '2026-06-18', status: 'In Progress', priority: 'high' },
-  { id: 'goal-5', category: 'Financial', goal: 'Capture gainshare after Maria care gaps close and documentation is returned', owner: 'UHG / Value-Based Operations', targetDate: '2026-06-30', status: 'Pending', priority: 'moderate' },
-  { id: 'goal-6', category: 'Preventive', goal: 'Schedule upcoming diabetic eye exam when due', owner: 'Ophthalmology', targetDate: '2026-09-30', status: 'Pending', priority: 'moderate' },
+  { id: 'goal-5', category: 'Financial', goal: 'Capture gainshare after care gaps close and documentation is returned', owner: 'Value-Based Operations', targetDate: '2026-06-30', status: 'Pending', priority: 'moderate' },
   { id: 'goal-7', category: 'Preventive', goal: 'Schedule annual wellness visit when due', owner: 'Primary Care', targetDate: '2026-10-15', status: 'Pending', priority: 'moderate' },
 ];
 
@@ -110,7 +110,7 @@ export default function CarePlanPanel({ launchContext, completedOrders, confirme
 
   // Merge confirmed assignments + order-based referrals into care team
   const careTeamMembers = [
-    { name: 'Dr. James Whitfield', role: 'Primary Care Physician', specialty: 'Internal Medicine', type: 'PCP', status: 'Active' },
+    { name: patient.primaryCareProvider || 'Primary Care Provider (to be assigned)', role: 'Primary Care Physician', specialty: 'Internal Medicine', type: 'PCP', status: 'Active' },
     ...confirmedAssignments.map((a) => ({
       name: a.providerName,
       role: a.role,

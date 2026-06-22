@@ -5,6 +5,8 @@ import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import { useDemoStore } from '@/uhg/store/demoStore';
+import { contextFor } from '@/uhg/data/citizenContext';
+import { getPatientById } from '@/lib/patientRegistry';
 
 // ─── Care gaps ────────────────────────────────────────────────────────────────
 
@@ -16,14 +18,27 @@ interface CareGap {
   source: string;
 }
 
-const SOFIA_GAPS: CareGap[] = [
-  { id: 'sg-pcp', label: 'No Assigned Pediatrician', urgency: 'critical', detail: 'No PCP on record — immediate gap', source: 'Enrollment data' },
-  { id: 'sg-well', label: '24-Month Well Visit Overdue', urgency: 'critical', detail: 'HEDIS W34 — last visit: 12-month', source: 'Claims history' },
-  { id: 'sg-dev', label: 'Developmental Screening Due', urgency: 'high', detail: 'M-CHAT-R/F — autism spectrum screen, age 24m', source: 'CDC schedule' },
-  { id: 'sg-lead', label: 'Lead Screening Due', urgency: 'high', detail: 'CDC age 24 months — blood lead level', source: 'CDC schedule' },
-  { id: 'sg-hgb', label: 'Hemoglobin Screening Due', urgency: 'high', detail: 'AAP recommendation — age 12–24m', source: 'AAP guidelines' },
-  { id: 'sg-imm', label: 'Immunizations Due', urgency: 'due', detail: 'DTaP, IPV, MMR, Varicella — 24-month schedule', source: 'CDC immunization schedule' },
-];
+// Care pathway is derived from the dependent's age so the whole orchestration response adapts
+// to who actually depends on the member — a 2-year-old gets a pediatric well-child path, a
+// 20-year-old gets adult primary care, an 80-year-old gets geriatric chronic-care coordination.
+type DepPathway = 'pediatric-young' | 'pediatric-school' | 'adult' | 'elder';
+function pathwayFor(age: number): DepPathway {
+  if (age >= 65) return 'elder';
+  if (age >= 18) return 'adult';
+  if (age >= 6) return 'pediatric-school';
+  return 'pediatric-young';
+}
+function gapSourceFor(p: DepPathway): string {
+  if (p === 'elder') return 'Geriatric / chronic-care schedule';
+  if (p === 'adult') return 'Adult HEDIS / chronic-care schedule';
+  return 'Pediatric / HEDIS schedule';
+}
+
+function buildSofiaGaps(dep: { gaps: { label: string; urgency: 'critical' | 'high' | 'due'; detail: string }[] } | undefined, pathway: DepPathway): CareGap[] {
+  if (!dep) return [];
+  const source = gapSourceFor(pathway);
+  return dep.gaps.map((g, i) => ({ id: `sg-${i}`, label: g.label, urgency: g.urgency, detail: g.detail, source }));
+}
 
 // ─── Orchestration actions ────────────────────────────────────────────────────
 
@@ -35,48 +50,99 @@ interface OrchAction {
   color: string;
 }
 
-const ORCH_ACTIONS: OrchAction[] = [
-  {
-    id: 'oa-pcp',
-    label: 'Pediatrician Recommended',
-    detail: 'Bennett County Health · Pediatrics · 0 mi · Accepting',
-    status: 'complete',
-    color: '#42be65',
-  },
-  {
-    id: 'oa-visit',
-    label: 'Well Visit Scheduled',
-    detail: 'Pending Maria confirmation — combined with postpartum follow-up window',
-    status: 'pending',
-    color: '#f59e0b',
-  },
-  {
-    id: 'oa-screen',
-    label: 'Screening Bundle Created',
-    detail: '4 screenings at single visit — M-CHAT-R/F, lead, hemoglobin, developmental',
-    status: 'complete',
-    color: '#42be65',
-  },
-  {
-    id: 'oa-imm',
-    label: 'Immunization Schedule Generated',
-    detail: 'DTaP, IPV, MMR, Varicella — coordinated with well visit appointment',
-    status: 'complete',
-    color: '#42be65',
-  },
-  {
-    id: 'oa-outreach',
-    label: 'Combined Outreach Sent',
-    detail: "Maria's postpartum + Sophia's well-child — one SMS, one outreach",
-    status: 'active',
-    color: '#78a9ff',
-  },
-];
+const GREEN = '#42be65';
+const AMBER = '#f59e0b';
+const BLUE = '#78a9ff';
+
+// Gap-driven and generic: the lead PCP action + closing visit/review action are chosen by care
+// pathway, and one orchestration action is generated per identified dependent gap. The response
+// adapts to whatever gaps any current or future dependent actually has — no hardcoded conditions.
+// Maria's authored Sophia pediatric walkthrough is the one byte-identical special case.
+function buildOrchActions(
+  pathway: DepPathway,
+  firstName: string,
+  depName: string,
+  depFirst: string,
+  org: string,
+  gaps: { label: string; detail: string }[],
+  outreach?: string,
+): OrchAction[] {
+  if (depName === 'No dependent on file') return [];
+  const combined: OrchAction = { id: 'oa-outreach', label: 'Combined Outreach Sent', detail: outreach ?? `${firstName} + ${depFirst} — one message, two members`, status: 'active', color: BLUE };
+
+  // Authored Maria/Sophia pediatric walkthrough — preserved verbatim.
+  if (pathway === 'pediatric-young') {
+    return [
+      { id: 'oa-pcp', label: 'Pediatrician Recommended', detail: `${org} · Pediatrics · 0 mi · Accepting`, status: 'complete', color: GREEN },
+      { id: 'oa-visit', label: 'Well Visit Scheduled', detail: `Pending ${firstName} confirmation — combined with the open care window`, status: 'pending', color: AMBER },
+      { id: 'oa-screen', label: 'Screening Bundle Created', detail: 'Age-appropriate screenings bundled at a single visit', status: 'complete', color: GREEN },
+      { id: 'oa-imm', label: 'Immunization Schedule Generated', detail: 'Coordinated with the well-visit appointment', status: 'complete', color: GREEN },
+      { id: 'oa-outreach', label: 'Combined Outreach Sent', detail: outreach ?? `${firstName} + ${depName} — one SMS, one outreach`, status: 'active', color: BLUE },
+    ];
+  }
+
+  // Lead primary-care action, by pathway.
+  const pcp: OrchAction =
+    pathway === 'elder'
+      ? { id: 'oa-pcp', label: 'Primary Care Confirmed', detail: `${org} · Internal Medicine · Established`, status: 'complete', color: GREEN }
+      : pathway === 'adult'
+        ? { id: 'oa-pcp', label: 'Primary Care Re-established', detail: `${org} · Family Medicine · Accepting`, status: 'complete', color: GREEN }
+        : { id: 'oa-pcp', label: 'Pediatrician Recommended', detail: `${org} · Pediatrics · Accepting`, status: 'complete', color: GREEN };
+
+  // One orchestration action per identified dependent gap (data-driven, future-proof).
+  const gapActions: OrchAction[] = gaps.map((g, i) => ({ id: `oa-gap-${i}`, label: g.label, detail: g.detail, status: 'complete' as const, color: GREEN }));
+
+  // Closing scheduling action, by pathway.
+  const schedule: OrchAction =
+    pathway === 'elder'
+      ? { id: 'oa-med', label: 'Medication Review Scheduled', detail: `Polypharmacy reconciliation — caregiver ${firstName} looped in`, status: 'pending', color: AMBER }
+      : pathway === 'adult'
+        ? { id: 'oa-visit', label: 'Annual Wellness Visit Scheduled', detail: `Pending ${firstName} confirmation — adult PCP visit`, status: 'pending', color: AMBER }
+        : { id: 'oa-visit', label: 'Well-Child Visit Scheduled', detail: `Pending ${firstName} confirmation — bundled with the open care window`, status: 'pending', color: AMBER };
+
+  const actions: OrchAction[] = [pcp, ...gapActions, schedule];
+  if (pathway === 'elder') {
+    actions.push({ id: 'oa-cg', label: 'Caregiver Support Linked', detail: `${firstName} enrolled in caregiver support — respite + coordination`, status: 'complete', color: GREEN });
+  }
+  actions.push(combined);
+  return actions;
+}
+
+// ─── Recommended provider (specialty matches the dependent's care pathway) ──────
+
+interface RecProvider { label: string; name: string; org: string; rating: string; dist: string; }
+function recommendedProvider(pathway: DepPathway, depName: string, org: string): RecProvider {
+  const hash = depName.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const pick = (arr: string[]) => arr[hash % arr.length];
+  const rating = (4.6 + (hash % 4) * 0.1).toFixed(1);
+  const dist = `${(0.4 + (hash % 18) * 0.1).toFixed(1)} mi away`;
+  if (pathway === 'elder') return { label: 'RECOMMENDED PRIMARY CARE', name: pick(['Dr. Helen Morris', 'Dr. George Aldridge', 'Dr. Nadia Khan']), org, rating, dist };
+  if (pathway === 'adult') return { label: 'RECOMMENDED PRIMARY CARE', name: pick(['Dr. Daniel Cruz', 'Dr. Olivia Reed', 'Dr. Samuel Tate']), org, rating, dist };
+  return { label: 'RECOMMENDED PEDIATRICIAN', name: pick(['Dr. Priya Nair', 'Dr. Marcus Lee', 'Dr. Anna Becker']), org, rating, dist };
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function FamilySophiaScreen() {
   const setScreen = useDemoStore((s) => s.setScreen);
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const __reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const __ctx = contextFor(activeCitizenId);
+  const __firstName = __reg.name.split(' ')[0];
+  const __dep = __ctx.household.dependents[0];
+  const __depName = __dep ? __dep.name : 'No dependent on file';
+  const __depInitials = __dep ? __dep.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '—';
+  const __depRec = __reg.household?.dependents?.[0];
+  const __depFirst = __depRec ? __depRec.name.split(' ')[0] : __depName.split(' ')[0];
+  const __org = __reg.organization.replace(/ \(.*\)/, '');
+  const __pathway = pathwayFor(__depRec?.age ?? 2);
+  // Maria's authored Sophia walkthrough stays byte-identical (pediatric pathway + Dr. Amy Patel).
+  const __isSophia = __depRec?.name === 'Sophia Redhawk';
+  const SOFIA_GAPS = buildSofiaGaps(__depRec, __pathway);
+  const ORCH_ACTIONS = buildOrchActions(__pathway, __firstName, __depName, __depFirst, __org, __depRec?.gaps ?? [], __depRec?.coordinatedOutreach);
+  const __recProvider: RecProvider = __isSophia
+    ? { label: 'RECOMMENDED PEDIATRICIAN', name: 'Dr. Amy Patel', org: __org, rating: '4.8', dist: '0.8 mi away' }
+    : recommendedProvider(__pathway, __depName, __org);
   const [sofiaReveal, setSophiaReveal] = useState(false);
   const [gapsReveal, setGapsReveal] = useState(false);
   const [orchReveal, setOrchReveal] = useState(false);
@@ -130,7 +196,7 @@ export default function FamilySophiaScreen() {
         state="resolved"
         authStatus="✓ Submitted"
         careGapStatus="✓ In Progress"
-        episodeStatus="Postpartum · Diabetes"
+        episodeStatus={__reg.episodeType}
         visible
       />
 
@@ -157,7 +223,7 @@ export default function FamilySophiaScreen() {
               </span>
             </div>
             <span className="text-white font-semibold" style={{ fontSize: '20px' }}>
-              Maria has a 2-year-old daughter. The system already found her.
+              {__dep ? `${__firstName} has a dependent — ${__depName}. The system already found them.` : `${__firstName} — household dependent intelligence`}
             </span>
           </div>
         </div>
@@ -184,11 +250,11 @@ export default function FamilySophiaScreen() {
                   className="rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ width: 48, height: 48, background: 'rgba(250,77,86,0.15)', border: '2px solid #fa4d56' }}
                 >
-                  <span className="font-bold text-white" style={{ fontSize: '16px' }}>SR</span>
+                  <span className="font-bold text-white" style={{ fontSize: '16px' }}>{__depInitials}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1">
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-white" style={{ fontSize: '18px' }}>Sophia Redhawk</span>
+                    <span className="font-bold text-white" style={{ fontSize: '18px' }}>{__depName}</span>
                     <div
                       className="rounded px-2 py-0.5"
                       style={{ background: 'rgba(120,169,255,0.15)', border: '1px solid rgba(120,169,255,0.4)' }}
@@ -197,10 +263,10 @@ export default function FamilySophiaScreen() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span style={{ fontSize: '12px', color: '#8d8d8d' }}>SD CHIP · Age 2 · DOB June 2024</span>
+                    <span style={{ fontSize: '12px', color: '#8d8d8d' }}>{__depRec ? `${__depRec.plan} · Age ${__depRec.age} · DOB ${__depRec.dob}` : 'No dependent on file for this member'}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span style={{ fontSize: '11px', color: '#fa4d56' }}>Dependent of Maria Redhawk (MARIA_SD_001)</span>
+                    <span style={{ fontSize: '11px', color: '#fa4d56' }}>{`Dependent of ${__reg.name} (${__reg.platformId})`}</span>
                     <span style={{ fontSize: '11px', color: '#6f6f6f' }}>· Identified via family record</span>
                   </div>
                 </div>
@@ -318,15 +384,15 @@ export default function FamilySophiaScreen() {
                   className="rounded p-4 flex flex-col gap-2 fade-in"
                   style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.3)' }}
                 >
-                  <span className="font-mono uppercase" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.1em' }}>RECOMMENDED PEDIATRICIAN</span>
+                  <span className="font-mono uppercase" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.1em' }}>{__recProvider.label}</span>
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-white" style={{ fontSize: '15px' }}>Dr. Amy Patel</span>
-                      <span style={{ fontSize: '12px', color: '#42be65' }}>Bennett County Health</span>
+                      <span className="font-semibold text-white" style={{ fontSize: '15px' }}>{__recProvider.name}</span>
+                      <span style={{ fontSize: '12px', color: '#42be65' }}>{__recProvider.org}</span>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="font-mono" style={{ fontSize: '13px', color: '#f1c21b' }}>★ 4.8</span>
-                      <span style={{ fontSize: '11px', color: '#8d8d8d' }}>0.8 mi away</span>
+                      <span className="font-mono" style={{ fontSize: '13px', color: '#f1c21b' }}>★ {__recProvider.rating}</span>
+                      <span style={{ fontSize: '11px', color: '#8d8d8d' }}>{__recProvider.dist}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -357,7 +423,7 @@ export default function FamilySophiaScreen() {
                   }}
                 >
                   <p style={{ fontSize: '15px', color: '#c6c6c6', lineHeight: 1.7, fontStyle: 'italic' }}>
-                    "The system doesn't just understand Maria. It understands everyone who depends on her."
+                    {`"The system doesn't just understand ${__firstName}. It understands everyone who depends on them."`}
                   </p>
                   <p className="mt-2" style={{ fontSize: '12px', color: '#6f6f6f', lineHeight: 1.5 }}>
                     Family record traversal · Dependent gap identification · Coordinated outreach — one message for two members.

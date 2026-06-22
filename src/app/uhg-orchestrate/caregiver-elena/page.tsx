@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import ScreenLayout from '@/uhg/components/shared/ScreenLayout';
 import PresenterControls from '@/uhg/components/shared/PresenterControls';
 import MariaStatusStrip from '@/uhg/components/shared/MariaStatusStrip';
 import { useDemoStore } from '@/uhg/store/demoStore';
+import { contextFor } from '@/uhg/data/citizenContext';
+import { getPatientById } from '@/lib/patientRegistry';
 
 // ─── Medication data ──────────────────────────────────────────────────────────
 
@@ -17,14 +20,10 @@ interface Medication {
   riskColor: string;
 }
 
-const ELENA_MEDS: Medication[] = [
-  { id: 'med-1', name: 'Lisinopril', dose: '10mg', indication: 'Hypertension', risk: 'STANDARD', riskColor: '#42be65' },
-  { id: 'med-2', name: 'Metformin', dose: '1000mg', indication: 'Type 2 Diabetes', risk: 'STANDARD', riskColor: '#42be65' },
-  { id: 'med-3', name: 'Lisinopril', dose: '10mg', indication: 'Hypertension', risk: 'STANDARD', riskColor: '#42be65' },
-  { id: 'med-4', name: 'Atorvastatin', dose: '40mg', indication: 'Cardiovascular', risk: 'STANDARD', riskColor: '#42be65' },
-  { id: 'med-5', name: 'Amlodipine', dose: '5mg', indication: 'Hypertension', risk: 'STANDARD', riskColor: '#42be65' },
-  { id: 'med-6', name: 'Omeprazole', dose: '20mg', indication: 'GI Protection', risk: 'STANDARD', riskColor: '#42be65' },
-];
+function buildMeds(cg?: { meds: { name: string; dose: string; indication: string }[] }): Medication[] {
+  if (!cg) return [];
+  return cg.meds.map((m, i) => ({ id: `med-${i}`, name: m.name, dose: m.dose, indication: m.indication, risk: 'STANDARD' as const, riskColor: '#42be65' }));
+}
 
 // Note: Elena (cared-for) is on Metformin 1000mg + Lisinopril 10mg — Maria picks up at Martin Pharmacy
 // Refill sync + adherence review coordinated via Bennett County Health + Martin Pharmacy
@@ -40,32 +39,15 @@ interface MedSignal {
   color: string;
 }
 
-const ELENA_SIGNALS: MedSignal[] = [
-  {
-    id: 'sig-inr',
-    icon: '⚠',
-    label: 'Elena A1C 8.1% — DM Management',
-    detail: 'Above target — caregiver-managed; refill sync + follow-up needed at Bennett County Health',
-    urgency: 'critical',
-    color: '#fa4d56',
-  },
-  {
-    id: 'sig-poly',
-    icon: '⚠',
-    label: 'Polypharmacy Risk',
-    detail: '6 active medications — no medication review in 12 months — interaction risk unassessed',
-    urgency: 'high',
-    color: '#f59e0b',
-  },
-  {
-    id: 'sig-pcp',
-    icon: '●',
-    label: 'PCP Appointment in 7 Days',
-    detail: 'Opportunity window — bundle medication review + INR order into existing visit',
-    urgency: 'opportunity',
-    color: '#42be65',
-  },
-];
+function buildSignals(cg?: { name: string; clinicalMetric: string; prescriber: string; meds: unknown[] }): MedSignal[] {
+  if (!cg) return [];
+  const cgFirst = cg.name.split(' ')[0];
+  return [
+    { id: 'sig-inr', icon: '⚠', label: `${cgFirst} — ${cg.clinicalMetric}`, detail: `Caregiver-managed; refill sync + follow-up needed at ${cg.prescriber}`, urgency: 'critical', color: '#fa4d56' },
+    { id: 'sig-poly', icon: '⚠', label: 'Polypharmacy Risk', detail: `${cg.meds.length} active medications — no medication review in 12 months — interaction risk unassessed`, urgency: 'high', color: '#f59e0b' },
+    { id: 'sig-pcp', icon: '●', label: 'PCP Appointment in 7 Days', detail: 'Opportunity window — bundle medication review into the existing visit', urgency: 'opportunity', color: '#42be65' },
+  ];
+}
 
 // ─── Orchestration actions ────────────────────────────────────────────────────
 
@@ -77,57 +59,45 @@ interface OrchAction {
   color: string;
 }
 
-const ORCH_ACTIONS: OrchAction[] = [
-  {
-    id: 'oa-inr',
-    label: 'INR Monitoring Order Initiated',
-    detail: 'Urgent clinical signal — order routed to PCP for pre-visit lab draw',
-    status: 'complete',
-    color: '#fa4d56',
-  },
-  {
-    id: 'oa-review',
-    label: 'Medication Review Bundled into PCP Visit',
-    detail: 'Polypharmacy risk report generated — pre-visit package sent to Dr. Nguyen',
-    status: 'complete',
-    color: '#42be65',
-  },
-  {
-    id: 'oa-cm',
-    label: 'Care Management Referral',
-    detail: 'High medication complexity — no assigned care manager — referral initiated',
-    status: 'active',
-    color: '#78a9ff',
-  },
-  {
-    id: 'oa-notify',
-    label: 'Maria Notified Within Proxy Scope',
-    detail: 'Combined outreach: Maria postpartum check-in + Elena medication review — one SMS message',
-    status: 'pending',
-    color: '#f59e0b',
-  },
-];
+function buildCaregiverOrch(firstName: string, cgName: string, prescriber: string): OrchAction[] {
+  if (cgName === 'No caregiver on file') return [];
+  return [
+    { id: 'oa-inr', label: 'Lab Monitoring Order Initiated', detail: 'Urgent clinical signal — order routed to PCP for pre-visit lab draw', status: 'complete', color: '#fa4d56' },
+    { id: 'oa-review', label: 'Medication Review Bundled into PCP Visit', detail: `Polypharmacy risk report generated — pre-visit package sent to ${prescriber}`, status: 'complete', color: '#42be65' },
+    { id: 'oa-cm', label: 'Care Management Referral', detail: 'High medication complexity — referral initiated', status: 'active', color: '#78a9ff' },
+    { id: 'oa-notify', label: `${firstName} Notified Within Proxy Scope`, detail: `Combined outreach: ${firstName} check-in + ${cgName} medication review — one SMS message`, status: 'pending', color: '#f59e0b' },
+  ];
+}
 
 // ─── Consent states ───────────────────────────────────────────────────────────
 
 type ConsentState = 'none' | 'active' | 'intercept';
 
-const CONSENT_SCOPE_ITEMS = [
-  'Medication management',
-  'Appointment coordination',
-  'Care gap notifications',
-];
-
-const CONSENT_EXCLUDE_ITEMS = [
-  'Financial records',
-  'Mental health records',
-  'Third-party disclosure',
-];
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function CaregiverElenaScreen() {
+function CaregiverElenaInner() {
   const setScreen = useDemoStore((s) => s.setScreen);
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const __reg = getPatientById(activeCitizenId) || getPatientById('MARIA_SD_001')!;
+  const __ctx = contextFor(activeCitizenId);
+  const __firstName = __reg.name.split(' ')[0];
+  const __cg = __ctx.household.caregiverFor[0];
+  const __hasCg = !!__cg;
+  const __cgName = __cg ? __cg.name : 'No caregiver on file';
+  const __cgFirst = __cg ? __cg.name.split(' ')[0] : 'caregiver';
+  const __cgRec = __reg.household?.caregiverFor?.[0];
+  const __prescriber = __cgRec?.prescriber ?? __reg.organization.replace(/ \(.*\)/, '');
+  const __cgPharmacy = __cgRec?.pharmacy ?? 'Pharmacy';
+  const __regInitial = __reg.name.charAt(0).toUpperCase();
+  const __cgInitial = (__cg ? __cg.name.charAt(0) : 'C').toUpperCase();
+  // Cared-for identity line, derived from the caregiver record (relation · age · condition).
+  const __cgMeta = __cgRec ? `${__cgRec.relation} · Age ${__cgRec.age} · ${__cgRec.condition}` : 'No caregiver relationship on file';
+  const ELENA_MEDS = buildMeds(__cgRec);
+  const __medsSummary = ELENA_MEDS.slice(0, 2).map((m) => `${m.name} ${m.dose}`).join(' + ') || 'managed regimen';
+  const ELENA_SIGNALS = buildSignals(__cgRec);
+  const ORCH_ACTIONS = buildCaregiverOrch(__firstName, __cgName, __prescriber);
+  const CONSENT_SCOPE_ITEMS = __cgRec?.consentScopeItems ?? ['Medication management', 'Appointment coordination', 'Care gap notifications'];
+  const CONSENT_EXCLUDE_ITEMS = __cgRec?.consentExclusions ?? ['Financial records', 'Mental health records', 'Third-party disclosure'];
   const [headerReveal, setHeaderReveal] = useState(false);
   const [signalsReveal, setSignalsReveal] = useState(false);
   const [orchReveal, setOrchReveal] = useState(false);
@@ -215,14 +185,14 @@ export default function CaregiverElenaScreen() {
               </span>
             </div>
             <span className="text-white font-semibold" style={{ fontSize: '20px' }}>
-              Caregiver Intelligence — Elena Redhawk
+              {`Caregiver Intelligence — ${__cgName}`}
             </span>
           </div>
           <div className="flex items-center gap-5">
             {[
-              { label: 'Medications', value: '6', color: '#f59e0b' },
-              { label: 'INR Overdue', value: '38d', color: '#fa4d56' },
-              { label: 'Proxy Consent', value: 'ACTIVE', color: '#42be65' },
+              { label: 'Medications', value: String(ELENA_MEDS.length), color: '#f59e0b' },
+              { label: 'Review Overdue', value: __hasCg ? '12mo' : '—', color: '#fa4d56' },
+              { label: 'Proxy Consent', value: __hasCg ? 'ACTIVE' : 'NONE', color: __hasCg ? '#42be65' : '#6b7280' },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-end gap-0.5">
                 <span className="font-mono font-bold" style={{ fontSize: '18px', color: s.color, lineHeight: 1 }}>{s.value}</span>
@@ -241,11 +211,11 @@ export default function CaregiverElenaScreen() {
             {/* Maria node */}
             <div className="flex items-center gap-3 rounded px-4 py-2.5" style={{ background: 'rgba(250,77,86,0.1)', border: '1px solid rgba(250,77,86,0.35)' }}>
               <div className="rounded-full flex-shrink-0" style={{ width: 36, height: 36, background: 'rgba(250,77,86,0.2)', border: '2px solid #fa4d56', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '14px', color: '#fa4d56', fontWeight: 700 }}>M</span>
+                <span style={{ fontSize: '14px', color: '#fa4d56', fontWeight: 700 }}>{__regInitial}</span>
               </div>
               <div>
-                <div className="font-semibold text-white" style={{ fontSize: '14px' }}>Maria Redhawk</div>
-                <div className="font-mono" style={{ fontSize: '10px', color: '#fa4d56' }}>MARIA_SD_001 · CAREGIVER</div>
+                <div className="font-semibold text-white" style={{ fontSize: '14px' }}>{__reg.name}</div>
+                <div className="font-mono" style={{ fontSize: '10px', color: '#fa4d56' }}>{`${__reg.platformId} · CAREGIVER`}</div>
               </div>
             </div>
 
@@ -258,24 +228,24 @@ export default function CaregiverElenaScreen() {
                 </div>
                 <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, #ff7eb6, #fa4d56)', opacity: 0.7 }} />
               </div>
-              <div className="rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.3)' }}>
-                <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.06em' }}>PROXY CONSENT ✓ SCOPED · ACTIVE</span>
+              <div className="rounded px-2 py-0.5" style={{ background: __hasCg ? 'rgba(66,190,101,0.12)' : 'rgba(107,114,128,0.12)', border: `1px solid ${__hasCg ? 'rgba(66,190,101,0.3)' : 'rgba(107,114,128,0.3)'}` }}>
+                <span className="font-mono" style={{ fontSize: '9px', color: __hasCg ? '#42be65' : '#9ca3af', letterSpacing: '0.06em' }}>{__hasCg ? 'PROXY CONSENT ✓ SCOPED · ACTIVE' : 'NO PROXY RELATIONSHIP'}</span>
               </div>
             </div>
 
             {/* Elena node */}
             <div className="flex items-center gap-3 rounded px-4 py-2.5" style={{ background: 'rgba(255,126,182,0.1)', border: '1px solid rgba(255,126,182,0.35)' }}>
               <div className="rounded-full flex-shrink-0" style={{ width: 36, height: 36, background: 'rgba(255,126,182,0.2)', border: '2px solid #ff7eb6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '14px', color: '#ff7eb6', fontWeight: 700 }}>E</span>
+                <span style={{ fontSize: '14px', color: '#ff7eb6', fontWeight: 700 }}>{__cgInitial}</span>
               </div>
               <div>
-                <div className="font-semibold text-white" style={{ fontSize: '14px' }}>Elena Redhawk</div>
-                <div className="font-mono" style={{ fontSize: '10px', color: '#ff7eb6' }}>ELENA_SD_003 · Age 71 · Dual-eligible (Medicare/SD Medicaid)</div>
+                <div className="font-semibold text-white" style={{ fontSize: '14px' }}>{__cgName}</div>
+                <div className="font-mono" style={{ fontSize: '10px', color: '#ff7eb6' }}>{__cgMeta}</div>
               </div>
             </div>
 
             <div className="ml-auto italic" style={{ fontSize: '13px', color: '#6f6f6f', maxWidth: 340, textAlign: 'right', lineHeight: 1.5 }}>
-              The system acts on Elena's behalf only as far as Elena has authorized. Not one step further.
+              {`The system acts on ${__cgFirst}'s behalf only as far as ${__cgFirst} has authorized. Not one step further.`}
             </div>
           </div>
         )}
@@ -289,7 +259,7 @@ export default function CaregiverElenaScreen() {
             {/* Signals */}
             <div className="flex-shrink-0 px-4 py-3" style={{ borderBottom: '1px solid rgba(57,57,57,0.5)', background: '#1c1c1c' }}>
               <span className="font-mono uppercase tracking-wider" style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.12em' }}>
-                SIGNALS DETECTED — ELENA REYES
+                {`SIGNALS DETECTED — ${__cgName.toUpperCase()}`}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2 min-h-0">
@@ -315,7 +285,7 @@ export default function CaregiverElenaScreen() {
             <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(57,57,57,0.5)' }}>
               <div className="px-4 py-2.5" style={{ borderBottom: '1px solid rgba(57,57,57,0.4)', background: '#1c1c1c' }}>
                 <span className="font-mono uppercase" style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.12em' }}>
-                  ACTIVE MEDICATIONS · 6
+                  {`ACTIVE MEDICATIONS · ${ELENA_MEDS.length}`}
                 </span>
               </div>
               <div className="px-4 py-2 flex flex-col gap-1.5" style={{ maxHeight: 200, overflowY: 'auto' }}>
@@ -348,6 +318,13 @@ export default function CaregiverElenaScreen() {
               </span>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2 min-h-0">
+              {orchReveal && !__hasCg && (
+                <div className="flex-1 flex items-center justify-center px-6 text-center">
+                  <span style={{ fontSize: '12px', color: '#6f6f6f', lineHeight: 1.6 }}>
+                    {`${__reg.name} is not a caregiver for another member — no caregiver medication regimen to manage.`}
+                  </span>
+                </div>
+              )}
               {orchReveal && ORCH_ACTIONS.slice(0, visibleOrch).map((action) => {
                 const cfg = statusConfig[action.status];
                 return (
@@ -369,21 +346,21 @@ export default function CaregiverElenaScreen() {
             </div>
 
             {/* Closing statement */}
-            {orchReveal && visibleOrch >= ORCH_ACTIONS.length && (
+            {orchReveal && __hasCg && visibleOrch >= ORCH_ACTIONS.length && (
               <div
                 className="flex-shrink-0 mx-4 mb-2 rounded p-3 transition-all duration-500"
                 style={{ background: 'rgba(250,77,86,0.07)', border: '1px solid rgba(250,77,86,0.35)' }}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <div className="rounded-full" style={{ width: 6, height: 6, background: '#fa4d56', animation: 'authPulse 1s ease-in-out infinite' }} />
-                  <span className="font-mono font-semibold" style={{ fontSize: '9px', color: '#fa4d56', letterSpacing: '0.1em' }}>◈ CAREGIVER MED MANAGEMENT — ELENA REGIMEN</span>
+                  <span className="font-mono font-semibold" style={{ fontSize: '9px', color: '#fa4d56', letterSpacing: '0.1em' }}>{`◈ CAREGIVER MED MANAGEMENT — ${__cgFirst.toUpperCase()} REGIMEN`}</span>
                 </div>
                 <p style={{ fontSize: '11px', color: '#c6c6c6', lineHeight: 1.5, marginBottom: 8 }}>
-                  Maria (Elena&apos;s caregiver) manages Elena&apos;s regimen — Metformin 1000mg + Lisinopril 10mg — picked up at Martin Pharmacy. Refill sync and adherence review dispatched to Bennett County Health.
+                  {`${__firstName} (${__cgFirst}'s caregiver) manages ${__cgFirst}'s regimen — ${__medsSummary} — picked up at ${__cgPharmacy}. Refill sync and adherence review dispatched to ${__prescriber}.`}
                 </p>
                 {[
-                  { prescriber: 'Bennett County Health', role: 'PCP · CAH · Elena', status: 'REFILL SYNCED', color: '#42be65' },
-                  { prescriber: 'Martin Pharmacy', role: 'Family pharmacy · Elena meds', status: 'REFILL SYNCED', color: '#42be65' },
+                  { prescriber: __prescriber, role: `PCP · ${__cgFirst}`, status: 'REFILL SYNCED', color: '#42be65' },
+                  { prescriber: __cgPharmacy, role: `Family pharmacy · ${__cgFirst} meds`, status: 'REFILL SYNCED', color: '#42be65' },
                 ].map((item) => (
                   <div key={item.prescriber} className="flex items-center justify-between rounded px-2.5 py-1.5 mb-1" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.2)' }}>
                     <div>
@@ -399,13 +376,13 @@ export default function CaregiverElenaScreen() {
             )}
 
             {/* Closing statement */}
-            {orchReveal && visibleOrch >= ORCH_ACTIONS.length && (
+            {orchReveal && __hasCg && visibleOrch >= ORCH_ACTIONS.length && (
               <div
                 className="flex-shrink-0 mx-4 mb-4 rounded p-4 transition-all duration-500"
                 style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.3)' }}
               >
                 <p style={{ fontSize: '13px', color: '#c6c6c6', lineHeight: 1.65, fontStyle: 'italic' }}>
-                  The system doesn't just understand Maria. It understands{' '}
+                  The system doesn't just understand {__firstName}. It understands{' '}
                   <span style={{ color: '#ff7eb6', fontWeight: 600, fontStyle: 'normal' }}>everyone who depends on her</span>
                   {' '}— and everyone she depends on.
                 </p>
@@ -421,7 +398,15 @@ export default function CaregiverElenaScreen() {
               </span>
             </div>
 
-            {consentReveal && (
+            {consentReveal && !__hasCg && (
+              <div className="flex-1 flex items-center justify-center px-6 text-center">
+                <span style={{ fontSize: '12px', color: '#6f6f6f', lineHeight: 1.6 }}>
+                  {`${__firstName} is not a proxy caregiver for any member — no consent relationship to evaluate.`}
+                </span>
+              </div>
+            )}
+
+            {consentReveal && __hasCg && (
               <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3 min-h-0">
 
                 {/* State selector tabs */}
@@ -460,7 +445,7 @@ export default function CaregiverElenaScreen() {
                         </div>
                       </div>
                       <p style={{ fontSize: '13px', color: '#c6c6c6', lineHeight: 1.6, marginBottom: 12 }}>
-                        Maria Redhawk has requested access to Elena Redhawk (ELENA_SD_003) medication records.
+                        {`${__reg.name} has requested access to ${__cgName} medication records.`}
                       </p>
                       <div className="rounded p-3 mb-3" style={{ background: '#1e1e1e', border: '1px solid rgba(57,57,57,0.6)' }}>
                         <div className="flex items-center gap-2 mb-1">
@@ -468,13 +453,13 @@ export default function CaregiverElenaScreen() {
                           <span className="font-mono" style={{ fontSize: '11px', color: '#9ca3af' }}>NO PROXY CONSENT ON FILE</span>
                         </div>
                         <p style={{ fontSize: '11px', color: '#6f6f6f', lineHeight: 1.5 }}>
-                          Elena Redhawk has not granted caregiver access. System cannot act on Elena's behalf.
+                          {`${__cgName} has not granted caregiver access. System cannot act on ${__cgFirst}'s behalf.`}
                         </p>
                       </div>
                       <div className="flex flex-col gap-1.5">
                         {[
                           'Consent request initiated',
-                          'Outreach to Elena — preferred channel: phone',
+                          `Outreach to ${__cgFirst} — preferred channel: phone`,
                           'Consent form sent — awaiting signature',
                         ].map((item, i) => (
                           <div key={i} className="flex items-center gap-2">
@@ -497,9 +482,9 @@ export default function CaregiverElenaScreen() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mb-3 rounded p-2.5" style={{ background: '#1e1e1e', border: '1px solid rgba(57,57,57,0.6)' }}>
-                        <span style={{ fontSize: '13px', color: '#ff7eb6', fontWeight: 600 }}>Elena Redhawk</span>
+                        <span style={{ fontSize: '13px', color: '#ff7eb6', fontWeight: 600 }}>{__cgName}</span>
                         <span style={{ fontSize: '12px', color: '#6f6f6f' }}>→</span>
-                        <span style={{ fontSize: '13px', color: '#fa4d56', fontWeight: 600 }}>Maria Redhawk</span>
+                        <span style={{ fontSize: '13px', color: '#fa4d56', fontWeight: 600 }}>{__reg.name}</span>
                       </div>
                       <div className="mb-3">
                         <div className="font-mono mb-1.5" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>SCOPE INCLUDES:</div>
@@ -532,7 +517,7 @@ export default function CaregiverElenaScreen() {
                         ))}
                       </div>
                       <p className="mt-3" style={{ fontSize: '11px', color: '#6f6f6f', lineHeight: 1.5 }}>
-                        Every access by Maria on Elena's behalf is logged in the audit trail.
+                        {`Every access by ${__firstName} on ${__cgFirst}'s behalf is logged in the audit trail.`}
                       </p>
                     </div>
                   </div>
@@ -557,7 +542,7 @@ export default function CaregiverElenaScreen() {
 
                       <div className="rounded p-3 mb-3" style={{ background: 'rgba(250,77,86,0.08)', border: '1px solid rgba(250,77,86,0.25)' }}>
                         <p style={{ fontSize: '12px', color: '#c6c6c6', lineHeight: 1.6 }}>
-                          Care Agent attempted to share Elena's medication list with Maria's care coordinator without Elena's explicit authorization for third-party disclosure.
+                          {`Care Agent attempted to share ${__cgFirst}'s medication list with ${__firstName}'s care coordinator without ${__cgFirst}'s explicit authorization for third-party disclosure.`}
                         </p>
                       </div>
 
@@ -565,7 +550,7 @@ export default function CaregiverElenaScreen() {
                         <div className="flex items-start gap-2 rounded p-2.5" style={{ background: '#1e1e1e', border: '1px solid rgba(57,57,57,0.6)' }}>
                           <span style={{ fontSize: '11px', color: '#42be65', flexShrink: 0, marginTop: 1 }}>✓</span>
                           <div>
-                            <div style={{ fontSize: '11px', color: '#c6c6c6', fontWeight: 600 }}>Scope of Maria's proxy</div>
+                            <div style={{ fontSize: '11px', color: '#c6c6c6', fontWeight: 600 }}>{`Scope of ${__firstName}'s proxy`}</div>
                             <div style={{ fontSize: '10px', color: '#8d8d8d' }}>Medication management (personal)</div>
                           </div>
                         </div>
@@ -581,8 +566,8 @@ export default function CaregiverElenaScreen() {
                       <div className="rounded p-3" style={{ background: '#1a1a1a', border: '1px solid rgba(57,57,57,0.5)' }}>
                         <div className="font-mono mb-2" style={{ fontSize: '10px', color: '#8d8d8d', letterSpacing: '0.08em' }}>RESOLUTION OPTIONS:</div>
                         {[
-                          'Elena must grant expanded scope for third-party disclosure',
-                          'OR coordinator contacts Elena directly',
+                          `${__cgFirst} must grant expanded scope for third-party disclosure`,
+                          `OR coordinator contacts ${__cgFirst} directly`,
                         ].map((item, i) => (
                           <div key={i} className="flex items-start gap-2 mb-1">
                             <div className="rounded-full flex-shrink-0 mt-1.5" style={{ width: 4, height: 4, background: '#f59e0b' }} />
@@ -595,7 +580,7 @@ export default function CaregiverElenaScreen() {
                     {/* Governance distinction callout */}
                     <div className="rounded p-3" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.3)' }}>
                       <p style={{ fontSize: '11px', color: '#c6c6c6', lineHeight: 1.65, fontStyle: 'italic' }}>
-                        The system didn't just verify that Maria has proxy consent. It verified that{' '}
+                        The system didn't just verify that {__firstName} has proxy consent. It verified that{' '}
                         <span style={{ color: '#8b5cf6', fontWeight: 600, fontStyle: 'normal' }}>this specific action</span>
                         {' '}falls outside the scope of that consent. That distinction is the difference between compliance theater and compliance architecture.
                       </p>
@@ -609,4 +594,19 @@ export default function CaregiverElenaScreen() {
       </div>
     </ScreenLayout>
   );
+}
+
+// This screen is only relevant for members who are a proxy caregiver for someone.
+// For non-caregivers (no household.caregiverFor) it isn't shown — skip to the next
+// orchestrate screen. Caregivers re-mount per citizen so signals/consent re-animate.
+export default function CaregiverElenaScreen() {
+  const activeCitizenId = useDemoStore((s) => s.activeCitizenId);
+  const router = useRouter();
+  const reg = getPatientById(activeCitizenId);
+  const hasCaregiver = !!reg?.household?.caregiverFor?.length;
+  useEffect(() => {
+    if (!hasCaregiver) router.replace('/uhg-orchestrate/portfolio-scale');
+  }, [hasCaregiver, router]);
+  if (!hasCaregiver) return null;
+  return <CaregiverElenaInner key={activeCitizenId} />;
 }

@@ -107,13 +107,14 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [backupCollapsed, setBackupCollapsed] = useState(true);
+  const [agenticCollapsed, setAgenticCollapsed] = useState(true);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const { user, setUser, entryContext, setEntryContext } = useAppContext();
   
   // Ref for nav container to enable scrollIntoView
   const navRef = useRef<HTMLElement>(null);
 
-  // Auto-expand Backup section if active item is inside
+  // Auto-expand Backup and Agentic sections if active item is inside
   useEffect(() => {
     const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
       ? pathname.slice(0, -1)
@@ -129,7 +130,11 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
     if (activeItem && activeItem.group === 'Backup' && backupCollapsed) {
       setBackupCollapsed(false);
     }
-  }, [pathname, backupCollapsed]);
+    
+    if (activeItem && activeItem.group === 'Agentic_Orchestrate-Screens' && agenticCollapsed) {
+      setAgenticCollapsed(false);
+    }
+  }, [pathname, backupCollapsed, agenticCollapsed]);
 
   // Scroll active menu item and its section into view on navigation
   useEffect(() => {
@@ -214,20 +219,20 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
           {grouped.map(({ group, items }) =>
             items.length === 0 ? null : (
               <div key={`group-${group}`} className="mb-4">
-                {!collapsed && group === 'Backup' ? (
+                {!collapsed && (group === 'Backup' || group === 'Agentic_Orchestrate-Screens') ? (
                   <button
-                    onClick={() => setBackupCollapsed(!backupCollapsed)}
+                    onClick={() => group === 'Backup' ? setBackupCollapsed(!backupCollapsed) : setAgenticCollapsed(!agenticCollapsed)}
                     className="w-full flex items-center justify-between px-4 mb-1 text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest hover:text-carbon-gray-30 transition-colors"
                   >
-                    <span>{group}</span>
-                    <Icon name={backupCollapsed ? 'ChevronRightIcon' : 'ChevronDownIcon'} size={14} />
+                    <span>{group === 'Agentic_Orchestrate-Screens' ? 'AGENTIC ORCHESTRATE' : group}</span>
+                    <Icon name={(group === 'Backup' ? backupCollapsed : agenticCollapsed) ? 'ChevronRightIcon' : 'ChevronDownIcon'} size={14} />
                   </button>
                 ) : !collapsed ? (
                   <p className="px-4 mb-1 text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest">
-                    {group}
+                    {group === 'Agentic_Orchestrate-Screens' ? 'AGENTIC ORCHESTRATE' : group}
                   </p>
                 ) : null}
-                {(group !== 'Backup' || !backupCollapsed) && items.map((item) => {
+                {((group !== 'Backup' || !backupCollapsed) && (group !== 'Agentic_Orchestrate-Screens' || !agenticCollapsed)) && items.map((item) => {
                   // Improved path matching with normalization
                   const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
                     ? pathname.slice(0, -1)

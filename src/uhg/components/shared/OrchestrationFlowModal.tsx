@@ -1663,7 +1663,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <div className="px-3 py-2.5 flex flex-col gap-2">
-              <span style={{ fontSize: '10px', color: '#d1d5db' }}>Authorization pre-assembled by UHG Orchestrate · Ready to attach to referral</span>
+              <span style={{ fontSize: '10px', color: '#d1d5db' }}>Authorization pre-assembled by RHTP Orchestrate · Ready to attach to referral</span>
               <span style={{ fontSize: '9px', color: '#6f6f6f' }}>Auth cycle: 0.3 days (vs 8.2d industry avg) · Procedure: HbA1c · SD Medicaid LCD L38779</span>
               <div className="flex items-center gap-2 mt-1">
                 <button className="rounded px-2 py-1 transition-all" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.4)', color: '#42be65', fontSize: '9px', cursor: 'pointer', fontFamily: 'monospace', letterSpacing: '0.04em' }}>

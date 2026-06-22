@@ -376,7 +376,7 @@ export default function ReportingDashboardPage() {
         </div>
       </div>
 
-      <PresenterControls />
+      <PresenterControls currentScreenId="reporting-dashboard" />
     </ScreenLayout>
   );
 }
