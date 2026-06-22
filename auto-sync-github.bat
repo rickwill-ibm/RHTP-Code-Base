@@ -36,14 +36,24 @@ if errorlevel 1 (
 REM Now check for local changes to push
 git add -A
 
-REM Check if there are any changes (staged or unstaged)
-git diff-index --quiet --cached HEAD
+REM Check if there are any changes to commit
+git diff-index --quiet HEAD
 if errorlevel 1 (
     echo [%date% %time%] Local changes detected! Committing and pushing...
-    git commit -m "Auto-sync: %date% %time%"
-    git push origin main
-    echo [%date% %time%] Push completed - team can now see your changes!
-    echo.
+    git commit -m "Auto-sync: %date% %time%" 2>&1
+    if errorlevel 1 (
+        echo [%date% %time%] ERROR: Commit failed! Check git status.
+        echo.
+    ) else (
+        git push origin main 2>&1
+        if errorlevel 1 (
+            echo [%date% %time%] ERROR: Push failed! Check network/permissions.
+            echo.
+        ) else (
+            echo [%date% %time%] Push completed - team can now see your changes!
+            echo.
+        )
+    )
     goto :continue_loop
 )
 

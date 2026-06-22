@@ -177,23 +177,15 @@ function SingleCdsCard({
               </div>
             )}
 
-            {/* Warning — snooze option */}
+            {/* Warning — close option (suggestions are the primary actions) */}
             {card.cardType === 'warning' && (
-              <>
-                <button
-                  onClick={() => onSnooze(card.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-carbon-gray-20 text-xs text-carbon-gray-70 hover:border-[#b45309] hover:text-[#b45309] transition-colors"
-                >
-                  <Icon name="ClockIcon" size={13} />
-                  Snooze 24h
-                </button>
-                <button
-                  onClick={() => onDismiss(card.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-carbon-gray-50 hover:text-carbon-gray-100 transition-colors"
-                >
-                  Dismiss
-                </button>
-              </>
+              <button
+                onClick={() => onDismiss(card.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-carbon-gray-20 text-xs text-carbon-gray-70 hover:border-[#b45309] hover:bg-[#fdf6dd] transition-colors ml-auto"
+              >
+                <Icon name="XMarkIcon" size={13} />
+                Close
+              </button>
             )}
 
             {/* Info / suggestion / smart-link — dismissible */}

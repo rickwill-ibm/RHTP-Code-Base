@@ -73,9 +73,41 @@ export const mockCdsCards: CdsCard[] = [
     cardType: 'warning',
     summary: 'Well-Child 24-month visit — Sophia overdue 21 days',
     detail:
-      'Daughter Sophia\'s 24-month well-child visit is 21 days overdue. Transportation barrier (47 miles) preventing appointment attendance. Bundle with Maria\'s HbA1c lab to reduce trips. Childcare coordination needed.',
+      'Daughter Sophia\'s 24-month well-child visit is 21 days overdue. Transportation barrier (47 miles) preventing appointment attendance. Childcare coordination needed.',
     source: 'CDS Hooks / Pediatric Care Gap Engine',
     indicator: 'warning',
+    suggestions: [
+      {
+        id: 'bundle-hba1c',
+        label: 'Recommended action: Bundle with Maria\'s HbA1c lab to reduce trips',
+        actions: [
+          {
+            type: 'create',
+            description: 'Schedule combined appointment for Sophia well-child visit and Maria HbA1c lab',
+          },
+        ],
+      },
+      {
+        id: 'refer-patient',
+        label: 'Other Action: Refer patient to specialist',
+        actions: [
+          {
+            type: 'create',
+            description: 'Create referral for Sophia to pediatric specialist',
+          },
+        ],
+      },
+      {
+        id: 'schedule-provider',
+        label: 'Other Action: Schedule with Provider',
+        actions: [
+          {
+            type: 'create',
+            description: 'Schedule Sophia with available provider in practice',
+          },
+        ],
+      },
+    ],
     timestamp: new Date().toISOString(),
   },
   // Info: Multiple benefits not enrolled
