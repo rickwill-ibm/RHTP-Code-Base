@@ -395,7 +395,16 @@ export default function CDPAssemblySplit() {
 
       <div
         className="flex flex-col"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#161616', overflow: 'hidden' }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: '#161616',
+          overflow: 'hidden',
+          zIndex: 1
+        }}
       >
         {/* Maria Status Strip */}
         <MariaStatusStrip

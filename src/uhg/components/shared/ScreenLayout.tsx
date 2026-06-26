@@ -25,7 +25,9 @@ export default function ScreenLayout({
 }: ScreenLayoutProps) {
   return (
     // Carbon g90 #161616 — locked background for ALL screens
-    <div className={`screen-slide flex flex-col ${className}`} style={{ background: '#161616', minHeight: '100vh' }}>
+    // Using minHeight to ensure content renders properly within AppLayout
+    // Subtract AppLayout header height (56px) to prevent overflow
+    <div className={`screen-slide flex flex-col ${className}`} style={{ background: '#161616', minHeight: 'calc(100vh - 56px)' }}>
       {/* UHG Header Bar — Navy #002677 demoted to header bar only, never page background */}
       {showPhaseArc && (
         <div

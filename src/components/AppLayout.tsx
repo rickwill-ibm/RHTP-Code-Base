@@ -107,7 +107,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [backupCollapsed, setBackupCollapsed] = useState(true);
-  const [agenticCollapsed, setAgenticCollapsed] = useState(true);
+  const [agenticCollapsed, setAgenticCollapsed] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const { user, setUser, entryContext, setEntryContext } = useAppContext();
   
