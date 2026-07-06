@@ -47,7 +47,7 @@ const TIERS: { id: string; label: string; sublabel: string; color: string; agent
       { id: 'appeals', name: 'Appeals & Grievances', function: 'Regulatory deadline tracking, appeal drafting, escalation routing', skills: ['CMS Compliance', 'Appeal Drafting', 'Deadline Tracking'], matchConditions: 'Appeal deadline or grievance signal', color: '#ef4444', status: 'active' },
       { id: 'financial-intel', name: 'Financial Intelligence', function: 'Pre-action cost estimation, member cost exposure, benefits engine', skills: ['Benefits Engine', 'Cost Estimation', 'OOP Calculation'], matchConditions: 'Cost exposure risk or auth signal', color: '#10b981', status: 'active' },
       { id: 'caregiver-intel', name: 'Caregiver Intelligence', function: 'Caregiver relationship management, proxy consent gating', skills: ['Proxy Consent', 'Medication Intelligence', 'Caregiver Coordination'], matchConditions: 'CAREGIVER relationship detected', color: '#c084fc', status: 'active' },
-      { id: 'finops', name: 'FinOps Agent', function: 'Actual cost capture, MLR impact tracking, cost avoidance calculation', skills: ['Cost Capture', 'MLR Tracking', 'Variance Analysis'], matchConditions: 'Post-resolution cost capture', color: '#f59e0b', status: 'standby' },
+      { id: 'finops', name: 'FinOps Agent', function: 'Actual cost capture, TCOC impact tracking, cost avoidance calculation', skills: ['Cost Capture', 'TCOC Tracking', 'Variance Analysis'], matchConditions: 'Post-resolution cost capture', color: '#f59e0b', status: 'standby' },
     ],
   },
   {
@@ -70,7 +70,7 @@ const TIERS: { id: string; label: string; sublabel: string; color: string; agent
       { id: 'context-enrich', name: 'Context Enrichment', function: 'Writes resolved outcomes back to Knowledge Graph, enriches nodes', skills: ['Graph Write-back', 'Node Enrichment', 'Outcome Capture'], matchConditions: 'Post-resolution — always', color: '#42be65', status: 'continuous' },
       { id: 'signal-calib', name: 'Signal Calibration', function: 'Refines event classification thresholds from orchestration outcomes', skills: ['Threshold Tuning', 'Classification Feedback', 'Model Update'], matchConditions: 'Post-resolution — always', color: '#78a9ff', status: 'continuous' },
       { id: 'perf-intel', name: 'Performance Intelligence', function: 'Tracks outcomes across all agent activity, feeds metrics layer', skills: ['Metrics Engine', 'Outcome Tracking', 'Dashboard Feed'], matchConditions: 'Continuous — always running', color: '#f1c21b', status: 'continuous' },
-      { id: 'finops-capture', name: 'FinOps Capture', function: 'Post-resolution actual cost capture, MLR enrichment, cost avoidance ledger', skills: ['Cost Capture', 'MLR Enrichment', 'Avoidance Ledger'], matchConditions: 'Post-resolution — cost scenarios', color: '#f59e0b', status: 'continuous' },
+      { id: 'finops-capture', name: 'FinOps Capture', function: 'Post-resolution actual cost capture, TCOC enrichment, cost avoidance ledger', skills: ['Cost Capture', 'TCOC Enrichment', 'Avoidance Ledger'], matchConditions: 'Post-resolution — cost scenarios', color: '#f59e0b', status: 'continuous' },
       { id: 'report-agent', name: 'Report Agent', function: 'Individual signal reports + aggregate intelligence across all dimensions', skills: ['Signal Reports', 'Aggregate Analytics', 'PDF Export'], matchConditions: 'Post-resolution + on-demand', color: '#10b981', status: 'continuous' },
     ],
   },

@@ -424,7 +424,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         duplicateTherapyResolved: 1400,
       },
     },
-    mlrImpact: -0.003,
+    tcocImpact: -0.003,
     interventionType: 'AUTH_RENEWAL + CARE_GAP_CLOSURE + DUPLICATE_THERAPY_RESOLUTION',
     auditId: 'AUDIT_20241115_144800_FINOPS_001',
   },

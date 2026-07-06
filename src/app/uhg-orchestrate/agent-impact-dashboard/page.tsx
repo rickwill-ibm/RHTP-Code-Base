@@ -417,7 +417,7 @@ interface SimData {
   scenarios: string;
   authDays: string;
   readmissions: string;
-  mlrImpact: string;
+  tcocImpact: string;
 }
 
 // Population projection for the South Dakota Medicaid book (124,847 members, in line with
@@ -426,13 +426,13 @@ interface SimData {
 //   • Complex / high-acuity managed pool ≈ 15% ≈ 18,700 members → ~18.7k orchestrations/mo.
 //   • Throughput ~847/day, ~5,929/week, ~25,410/month of complex multi-condition resolutions.
 //   • 30-day readmissions prevented ≈ 23/mo; TCOC impact ≈ −$2.1M/mo (~8% on the complex segment).
-const SIM_BASE: Record<SimTier, { label: string; scenarios: number; authDays: number; readmissions: number; mlrK: number }> = {
-  today: { label: 'Today',      scenarios: 847,   authDays: 224,  readmissions: 1,  mlrK: 68 },
-  week:  { label: 'This Week',  scenarios: 5929,  authDays: 1568, readmissions: 6,  mlrK: 476 },
-  month: { label: 'This Month', scenarios: 25410, authDays: 6942, readmissions: 23, mlrK: 2100 },
+const SIM_BASE: Record<SimTier, { label: string; scenarios: number; authDays: number; readmissions: number; tcocK: number }> = {
+  today: { label: 'Today',      scenarios: 847,   authDays: 224,  readmissions: 1,  tcocK: 68 },
+  week:  { label: 'This Week',  scenarios: 5929,  authDays: 1568, readmissions: 6,  tcocK: 476 },
+  month: { label: 'This Month', scenarios: 25410, authDays: 6942, readmissions: 23, tcocK: 2100 },
 };
 const __fmtN = (n: number) => Math.round(n).toLocaleString('en-US');
-const __fmtMlr = (kAbs: number) =>
+const __fmtTcoc = (kAbs: number) =>
   kAbs >= 1000 ? `-$${(kAbs / 1000).toFixed(1).replace(/\.0$/, '')}M` : `-$${Math.round(kAbs)}K`;
 function buildSimData(acuity: number): Record<SimTier, SimData> {
   const out = {} as Record<SimTier, SimData>;
@@ -443,17 +443,17 @@ function buildSimData(acuity: number): Record<SimTier, SimData> {
       scenarios: __fmtN(b.scenarios * acuity),
       authDays: __fmtN(b.authDays * acuity),
       readmissions: `~${Math.max(1, Math.round(b.readmissions * acuity))}`,
-      mlrImpact: __fmtMlr(b.mlrK * acuity),
+      tcocImpact: __fmtTcoc(b.tcocK * acuity),
     };
   });
   return out;
 }
 
-function buildRoiBenchmarks(readmitPct: number, monthMlr: string, todayScenarios: string, isMaria: boolean) {
+function buildRoiBenchmarks(readmitPct: number, monthTcoc: string, todayScenarios: string, isMaria: boolean) {
   return [
     { id: 'b1', metric: 'Auth cycle −96%', source: 'AHIP 2024 Prior Auth Benchmark: avg 8.2d manual → 0.3d automated', color: '#42be65' },
     { id: 'b2', metric: `Readmission −${isMaria ? 48 : readmitPct}%`, source: 'SD Medicaid HRRP: coordinated post-discharge protocols reduce 30-day readmit 40–55%', color: '#f59e0b' },
-    { id: 'b3', metric: `TCOC ${isMaria ? '−$2.1M' : monthMlr}/mo`, source: `124,847-member plan · $47K avg episode · ${isMaria ? '847' : todayScenarios} daily scenarios · AHIP benchmark`, color: '#fa4d56' },
+    { id: 'b3', metric: `TCOC ${isMaria ? '−$2.1M' : monthTcoc}/mo`, source: `124,847-citizen plan · $47K avg episode · ${isMaria ? '847' : todayScenarios} daily scenarios · AHIP benchmark`, color: '#fa4d56' },
     { id: 'b4', metric: 'Care gap +71%', source: 'NCQA SD Medicaid quality 2024: automated outreach improves closure rates 65–78%', color: '#78a9ff' },
   ];
 }
@@ -491,7 +491,7 @@ function AgentImpactDashboardInner() {
   // Population value simulation scales with member acuity (RAF vs Maria baseline 2.18).
   const __acuity = (__reg.rafScore ?? 2.18) / 2.18;
   const SIM_DATA = buildSimData(__acuity);
-  const ROI_BENCHMARKS = buildRoiBenchmarks(__readmitPct, SIM_DATA.month.mlrImpact, SIM_DATA.today.scenarios, __tok.isMaria);
+  const ROI_BENCHMARKS = buildRoiBenchmarks(__readmitPct, SIM_DATA.month.tcocImpact, SIM_DATA.today.scenarios, __tok.isMaria);
   const __coalitionCount = __coalition.length;
   // Coordinated = dispatched domain coalition + 3 always-on infra agents (orchestrator, governance, audit).
   // Maria stays byte-identical to the authored walkthrough (8 coordinated / 9 in the flow modal).
@@ -962,9 +962,9 @@ function AgentImpactDashboardInner() {
                     subtext: 'SD Medicaid HRRP: coordinated protocols reduce 30-day readmit 40–55%',
                   },
                   {
-                    id: 'sim-mlr',
-                    label: 'TCOC Impact',
-                    value: currentSim.mlrImpact,
+                   id: 'sim-tcoc',
+                   label: 'TCOC Impact',
+                   value: currentSim.tcocImpact,
                     unit: simTier === 'month' ? 'projected this quarter' : 'projected',
                     color: '#fa4d56',
                     subtext: '124,847-member plan · $47K avg episode · AHIP benchmark',

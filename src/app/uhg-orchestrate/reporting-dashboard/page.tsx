@@ -21,7 +21,7 @@ const DATA: Record<TimeRange, {
   authCycleTime: string;
   hedisImprovement: string;
   costAvoidance: string;
-  mlrImpact: string;
+  tcocImpact: string;
 }> = {
   today: {
     signalVolume: 847,
@@ -37,7 +37,7 @@ const DATA: Record<TimeRange, {
     authCycleTime: '0.3 days',
     hedisImprovement: '+2.1%',
     costAvoidance: '$284K',
-    mlrImpact: '-0.3%',
+    tcocImpact: '-0.3%',
   },
   week: {
     signalVolume: 5923,
@@ -53,7 +53,7 @@ const DATA: Record<TimeRange, {
     authCycleTime: '0.4 days',
     hedisImprovement: '+1.8%',
     costAvoidance: '$1.9M',
-    mlrImpact: '-2.1%',
+    tcocImpact: '-2.1%',
   },
   month: {
     signalVolume: 24847,
@@ -69,7 +69,7 @@ const DATA: Record<TimeRange, {
     authCycleTime: '0.4 days',
     hedisImprovement: '+4.7%',
     costAvoidance: '$8.2M',
-    mlrImpact: '-8.4%',
+    tcocImpact: '-8.4%',
   },
 };
 
@@ -155,7 +155,7 @@ export default function ReportingDashboardPage() {
             { label: 'Signal Volume', value: d.signalVolume.toLocaleString(), sub: `${d.highRisk}% high · ${d.medium}% medium · ${d.routine}% routine`, color: '#78a9ff' },
             { label: 'Avg Resolution', value: d.avgResolution, sub: `${d.autoResolution}% automated · ${d.humanIntervention}% human · ${d.governanceIntercepts} intercepts`, color: '#42be65' },
             { label: 'Care Gaps Closed', value: d.careGapsClosed.toString(), sub: `${d.readmissionsPrevented} readmissions prevented · Auth: ${d.authCycleTime}`, color: '#0C55B8' },
-            { label: 'Cost Avoidance', value: d.costAvoidance, sub: `MLR impact: ${d.mlrImpact} · HEDIS: ${d.hedisImprovement}`, color: '#10b981' },
+            { label: 'Cost Avoidance', value: d.costAvoidance, sub: `TCOC impact: ${d.tcocImpact} · HEDIS: ${d.hedisImprovement}`, color: '#10b981' },
           ].map((kpi) => (
             <div
               key={kpi.label}
@@ -353,7 +353,7 @@ export default function ReportingDashboardPage() {
               )}
             </div>
 
-            {/* MLR + Financial */}
+            {/* TCOC + Financial */}
             <div
               className="rounded flex-shrink-0"
               style={{ background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(57,57,57,0.5)', padding: '14px 16px' }}
@@ -362,7 +362,7 @@ export default function ReportingDashboardPage() {
               <div className="flex items-center gap-4">
                 {[
                   { label: 'Cost Avoidance', value: d.costAvoidance, color: '#10b981' },
-                  { label: 'MLR Impact', value: d.mlrImpact, color: '#42be65' },
+                  { label: 'TCOC Impact', value: d.tcocImpact, color: '#42be65' },
                   { label: 'HEDIS Trajectory', value: d.hedisImprovement, color: '#f1c21b' },
                 ].map((stat) => (
                   <div key={stat.label} className="flex flex-col gap-0.5 flex-1 rounded px-3 py-2" style={{ background: 'rgba(28,28,28,0.6)' }}>

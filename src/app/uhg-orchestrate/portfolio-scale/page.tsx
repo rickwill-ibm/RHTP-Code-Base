@@ -59,7 +59,7 @@ const ENTITY_ROWS = [
     subtotal: '$49,100',
   },
   {
-    id: 'optum-health',
+    id: 'bennett-county',
     entity: 'Bennett County Health',
     color: '#42be65',
     lines: [
@@ -70,7 +70,7 @@ const ENTITY_ROWS = [
     subtotal: '$18,440',
   },
   {
-    id: 'optumrx',
+    id: 'martin-pharmacy',
     entity: 'Martin Pharmacy',
     color: '#a78bfa',
     lines: [
@@ -81,18 +81,18 @@ const ENTITY_ROWS = [
     subtotal: '$12,400',
   },
   {
-    id: 'rally',
+    id: 'rhtp-care-mgmt',
     entity: 'RHTP Care Management',
     color: '#f59e0b',
     lines: [
-      { label: 'Member engagement retained', value: '+$180', note: 'Digital program value' },
+      { label: 'Citizen engagement retained', value: '+$180', note: 'Digital program value' },
       { label: 'Portal activation deepened', value: '—', note: 'Retention signal: POSITIVE' },
       { label: 'Satisfaction score: ELEVATED', value: '—', note: 'Disenrollment risk: REDUCED' },
     ],
     subtotal: '$180+',
   },
   {
-    id: 'optum-provider',
+    id: 'provider-bennett',
     entity: 'Provider (Bennett County Health)',
     color: '#42be65',
     lines: [
@@ -201,7 +201,7 @@ export default function PortfolioScaleScreen() {
               >
                 {counterValue.toLocaleString()}
               </span>
-              <span style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.06em' }}>MEMBERS LIKE MARIA — RIGHT NOW</span>
+              <span style={{ fontSize: '10px', color: '#6f6f6f', letterSpacing: '0.06em' }}>CITIZENS LIKE MARIA — RIGHT NOW</span>
             </div>
           </div>
         </div>
