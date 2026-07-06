@@ -51,13 +51,13 @@ const JSON_PAYLOADS: Record<string, object> = {
     timestamp: '2024-11-15T14:22:57Z',
     memberId: 'MARIA_SD_001',
     signals: [
-      { type: 'AUTH_EXPIRY', severity: 'HIGH', source: 'Claims System', detail: 'CAREGAP_HBA1C expiring T-4 days · HbA1c lab order · Bennett County Health · Banner University' },
+      { type: 'AUTH_EXPIRY', severity: 'HIGH', source: 'Claims System', detail: 'CAREGAP_HBA1C expiring T-4 days · HbA1c lab order · Bennett County Health · Winner Regional Healthcare' },
       { type: 'CARE_GAP', severity: 'HIGH', source: 'EHR/Quality Engine', detail: 'HbA1c gap open 45 days · last value 9.2% · Q4 SD Medicaid quality window closes Dec 31' },
       { type: 'BEHAVIORAL', severity: 'MEDIUM', source: 'Engagement Platform', detail: 'Portal logins 3x this week · receptivity 87% · caregiver stress elevated' },
     ],
     concurrentWindow: '30s',
     complexityScore: 'HIGH',
-    contextFlags: ['CAREGIVER_RELATIONSHIP', 'DEPENDENT_RELATIONSHIP', 'Q4_SD Medicaid quality_WINDOW', 'CARDIAC_EPISODE_DAY34'],
+    contextFlags: ['CAREGIVER_RELATIONSHIP', 'DEPENDENT_RELATIONSHIP', 'Q4_SD Medicaid quality_WINDOW', 'POSTPARTUM_EPISODE_DAY427'],
     routingTarget: 'SUPER_ORCHESTRATION_CONTROLLER',
   },
   marketplace_query: {
@@ -66,7 +66,7 @@ const JSON_PAYLOADS: Record<string, object> = {
     timestamp: '2024-11-15T14:23:02Z',
     queryContext: {
       signalTypes: ['AUTH_EXPIRY', 'CARE_GAP', 'BEHAVIORAL'],
-      memberContext: 'HIGH_RISK_CARDIAC_DAY34',
+      memberContext: 'HIGH_RISK_POSTPARTUM_DAY427',
       relationshipContext: ['CAREGIVER', 'DEPENDENT'],
       operationalContext: ['Q4_SD Medicaid quality_WINDOW', 'TCOC_CEILING', 'AUTH_WINDOW'],
     },
@@ -83,7 +83,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         tier: 'FOUNDATION',
         matchScore: 0.97,
         confidenceScore: 0.94,
-        matchReasons: ['AUTH_EXPIRY signal active', 'CARDIAC_EPISODE_DAY34 context', 'Q4_SD Medicaid quality_WINDOW operational flag'],
+        matchReasons: ['AUTH_EXPIRY signal active', 'POSTPARTUM_EPISODE_DAY427 context', 'Q4_SD Medicaid quality_WINDOW operational flag'],
         assignedRole: 'PRIMARY_CARE_COORDINATOR',
       },
       {
@@ -143,7 +143,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         tier: 'OPERATIONAL',
         matchScore: 0.81,
         confidenceScore: 0.79,
-        matchReasons: ['AUTH_EXPIRY creates appeal risk', 'CARDIAC_EPISODE_DAY34 clinical urgency', 'Q4_SD Medicaid quality_WINDOW deadline pressure'],
+        matchReasons: ['AUTH_EXPIRY creates appeal risk', 'POSTPARTUM_EPISODE_DAY427 clinical urgency', 'Q4_SD Medicaid quality_WINDOW deadline pressure'],
         assignedRole: 'APPEALS_HANDLER',
       },
       {
@@ -163,7 +163,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         agentName: 'Dental Benefits Agent',
         tier: 'OPERATIONAL',
         matchScore: 0.12,
-        exclusionReason: 'No dental signal present; member context is cardiac/behavioral only',
+        exclusionReason: 'No dental signal present; member context is postpartum/behavioral only',
       },
       {
         agentId: 'VISION_CARE_AGENT',
@@ -205,7 +205,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         agentName: 'Oncology Navigation Agent',
         tier: 'SPECIALTY',
         matchScore: 0.14,
-        exclusionReason: 'No active oncology diagnosis in member record; cardiac episode primary',
+        exclusionReason: 'No active oncology diagnosis in member record; postpartum episode primary',
       },
       {
         agentId: 'WORKER_COMP_AGENT',
@@ -226,7 +226,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         agentName: 'Fraud, Waste & Abuse Detection Agent',
         tier: 'GOVERNANCE',
         matchScore: 0.18,
-        exclusionReason: 'No anomaly pattern detected; claim history within expected variance for cardiac episode',
+        exclusionReason: 'No anomaly pattern detected; claim history within expected variance for postpartum episode',
       },
     ],
     unmatchedAgentCount: 23,
@@ -295,7 +295,7 @@ const JSON_PAYLOADS: Record<string, object> = {
       diagnosisCodes: ['I25.10', 'E11.9'],
       primaryDiagnosis: 'Chronic ischemic heart disease, unspecified',
       supportingRecords: 3,
-      medicalNecessityBasis: 'Active cardiac episode Day 34 — ongoing monitoring required per SD Medicaid LCD L38779',
+      medicalNecessityBasis: 'Active postpartum episode Day 427 — ongoing monitoring required per SD Medicaid LCD L38779',
       priorAuthHistory: 'AUTH_000 approved 2024-08-15 — same procedure, same provider',
     },
     sdohBarrierResolved: {
@@ -333,7 +333,7 @@ const JSON_PAYLOADS: Record<string, object> = {
     clinicalGuidelineRef: 'SD Medicaid_LCD_L38779',
     medicalNecessityVerdict: 'APPROVED — criteria met',
     criteriaApplied: [
-      'Active cardiac episode with documented prior auth history',
+      'Active postpartum episode with documented prior auth history',
       'Diagnosis I25.10 meets echocardiography indication threshold',
       'Day 34 of 90-day episode — monitoring interval appropriate',
     ],
@@ -352,7 +352,7 @@ const JSON_PAYLOADS: Record<string, object> = {
     appealType: 'CLINICAL_NECESSITY_DETERMINATION',
     interceptedBy: 'POLICY_BOUNDARY',
     policyTriggered: 'SD Medicaid.APPEAL.AUTO.THRESHOLD.001',
-    reason: 'Clinical necessity determination for cardiac procedure exceeds automated authority — physician review required',
+    reason: 'Clinical necessity determination for postpartum care procedure exceeds automated authority — physician review required',
     automatedActionAttempted: 'DISPATCH_APPEAL_WITHOUT_PHYSICIAN_SIGN_OFF',
     disposition: 'HOLD_FOR_HUMAN_REVIEW',
     reviewerNotified: 'Dr. K. Patel — Medical Director',
@@ -374,7 +374,7 @@ const JSON_PAYLOADS: Record<string, object> = {
       deductibleRemaining: 300,
       oopMaxRemaining: 1840,
       procedureCode: 'HbA1c',
-      networkStatus: 'IN_NETWORK — Banner University',
+      networkStatus: 'IN_NETWORK — Winner Regional Healthcare',
     },
     oopLiabilityRange: { min: 340, max: 480, currency: 'USD', confidence: 'HIGH' },
     outOfNetworkExposureAvoided: 2400,
@@ -397,7 +397,7 @@ const JSON_PAYLOADS: Record<string, object> = {
     scopeExceeded: 'THIRD_PARTY_DISCLOSURE — medication list to external care coordinator',
     actionWithinScope: {
       inrMonitoringInitiated: true,
-      warfarinInteractionFlagged: true,
+      lisinoprilInteractionFlagged: true,
       elenaThreadUpdated: true,
       note: 'A1C monitoring and Lisinopril flag actioned within Elena\'s granted proxy scope',
     },
@@ -433,7 +433,7 @@ const JSON_PAYLOADS: Record<string, object> = {
     action: 'H1AB_CONTEXT_ENRICHED',
     timestamp: '2024-11-15T14:49:12Z',
     target: 'H1ab — Sarah Johnson queue',
-    careManagerId: 'CM_SARAH_CHEN',
+    careManagerId: 'CM_SARAH_JOHNSON',
     memberId: 'MARIA_SD_001',
     contextUpgrade: {
       previousContextAge: '47_DAYS',
@@ -504,7 +504,7 @@ const JSON_PAYLOADS: Record<string, object> = {
         type: 'AUTH_PRE_APPROVED',
         urgency: 'INFO',
         detail: 'CAREGAP_HBA1C renewal pre-assembled — HbA1c lab order · SD Medicaid LCD L38779 · cycle time 0.3d',
-        suggestedActions: ['ATTACH to cardiac rehab referral'],
+        suggestedActions: ['ATTACH to postpartum rehab referral'],
       },
     ],
     deliveryMethod: 'CDS_HOOKS_FHIR_R4',
@@ -535,17 +535,17 @@ const JSON_PAYLOADS: Record<string, object> = {
     resolution: 'Elena must grant expanded scope OR coordinator contacts directly',
     auditId: 'AUDIT_20241115_144219_GOV_001',
   },
-  policy_intercept_optumrx: {
+  policy_intercept_pharmacy: {
     agentId: 'POLICY_BOUNDARY',
     action: 'INTERCEPT',
     timestamp: '2024-11-15T14:44:05Z',
     interceptedAgent: 'CARE_MANAGEMENT',
-    interceptedAction: 'SHARE_CARDIAC_EPISODE_CONTEXT_MARTIN PHARMACY',
+    interceptedAction: 'SHARE_POSTPARTUM_EPISODE_CONTEXT_MARTIN PHARMACY',
     policyTriggered: 'CONSENT.DOMAIN.BOUNDARY.002',
     consentDomain: 'MARTIN PHARMACY',
     consentScope: 'LIMITED — fill history only',
     scopeExceeded: 'DIAGNOSIS_CODES_AND_EPISODE_CONTEXT',
-    attemptedAction: 'Share cardiac episode context with Martin Pharmacy for Medication Therapy Management enrollment',
+    attemptedAction: 'Share postpartum episode context with Martin Pharmacy for Medication Therapy Management enrollment',
     domainCheck: {
       domain: 'MARTIN PHARMACY',
       grantedScope: ['FILL_HISTORY'],
@@ -604,11 +604,11 @@ const JSON_PAYLOADS: Record<string, object> = {
     auditLedgerRef: 'LEDGER_20241115_MARIA_SD_001',
     auditId: 'AUDIT_20241115_144700_AUDIT_001',
   },
-  rally_mobile_push: {
+  rhtp_mobile_push: {
     agentId: 'CARE_MANAGEMENT',
-    action: 'RALLY_MOBILE_PUSH_DISPATCHED',
+    action: 'RHTP_MOBILE_PUSH_DISPATCHED',
     timestamp: '2024-11-15T09:47:12Z',
-    target: 'RALLY_MOBILE',
+    target: 'RHTP_MOBILE',
     memberId: 'MARIA_SD_001',
     channelOverride: {
       standardRouting: 'PORTAL_WEB — Maria\'s learned preference (self-initiated Day 14, 2x/week)',
@@ -622,7 +622,7 @@ const JSON_PAYLOADS: Record<string, object> = {
     widgetPayload: [
       { priority: 1, type: 'SAFETY_ALERT', label: 'Metformin discontinued — continue Lisinopril 5mg', urgency: 'CRITICAL', action: 'GOT_IT', triggerSignal: 'DUPLICATE_THERAPY' },
       { priority: 2, type: 'ACTION_REQUIRED', label: 'A1C check — home kit, 7 days', urgency: 'HIGH', action: 'CONFIRM / RESCHEDULE', triggerSignal: 'A1C_OVERDUE_38D' },
-      { priority: 3, type: 'CARE_UPDATE', label: 'Bennett County Health updated chart — cardiac rehab approved', urgency: 'HIGH', action: 'VIEW', triggerSignal: 'DR_CHEN_WRITE_BACK' },
+      { priority: 3, type: 'CARE_UPDATE', label: 'Bennett County Health updated chart — postpartum rehab approved', urgency: 'HIGH', action: 'VIEW', triggerSignal: 'PROVIDER_WRITE_BACK' },
       { priority: 4, type: 'Med review_OPPORTUNITY', label: 'Medication review — Martin Pharmacy · 15 min · no cost', urgency: 'MEDIUM', action: 'ENROLL / REMIND_ME_LATER', triggerSignal: 'Med review_PARTIAL_CONSENT' },
       { priority: 5, type: 'FINANCIAL_SUMMARY', label: 'Covered pathway: $340–$480 · saves $2,400 vs out-of-network', urgency: 'LOW', action: 'VIEW_COST_BREAKDOWN', triggerSignal: 'FINANCIAL_SURPRISE_RISK' },
     ],
@@ -637,8 +637,8 @@ const JSON_PAYLOADS: Record<string, object> = {
       withinPreferredWindow: true,
       receptivityScore: 0.87,
     },
-    deliveryMethod: 'RALLY_MOBILE_PUSH_NOTIFICATION',
-    auditId: 'AUDIT_20241115_094712_RALLY_MOBILE_001',
+    deliveryMethod: 'RHTP_MOBILE_PUSH_NOTIFICATION',
+    auditId: 'AUDIT_20241115_094712_RHTP_MOBILE_001',
   },
 };
 
@@ -663,7 +663,7 @@ const FOUNDATION_AGENTS: AgentNode[] = [
     fetchSystems: [{ id: 'neo4j', label: 'Neo4j', sublabel: 'Knowledge Graph', side: 'fetch', payloadKey: 'graph_intel_push' }],
     pushSystems: [{ id: 'orch-ctx', label: 'Orchestration', sublabel: 'Context', side: 'push', payloadKey: 'graph_intel_push' }],
     tier: 'Tier 1 — Foundation',
-    rationale: 'Maria\'s 21-node subgraph assembled from Neo4j. Resolved caregiver relationship to Elena, dependent relationship to Sophia, and active cardiac episode context. Identity confidence 97% — golden record committed. Graph context package injected into orchestration context for all downstream agents.',
+    rationale: 'Maria\'s 21-node subgraph assembled from Neo4j. Resolved caregiver relationship to Elena, dependent relationship to Sophia, and active postpartum episode context. Identity confidence 97% — golden record committed. Graph context package injected into orchestration context for all downstream agents.',
     outcome: 'Context package ORCHESTRATION_CONTEXT_001 assembled. 21 nodes, 26 edges. Caregiver + dependent relationships resolved. Duplicate therapy edge flagged.',
     confidence: 0.97,
   },
@@ -726,11 +726,11 @@ const OPERATIONAL_AGENTS: AgentNode[] = [
       { id: 'auth-sys', label: 'Auth System', sublabel: 'Evidence Package', side: 'push', payloadKey: 'care_push' },
       { id: 'h1ab', label: 'H1ab', sublabel: 'Sarah Johnson — enriched', side: 'push', payloadKey: 'h1ab_push' },
       { id: 'dr-chen-ehr', label: 'Bennett County Health EHR', sublabel: 'CDS Hook · FHIR R4 ✓', side: 'push', payloadKey: 'dr_chen_cds_hook' },
-      { id: 'rally-mobile', label: 'RHTP Mobile', sublabel: 'Maria — widget push ✓', side: 'push', payloadKey: 'rally_mobile_push' },
-      { id: 'optumrx-gate', label: 'Martin Pharmacy ⚠', sublabel: 'CONSENT GATE', side: 'push', payloadKey: 'policy_intercept_optumrx' },
+      { id: 'rally-mobile', label: 'RHTP Mobile', sublabel: 'Maria — widget push ✓', side: 'push', payloadKey: 'rhtp_mobile_push' },
+      { id: 'optumrx-gate', label: 'Martin Pharmacy ⚠', sublabel: 'CONSENT GATE', side: 'push', payloadKey: 'policy_intercept_pharmacy' },
     ],
     tier: 'Tier 2 — Operational',
-    rationale: 'CAREGAP_HBA1C expiring in 4 days for HbA1c lab order (echocardiogram). EHR records fetched — 3 supporting clinical records assembled. Medical necessity basis confirmed: active cardiac episode Day 34, prior auth history. Evidence package submitted to auth system. H1ab brief enriched with real-time context replacing 47-day-old snapshot. Martin Pharmacy Med review enrollment attempted — blocked by consent domain boundary.',
+    rationale: 'CAREGAP_HBA1C expiring in 4 days for HbA1c lab order. EHR records fetched — 3 supporting clinical records assembled. Medical necessity basis confirmed: active postpartum episode Day 427, prior auth history. Evidence package submitted to auth system. H1ab brief enriched with real-time context replacing 47-day-old snapshot. Martin Pharmacy Med review enrollment attempted — blocked by consent domain boundary.',
     outcome: 'CAREGAP_HBA1C renewal evidence submitted. H1ab Sarah Johnson brief updated with real-time context. Martin Pharmacy Med review blocked — consent domain boundary enforced. Auth cycle time: 0.3 days (was 8.2 days).',
     confidence: 0.94,
   },
@@ -758,7 +758,7 @@ const OPERATIONAL_AGENTS: AgentNode[] = [
     fetchSystems: [{ id: 'guidelines', label: 'Clinical Guidelines', sublabel: 'SD Medicaid LCD L38779', side: 'fetch', payloadKey: 'utilization_push' }],
     pushSystems: [{ id: 'payer', label: 'Payer System', sublabel: 'Auth Record', side: 'push', payloadKey: 'utilization_push' }],
     tier: 'Tier 2 — Operational',
-    rationale: 'SD Medicaid LCD L38779 clinical guideline referenced for HbA1c lab order. Medical necessity criteria met — active cardiac episode with documented prior auth history. Auth record updated in payer system. Cycle time reduced from 8.2 days (manual) to 0.3 days (automated). 96% improvement in processing speed.',
+    rationale: 'SD Medicaid LCD L38779 clinical guideline referenced for HbA1c lab order. Medical necessity criteria met — active postpartum episode with documented prior auth history. Auth record updated in payer system. Cycle time reduced from 8.2 days (manual) to 0.3 days (automated). 96% improvement in processing speed.',
     outcome: 'Auth record updated in payer system. Clinical guideline SD Medicaid LCD L38779 applied. Auth cycle time: 0.3 days (96% improvement vs 8.2 day manual baseline).',
     confidence: 0.96,
   },
@@ -888,7 +888,7 @@ const HITL_STEPS: HITLStep[] = [
   { time: '09:56am', label: 'Reviews transport blocker', detail: 'TRANSPORT_BARRIER flagged — home lab kit dispatched as alternative', color: '#ef4444', icon: '⚠️' },
   { time: '09:57am', label: 'Reviews enriched context', detail: 'SDOH barriers, family context, 8 interventions — real-time vs 47-day-old snapshot', color: '#f59e0b', icon: '🔍' },
   { time: '09:58am', label: 'Confirms home kit approach', detail: 'Approach confirmed — barrier-aware outreach script locked for 10am call', color: '#42be65', icon: '✓' },
-  { time: '09:58am', label: 'Acknowledgement logged', detail: 'CM_SARAH_CHEN acknowledged MARIA_SD_001 context update — no override — approach confirmed', color: '#42be65', icon: '🔒' },
+  { time: '09:58am', label: 'Acknowledgement logged', detail: 'CM_SARAH_JOHNSON acknowledged MARIA_SD_001 context update — no override — approach confirmed', color: '#42be65', icon: '🔒' },
 ];
 
 const H1AB_MOCK_SECTIONS = [
@@ -1062,7 +1062,7 @@ function H1abHITLPanel({ onClose }: { onClose: () => void }) {
                 <span style={{ fontSize: '10px', color: '#42be65' }}>✓</span>
                 <span className="font-mono" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>ACKNOWLEDGED — T+8h32m</span>
               </div>
-              <span style={{ fontSize: '10px', color: '#6f6f6f' }}>CM_SARAH_CHEN acknowledged MARIA_SD_001 context update — no override — approach confirmed</span>
+              <span style={{ fontSize: '10px', color: '#6f6f6f' }}>CM_SARAH_JOHNSON acknowledged MARIA_SD_001 context update — no override — approach confirmed</span>
               <span className="font-mono" style={{ fontSize: '9px', color: '#4b5563' }}>AUDIT_20241115_183244_HITL_CM_001</span>
             </div>
           )}
@@ -1254,7 +1254,7 @@ function H1abHITLPanel({ onClose }: { onClose: () => void }) {
             <div className="flex flex-col gap-1.5">
               {[
                 { id: 'AUDIT_20241115_144912_H1AB_001', action: 'CARE_MANAGEMENT → H1ab PUSH COMPLETE', color: '#42be65' },
-                { id: 'AUDIT_20241115_183244_HITL_CM_001', action: 'CM_SARAH_CHEN acknowledged MARIA_SD_001 — no override — approach confirmed', color: '#78a9ff' },
+                { id: 'AUDIT_20241115_183244_HITL_CM_001', action: 'CM_SARAH_JOHNSON acknowledged MARIA_SD_001 — no override — approach confirmed', color: '#78a9ff' },
                 { id: 'AUDIT_20241115_183244_SCRIPT_001', action: '10am outreach script locked — barrier-aware — home kit confirmation', color: '#42be65' },
               ].map((entry) => (
                 <div key={entry.id} className="flex flex-col gap-0.5">
@@ -1343,10 +1343,10 @@ function H1abHITLPanel({ onClose }: { onClose: () => void }) {
                 </line>
               )}
 
-              {/* ── Central node: MARIA REYES ── */}
+              {/* ── Central node: MARIA REDHAWK ── */}
               <circle cx="250" cy="28" r="26" fill="rgba(120,169,255,0.12)" stroke="rgba(120,169,255,0.6)" strokeWidth="2" filter="url(#glowBlueH1ab)" />
               <text x="250" y="24" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">MARIA</text>
-              <text x="250" y="35" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">REYES</text>
+              <text x="250" y="35" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">REDHAWK</text>
 
               {/* ── Left cluster: Sarah Johnson / Transport Barrier / Home Lab Kit ── */}
               {/* Sarah Johnson node */}
@@ -1356,7 +1356,7 @@ function H1abHITLPanel({ onClose }: { onClose: () => void }) {
                 strokeWidth={graphPhase >= 1 ? 2 : 1}
                 opacity={graphPhase >= 1 ? 1 : 0.4}
               />
-              <text x="30" y="149" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="#78a9ff" letterSpacing="0.06em">SARAH CHEN — H1ab</text>
+              <text x="30" y="149" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="#78a9ff" letterSpacing="0.06em">SARAH JOHNSON — H1ab</text>
               {graphPhase >= 1 && (
                 <>
                   <rect x="148" y="133" width="64" height="16" rx="3" fill="rgba(66,190,101,0.15)" stroke="rgba(66,190,101,0.5)" strokeWidth="1" />
@@ -1364,7 +1364,7 @@ function H1abHITLPanel({ onClose }: { onClose: () => void }) {
                   <text x="180" y="145" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#42be65" letterSpacing="0.04em">ACKNOWLEDGED</text>
                 </>
               )}
-              <text x="30" y="163" fontFamily="monospace" fontSize="8" fill="#6f6f6f">Care Manager · CM_SARAH_CHEN</text>
+              <text x="30" y="163" fontFamily="monospace" fontSize="8" fill="#6f6f6f">Care Manager · CM_SARAH_JOHNSON</text>
               {graphPhase >= 1 && (
                 <>
                   <text x="30" y="175" fontFamily="monospace" fontSize="8" fill="#42be65">H1ab brief reviewed · approach confirmed ✓</text>
@@ -1556,7 +1556,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-3">
             <div className="rounded px-2 py-1 flex items-center gap-2" style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.5)' }}>
               <div className="rounded-full" style={{ width: 7, height: 7, background: '#06b6d4', boxShadow: '0 0 6px #06b6d4' }} />
-              <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#06b6d4', letterSpacing: '0.1em' }}>EPIC EHR — DR. CHEN</span>
+              <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#06b6d4', letterSpacing: '0.1em' }}>EPIC EHR — BENNETT COUNTY HEALTH</span>
             </div>
             <span style={{ fontSize: '11px', color: '#6f6f6f' }}>Cardiology · Chart View</span>
           </div>
@@ -1578,7 +1578,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
         <div className="flex-shrink-0 px-4 py-2 flex items-center justify-between" style={{ background: '#071828', borderBottom: '1px solid rgba(6,182,212,0.15)' }}>
           <div className="flex items-center gap-3">
             <span style={{ fontSize: '10px', color: '#4b5563' }}>Patient:</span>
-            <span className="font-semibold" style={{ fontSize: '11px', color: '#f4f4f4' }}>Reyes, Maria</span>
+            <span className="font-semibold" style={{ fontSize: '11px', color: '#f4f4f4' }}>Redhawk, Maria</span>
             <span style={{ fontSize: '10px', color: '#6f6f6f' }}>DOB: 1957-03-14 · MRN: 00847291</span>
             <div className="rounded px-1.5 py-0.5" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)' }}>
               <span className="font-mono" style={{ fontSize: '9px', color: '#ef4444', letterSpacing: '0.06em' }}>HIGH RISK</span>
@@ -1593,7 +1593,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
         {/* Epic CDS alerts banner */}
         <div className="flex-shrink-0 mx-4 mt-3 rounded px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.3)' }}>
           <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: '#06b6d4', boxShadow: '0 0 5px #06b6d4' }} />
-          <span className="font-mono" style={{ fontSize: '10px', color: '#06b6d4', letterSpacing: '0.08em' }}>CDS ALERTS — MARIA REYES · Appointment: 2024-11-15 10:00am</span>
+          <span className="font-mono" style={{ fontSize: '10px', color: '#06b6d4', letterSpacing: '0.08em' }}>CDS ALERTS — MARIA REDHAWK · Appointment: 2024-11-15 10:00am</span>
         </div>
 
         {/* CDS Hook alert cards */}
@@ -1656,7 +1656,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
             <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(66,190,101,0.2)' }}>
               <div className="flex items-center gap-2">
                 <span style={{ fontSize: '12px', color: '#42be65' }}>✓</span>
-                <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>PRIOR AUTH — CARDIAC REHAB</span>
+                <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>PRIOR AUTH — POSTPARTUM REHAB</span>
               </div>
               <div className="rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.4)' }}>
                 <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.06em' }}>PRE-APPROVED</span>
@@ -1678,7 +1678,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
             <div className="rounded p-3 flex flex-col gap-1.5" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.3)' }}>
               <div className="flex items-center gap-2">
                 <span style={{ fontSize: '10px', color: '#42be65' }}>✓</span>
-                <span className="font-mono" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>DR. CHEN ACKNOWLEDGED — T+8m</span>
+                <span className="font-mono" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>PROVIDER ACKNOWLEDGED — T+8m</span>
               </div>
               <span style={{ fontSize: '10px', color: '#d1d5db' }}>"Duplicate therapy flagged — discontinuing Metformin. HbA1c lab ordered — home kit confirmed. Postpartum rehab referral placed — auth retrieved."</span>
               <span className="font-mono" style={{ fontSize: '9px', color: '#4b5563' }}>AUDIT_20241115_100600_EPIC_DRPROVIDER_001 · Graph updated</span>
@@ -1711,7 +1711,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center gap-2">
           <div className="rounded-full" style={{ width: 8, height: 8, background: '#06b6d4', boxShadow: '0 0 6px #06b6d4' }} />
-          <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#06b6d4', letterSpacing: '0.1em' }}>EPIC CDS HOOK — DR. CHEN</span>
+          <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#06b6d4', letterSpacing: '0.1em' }}>EPIC CDS HOOK — BENNETT COUNTY HEALTH</span>
         </div>
         <button
           onClick={onClose}
@@ -1771,7 +1771,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
             {[
               { label: 'Duplicate therapy alert', color: '#ef4444' },
               { label: 'HbA1c care gap — 47 days remaining in SD Medicaid quality window', color: '#f1c21b' },
-              { label: 'Auth pre-approved — cardiac rehab ready to order', color: '#42be65' },
+              { label: 'Auth pre-approved — postpartum rehab ready to order', color: '#42be65' },
               { label: 'SDOH transport barrier — home lab kit dispatched', color: '#78a9ff' },
               { label: 'Med review status — partial — consent expansion pending', color: '#8b5cf6' },
             ].map((item) => (
@@ -1787,7 +1787,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
         <div className="rounded p-3 flex flex-col gap-3" style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.2)' }}>
           <div className="flex items-center justify-between">
             <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#06b6d4', letterSpacing: '0.1em' }}>
-              {acknowledged ? 'DR. CHEN ACKNOWLEDGED' : 'AWAITING PROVIDER ACKNOWLEDGEMENT'}
+              {acknowledged ? 'PROVIDER ACKNOWLEDGED' : 'AWAITING PROVIDER ACKNOWLEDGEMENT'}
             </span>
             {acknowledged && (
               <div className="rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.4)' }}>
@@ -1829,14 +1829,14 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
               style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.5)', color: '#06b6d4', fontSize: '12px', cursor: 'pointer' }}
             >
               <span>▶</span>
-              <span>SIMULATE DR. CHEN'S RESPONSE</span>
+              <span>SIMULATE PROVIDER'S RESPONSE</span>
             </button>
           )}
 
           {simulating && !acknowledged && (
             <div className="flex items-center gap-2">
               <div className="rounded-full" style={{ width: 6, height: 6, background: '#f59e0b', animation: 'pulse 1s infinite' }} />
-              <span className="font-mono" style={{ fontSize: '10px', color: '#f59e0b', letterSpacing: '0.08em' }}>SIMULATING DR. CHEN'S REVIEW…</span>
+              <span className="font-mono" style={{ fontSize: '10px', color: '#f59e0b', letterSpacing: '0.08em' }}>SIMULATING PROVIDER'S REVIEW…</span>
             </div>
           )}
         </div>
@@ -1846,7 +1846,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
           <div className="rounded p-3 flex flex-col gap-2" style={{ background: 'rgba(66,190,101,0.06)', border: '1px solid rgba(66,190,101,0.3)' }}>
             <div className="flex items-center gap-2">
               <div className="rounded-full" style={{ width: 7, height: 7, background: '#42be65', boxShadow: '0 0 6px #42be65' }} />
-              <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>DR. CHEN ACKNOWLEDGED — T+8m</span>
+              <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#42be65', letterSpacing: '0.08em' }}>PROVIDER ACKNOWLEDGED — T+8m</span>
             </div>
             <div className="rounded p-2.5" style={{ background: 'rgba(28,28,28,0.8)', border: '1px solid rgba(57,57,57,0.5)' }}>
               <span style={{ fontSize: '10px', color: '#d1d5db', lineHeight: 1.5, fontStyle: 'italic' }}>
@@ -1883,7 +1883,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
           style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.5)', color: '#06b6d4', fontSize: '12px', cursor: 'pointer' }}
         >
           <span>⊞</span>
-          <span>VIEW IN EPIC — DR. CHEN'S SYSTEM</span>
+          <span>VIEW IN EPIC — BENNETT COUNTY HEALTH</span>
         </button>
         <button
           onClick={onClose}
@@ -1907,7 +1907,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
               <div className="rounded-full" style={{ width: 8, height: 8, background: '#06b6d4', boxShadow: '0 0 8px #06b6d4', animation: 'pulse 1.5s infinite' }} />
               <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#06b6d4', letterSpacing: '0.12em' }}>KNOWLEDGE GRAPH — REAL-TIME UPDATE</span>
               <div className="rounded px-2 py-0.5" style={{ background: 'rgba(66,190,101,0.12)', border: '1px solid rgba(66,190,101,0.4)' }}>
-                <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.08em' }}>DR. CHEN WRITE-BACK</span>
+                <span className="font-mono" style={{ fontSize: '9px', color: '#42be65', letterSpacing: '0.08em' }}>PROVIDER WRITE-BACK</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1953,10 +1953,10 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
                 </line>
               )}
 
-              {/* ── Central node: MARIA REYES ── */}
+              {/* ── Central node: MARIA REDHAWK ── */}
               <circle cx="250" cy="28" r="26" fill="rgba(120,169,255,0.12)" stroke="rgba(120,169,255,0.6)" strokeWidth="2" filter="url(#glowBlue)" />
               <text x="250" y="24" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">MARIA</text>
-              <text x="250" y="35" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">REYES</text>
+              <text x="250" y="35" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">REDHAWK</text>
 
               {/* ── Left cluster: Lisinopril / Metformin / HbA1c ── */}
               {/* Lisinopril node */}
@@ -1966,7 +1966,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
                 strokeWidth="1"
                 opacity={graphPhase >= 1 ? 1 : 0.4}
               />
-              <text x="30" y="148" fontFamily="monospace" fontSize="9" fill="#ef4444" letterSpacing="0.06em">WARFARIN 5mg</text>
+              <text x="30" y="148" fontFamily="monospace" fontSize="9" fill="#ef4444" letterSpacing="0.06em">LISINOPRIL 5mg</text>
               <rect x="155" y="135" width="58" height="16" rx="3" fill="rgba(66,190,101,0.12)" stroke="rgba(66,190,101,0.4)" strokeWidth="1" />
               <text x="184" y="147" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#42be65" letterSpacing="0.04em">ACTIVE</text>
               <text x="30" y="165" fontFamily="monospace" fontSize="8" fill="#6f6f6f">Bennett County Health · CVS #4821</text>
@@ -1979,7 +1979,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
                 opacity={graphPhase >= 2 ? 1 : 0.3}
               />
               <text x="30" y="253" fontFamily="monospace" fontSize="9" fill="#ef4444" letterSpacing="0.06em"
-                textDecoration={graphPhase >= 2 ? 'line-through' : 'none'}>COUMADIN 5mg</text>
+                textDecoration={graphPhase >= 2 ? 'line-through' : 'none'}>METFORMIN 5mg</text>
               {graphPhase >= 2 && (
                 <>
                   <rect x="148" y="238" width="65" height="16" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.5)" strokeWidth="1" />
@@ -2018,7 +2018,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
                 strokeWidth={graphPhase >= 1 ? 2 : 1}
                 opacity={graphPhase >= 1 ? 1 : 0.4}
               />
-              <text x="290" y="148" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="#06b6d4" letterSpacing="0.06em">DR. JAMES CHEN</text>
+              <text x="290" y="148" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="#06b6d4" letterSpacing="0.06em">BENNETT COUNTY HEALTH PCP</text>
               {graphPhase >= 1 && (
                 <>
                   <rect x="400" y="133" width="82" height="16" rx="3" fill="rgba(66,190,101,0.15)" stroke="rgba(66,190,101,0.5)" strokeWidth="1" />
@@ -2060,7 +2060,7 @@ function DrChenEpicPanel({ onClose }: { onClose: () => void }) {
               )}
               {graphPhase >= 4 && (
                 <>
-                  <text x="290" y="348" fontFamily="monospace" fontSize="9" fill="#42be65" letterSpacing="0.06em">CARDIAC REHAB</text>
+                  <text x="290" y="348" fontFamily="monospace" fontSize="9" fill="#42be65" letterSpacing="0.06em">POSTPARTUM REHAB</text>
                   <text x="455" y="348" textAnchor="end" fontFamily="monospace" fontSize="8" fill="#42be65">REFERRAL PLACED</text>
                   <text x="290" y="362" fontFamily="monospace" fontSize="8" fill="#6f6f6f">Pre-auth attached · Auth cycle 0.3d</text>
                 </>
@@ -2447,7 +2447,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-3">
             <div className="rounded px-2 py-1 flex items-center gap-2" style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.5)' }}>
               <div className="rounded-full" style={{ width: 7, height: 7, background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-              <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#10b981', letterSpacing: '0.1em' }}>RALLY HEALTH MOBILE — MARIA REYES</span>
+              <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#10b981', letterSpacing: '0.1em' }}>RHTP CARE MANAGEMENT — MARIA REDHAWK</span>
             </div>
             <span style={{ fontSize: '11px', color: '#6f6f6f' }}>Authenticated · Day 34</span>
           </div>
@@ -2490,7 +2490,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
               {[
                 'Safety alert confirmed — duplicate therapy resolution logged',
                 'CHANNEL_HISTORY node updated — Mobile engagement Day 34',
-                'COUMADIN: MEMBER_ACKNOWLEDGED write-back complete',
+                'METFORMIN: MEMBER_ACKNOWLEDGED write-back complete',
               ].map((line) => (
                 <div key={line} className="flex items-start gap-1.5">
                   <span style={{ fontSize: '9px', color: '#42be65', flexShrink: 0, marginTop: 1 }}>●</span>
@@ -2663,7 +2663,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center gap-2">
           <div className="rounded-full" style={{ width: 8, height: 8, background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-          <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#10b981', letterSpacing: '0.1em' }}>RALLY MOBILE PUSH — MEMBER SIMULATION</span>
+          <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#10b981', letterSpacing: '0.1em' }}>RHTP MOBILE PUSH — MEMBER SIMULATION</span>
         </div>
         <button
           onClick={onClose}
@@ -2710,7 +2710,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="rounded-full" style={{ width: 7, height: 7, background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-              <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#10b981', letterSpacing: '0.1em' }}>RALLY MOBILE PUSH — DISPATCHED</span>
+              <span className="font-mono font-semibold" style={{ fontSize: '11px', color: '#10b981', letterSpacing: '0.1em' }}>RHTP MOBILE PUSH — DISPATCHED</span>
             </div>
             <span className="font-mono" style={{ fontSize: '10px', color: '#4b5563' }}>T+8m</span>
           </div>
@@ -2853,7 +2853,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
               <div className="rounded-full" style={{ width: 5, height: 5, background: '#10b981' }} />
               <span className="font-mono" style={{ fontSize: '9px', color: '#10b981', letterSpacing: '0.06em' }}>GRAPH UPDATED — CHANNEL_HISTORY node write-back</span>
             </div>
-            <span className="font-mono" style={{ fontSize: '8px', color: '#4b5563' }}>AUDIT_20241115_094812_RALLY_MOBILE_ACK_001</span>
+            <span className="font-mono" style={{ fontSize: '8px', color: '#4b5563' }}>AUDIT_20241115_094812_RHTP_MOBILE_ACK_001</span>
           </div>
         )}
       </div>
@@ -2866,7 +2866,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
           style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.5)', color: '#10b981', fontSize: '12px', cursor: 'pointer' }}
         >
           <span>📱</span>
-          <span>VIEW IN RALLY MOBILE — MARIA'S APP</span>
+          <span>VIEW IN RHTP MOBILE — MARIA'S APP</span>
         </button>
         <button
           onClick={onClose}
@@ -2911,35 +2911,35 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
               <line x1="250" y1="52" x2="120" y2="130" stroke="rgba(16,185,129,0.5)" strokeWidth="1.5" strokeDasharray="4 3">
                 <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="1s" repeatCount="indefinite" />
               </line>
-              {/* Maria → RALLY_MOBILE_SESSION */}
+              {/* Maria → RHTP_MOBILE_SESSION */}
               <line x1="250" y1="52" x2="370" y2="130" stroke="rgba(120,169,255,0.4)" strokeWidth="1.5" strokeDasharray="4 3">
                 <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="1s" repeatCount="indefinite" />
               </line>
-              {/* CHANNEL_HISTORY → COUMADIN */}
+              {/* CHANNEL_HISTORY → METFORMIN */}
               {graphPhase >= 2 && (
                 <line x1="120" y1="185" x2="120" y2="245" stroke="rgba(66,190,101,0.5)" strokeWidth="1.5" strokeDasharray="4 3">
                   <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="1s" repeatCount="indefinite" />
                 </line>
               )}
-              {/* COUMADIN → A1C MONITORING */}
+              {/* METFORMIN → A1C MONITORING */}
               {graphPhase >= 3 && (
                 <line x1="120" y1="295" x2="120" y2="345" stroke="rgba(66,190,101,0.5)" strokeWidth="1.5" strokeDasharray="4 3">
                   <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="1s" repeatCount="indefinite" />
                 </line>
               )}
-              {/* RALLY_MOBILE_SESSION → Med review CONSENT_OFFERED */}
+              {/* RHTP_MOBILE_SESSION → Med review CONSENT_OFFERED */}
               {graphPhase >= 4 && (
                 <line x1="370" y1="190" x2="370" y2="280" stroke="rgba(139,92,246,0.4)" strokeWidth="1.5" strokeDasharray="4 3">
                   <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="1s" repeatCount="indefinite" />
                 </line>
               )}
 
-              {/* ── Central node: MARIA REYES ── */}
+              {/* ── Central node: MARIA REDHAWK ── */}
               <circle cx="250" cy="28" r="26" fill="rgba(120,169,255,0.12)" stroke="rgba(120,169,255,0.6)" strokeWidth="2" />
               <text x="250" y="24" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">MARIA</text>
-              <text x="250" y="35" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">REYES</text>
+              <text x="250" y="35" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#78a9ff" letterSpacing="0.04em">REDHAWK</text>
 
-              {/* ── Left cluster: CHANNEL_HISTORY / COUMADIN / A1C MONITORING ── */}
+              {/* ── Left cluster: CHANNEL_HISTORY / METFORMIN / A1C MONITORING ── */}
               {/* CHANNEL_HISTORY node */}
               <rect x="20" y="130" width="200" height="55" rx="4"
                 fill="rgba(16,185,129,0.08)"
@@ -2955,7 +2955,7 @@ function MemberMobilePanel({ onClose }: { onClose: () => void }) {
                   <text x="180" y="145" textAnchor="middle" fontFamily="monospace" fontSize="8" fill="#42be65" letterSpacing="0.04em">ACKNOWLEDGED</text>
                 </>
               )}
-              <text x="30" y="163" fontFamily="monospace" fontSize="8" fill="#6f6f6f">Care Manager · CM_SARAH_CHEN</text>
+              <text x="30" y="163" fontFamily="monospace" fontSize="8" fill="#6f6f6f">Care Manager · CM_SARAH_JOHNSON</text>
               {graphPhase >= 1 && (
                 <>
                   <text x="30" y="175" fontFamily="monospace" fontSize="8" fill="#42be65">H1ab brief reviewed · approach confirmed ✓</text>
@@ -3086,7 +3086,7 @@ interface OrchestrationFlowModalProps {
 }
 
 const OrchestrationFlowModal: React.FC<OrchestrationFlowModalProps> = ({ onClose }) => {
-  type ActivePanel = 'none' | 'marketplace' | 'h1ab' | 'drchen' | 'mobile' | 'optumrx' | 'json';
+  type ActivePanel = 'none' | 'marketplace' | 'h1ab' | 'drchen' | 'mobile' | 'pharmacy' | 'json';
   const [activePanel, setActivePanel] = useState<ActivePanel>('none');
   const [jsonPayloadKey, setJsonPayloadKey] = useState<string>('');
   const [popout, setPopout] = useState<{ agent: AgentNode | GovernanceAgent; rect: DOMRect } | null>(null);
@@ -3135,8 +3135,8 @@ const OrchestrationFlowModal: React.FC<OrchestrationFlowModalProps> = ({ onClose
     if (activePanel === 'drchen') return <DrChenEpicPanel onClose={closePanel} />;
     if (activePanel === 'mobile') return <MemberMobilePanel onClose={closePanel} />;
     if (activePanel === 'marketplace') return <MarketplacePanel onClose={closePanel} />;
-    if (activePanel === 'optumrx') {
-      const payload = JSON_PAYLOADS['policy_intercept_optumrx'];
+    if (activePanel === 'pharmacy') {
+      const payload = JSON_PAYLOADS['policy_intercept_pharmacy'];
       return (
         <div className="flex flex-col h-full" style={{ background: '#0d1117', borderLeft: '1px solid rgba(239,68,68,0.3)' }}>
           <div className="flex-shrink-0 flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(57,57,57,0.7)', background: '#161b22' }}>
@@ -3264,7 +3264,7 @@ const OrchestrationFlowModal: React.FC<OrchestrationFlowModalProps> = ({ onClose
                   if (isH1ab) setActivePanel('h1ab');
                   else if (isDrChen) setActivePanel('drchen');
                   else if (isRHTP) setActivePanel('mobile');
-                  else if (isPharmacyGate) setActivePanel('optumrx');
+                  else if (isPharmacyGate) setActivePanel('pharmacy');
                   else openJsonPanel(sys.payloadKey);
                 }}
                 className="rounded px-2 py-1 flex items-center gap-1.5 transition-all text-left"

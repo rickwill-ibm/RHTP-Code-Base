@@ -793,7 +793,7 @@ export default function Consumer360Screen() {
                   {
                     id: 'oc-1',
                     title: 'Auth signal is expected',
-                    detail: 'Day 34 is the standard auth renewal window for post-acute cardiac. System knows this — no escalation needed.',
+                    detail: 'Day 34 is the standard auth renewal window for post-acute postpartum. System knows this — no escalation needed.',
                     color: '#42be65',
                   },
                   {

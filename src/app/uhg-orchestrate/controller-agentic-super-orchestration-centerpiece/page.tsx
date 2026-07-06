@@ -436,7 +436,7 @@ const AGENT_DECISION_TREES: Record<string, DecisionTreeData> = {
     agentColor: '#f59e0b',
     inputs: [
       { label: 'Auth Record', value: 'CAREGAP_HBA1C — HbA1c lab order — contested utilization review', color: '#f59e0b' },
-      { label: 'Policy Reference', value: 'SD Medicaid coverage policy — medical necessity criteria for cardiac procedures', color: '#78a9ff' },
+      { label: 'Policy Reference', value: 'SD Medicaid coverage policy — medical necessity criteria for postpartum care procedures', color: '#78a9ff' },
       { label: 'Clinical Record', value: 'Postpartum EP study documentation — 3 supporting records available', color: '#42be65' },
       { label: 'integrity Check', value: 'Fraud, Waste & Abuse screening — procedure pattern analysis', color: '#fa4d56' },
       { label: 'TCOC Context', value: 'Plan TCOC at ceiling — cost-generating actions require leadership flag', color: '#f59e0b' },
@@ -465,7 +465,7 @@ const AGENT_DECISION_TREES: Record<string, DecisionTreeData> = {
     inputs: [
       { label: 'Appeal Condition', value: 'Condition 3 — SD Medicaid appeal deadline T-72 hours — CRITICAL', color: '#ef4444' },
       { label: 'SD Medicaid Requirements', value: 'Clinical necessity determination required — SD Medicaid appeal standards verified', color: '#fa4d56' },
-      { label: 'Supporting Records', value: '3 records attached — cardiac EP + HbA1c gap + auth history', color: '#42be65' },
+      { label: 'Supporting Records', value: '3 records attached — postpartum EP + HbA1c gap + auth history', color: '#42be65' },
       { label: 'Response Draft', value: 'Pre-drafted appeal response — reviewer edits only required', color: '#78a9ff' },
       { label: 'Governance Policy', value: 'SD Medicaid.APPEAL.AUTO.THRESHOLD.001 — automated authority limit', color: '#8b5cf6' },
     ],

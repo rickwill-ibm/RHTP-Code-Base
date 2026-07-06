@@ -292,10 +292,10 @@ const MARIA_THREAD_ROWS: ThreadRow[] = [] = [
   },
   {
     id: 'th-household',
-    label: 'Household · REYES_HH-001',
+    label: 'Household · REDHAWK_HH-001',
     status: 'COORDINATED',
     statusColor: '#ff7eb6',
-    detail: 'Combined outreach: 1 message — Maria cardiac + Sophia pediatric · Household load: 1/3 weekly cap · Elena A1C reminder via separate channel · Sarah Johnson assigned — covers full household · Sophia well-visit bundled Q4 SD Medicaid quality',
+    detail: 'Combined outreach: 1 message — Maria postpartum + Sophia pediatric · Household load: 1/3 weekly cap · Elena A1C reminder via separate channel · Sarah Johnson assigned — covers full household · Sophia well-visit bundled Q4 SD Medicaid quality',
     agent: 'Household Coordination',
     agentColor: '#ff7eb6',
     icon: '⌂',

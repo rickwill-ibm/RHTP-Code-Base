@@ -280,7 +280,7 @@ export default function ReportingDashboardPage() {
                 <div className="flex items-center gap-2">
                   <div className="rounded-full" style={{ width: 7, height: 7, background: '#78a9ff' }} />
                   <span className="font-mono" style={{ fontSize: '10px', color: '#78a9ff', letterSpacing: '0.1em' }}>
-                    INDIVIDUAL SIGNAL REPORT — MARIA REYES
+                    INDIVIDUAL SIGNAL REPORT — MARIA REDHAWK
                   </span>
                 </div>
                 <button
