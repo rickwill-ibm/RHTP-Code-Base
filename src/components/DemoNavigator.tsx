@@ -147,15 +147,27 @@ const DEMO_PERSONAS: DemoPersona[] = [
     ],
   },
   {
-    id: 'data-architect',
+    id: 'agentic-maria',
     role: 'P9',
-    title: 'AI & Data Architect',
-    color: '#005d5d',
-    bgLight: '#d9fbfb',
-    textColor: '#004144',
-    initials: 'DA',
+    title: 'Agentic Story — Maria Redhawk',
+    color: '#4f46e5',
+    bgLight: '#ede9fe',
+    textColor: '#2e1065',
+    initials: 'AM',
     steps: [
-      { stepNum: 32, route: '/whole-person-care-summary', label: 'Whole Person Care Summary Graph', storyBeat: 'The first time all 52 dimensions of Maria\'s life are visible in one place — 4 roles, 14 streams, 4 consent layers', activePatient: 'MARIA_SD_001' },
+      { stepNum: 32, route: '/uhg-orchestrate/fragmentation-split-system-view', label: 'One Enterprise · Five Entities', storyBeat: 'Why fragmentation breaks Maria\'s care across UHC, Optum, Surest, UMR, Rally', activePatient: 'MARIA_SD_001' },
+      { stepNum: 33, route: '/uhg-orchestrate/cdp-assembly-split', label: 'CDP Assembly', storyBeat: '52 data dimensions unified — Maria\'s consent-governed citizen profile assembled', activePatient: 'MARIA_SD_001' },
+      { stepNum: 34, route: '/whole-person-care-summary', label: 'Whole Person Care View', storyBeat: 'All 52 dimensions of Maria\'s life visible in one knowledge graph — 4 roles, 14 streams, 4 consent layers', activePatient: 'MARIA_SD_001' },
+      { stepNum: 35, route: '/uhg-orchestrate/consumer-360', label: 'Journey-Aware Context', storyBeat: 'Maria\'s live episode window — milestones, expected vs. unexpected signals', activePatient: 'MARIA_SD_001' },
+      { stepNum: 36, route: '/uhg-orchestrate/whole-person-care', label: 'Whole Person Care Intelligence', storyBeat: 'SDOH amplifiers: Financial 82, Caregiver Burden 88, Transport blocker → care plan mods', activePatient: 'MARIA_SD_001' },
+      { stepNum: 37, route: '/uhg-orchestrate/signal-disposition-engine', label: 'Signal Disposition Engine', storyBeat: 'Live signals from Maria\'s care events — agents dispatched in real-time', activePatient: 'MARIA_SD_001' },
+      { stepNum: 38, route: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', label: 'Agentic Super Orchestration', storyBeat: 'Controller agent coordinates CHW + Clinical + BH + Social agents for Maria', activePatient: 'MARIA_SD_001' },
+      { stepNum: 39, route: '/uhg-orchestrate/agent-library', label: 'Agentic Marketplace', storyBeat: 'Agents activated for Maria\'s case — roles, triggers, outcomes', activePatient: 'MARIA_SD_001' },
+      { stepNum: 40, route: '/uhg-orchestrate/family-sofia', label: 'Family Thread — Sofia', storyBeat: 'Maria\'s dependent Sofia — pediatric gaps surfaced and orchestrated in the household loop', activePatient: 'MARIA_SD_001' },
+      { stepNum: 41, route: '/uhg-orchestrate/caregiver-elena', label: 'Caregiver Intelligence — Elena', storyBeat: 'Maria as caregiver — Elena\'s INR, polypharmacy, Martin Pharmacy refill sync', activePatient: 'MARIA_SD_001' },
+      { stepNum: 42, route: '/uhg-orchestrate/portfolio-scale', label: 'Live Population Filter', storyBeat: 'Maria\'s profile at population scale — cohort, risk tier, at-scale impact', activePatient: 'MARIA_SD_001' },
+      { stepNum: 43, route: '/uhg-orchestrate/agent-impact-dashboard', label: 'Agent Impact Dashboard', storyBeat: 'What agents achieved for Maria — A1C, appointments, SDOH tasks, cost avoidance', activePatient: 'MARIA_SD_001' },
+      { stepNum: 44, route: '/uhg-orchestrate/reporting-dashboard', label: 'Agent Impact — Reporting', storyBeat: 'Closed loop — Maria\'s case as proof-point for enterprise agentic ROI', activePatient: 'MARIA_SD_001' },
     ],
   },
 ];
@@ -176,7 +188,7 @@ export default function DemoNavigator() {
   const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Find current step index
+  // Find current step index by pathname
   const currentStepIndex = ALL_STEPS.findIndex((s) => s.route === pathname);
   const currentStep = currentStepIndex >= 0 ? ALL_STEPS[currentStepIndex] : null;
   const currentPersona = currentStep
@@ -229,7 +241,7 @@ export default function DemoNavigator() {
             <div className="flex items-center gap-2">
               <Icon name="MapIcon" size={16} className="text-carbon-gray-70" />
               <span className="text-xs font-semibold text-carbon-gray-100 uppercase tracking-wide">Demo Sequence</span>
-              <span className="text-2xs text-carbon-gray-50">8 Personas · {TOTAL_STEPS} Steps</span>
+              <span className="text-2xs text-carbon-gray-50">9 Personas · {TOTAL_STEPS} Steps</span>
             </div>
             <button
               onClick={() => setExpanded(false)}
