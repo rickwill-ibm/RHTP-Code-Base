@@ -2,7 +2,12 @@
 // patientContext.tsx — Shared patient state for Dorothy Simmons
 // Single source of truth wired to all 11 screens.
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { getFhirClient } from './services/fhirClient';
+import type { RegistryPatient } from './patientRegistry';
+
+const USE_MOCK_DATA =
+  (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -445,6 +450,77 @@ function buildStateFromRegistry(platformId: string): PatientSharedState | null {
   }
 }
 
+/** Map a RegistryPatient fetched from FHIR into a PatientSharedState */
+function buildStateFromFhirPatient(rp: RegistryPatient): PatientSharedState {
+  return {
+    patientId: rp.platformId,
+    name: rp.name,
+    mrn: rp.ehrMrn,
+    age: rp.age,
+    gender: rp.gender,
+    dob: rp.dob,
+    pcp: rp.pcp,
+    careManager: rp.careManager,
+    careManagerInitials: rp.careManagerInitials,
+    organization: rp.organization,
+    attribution: rp.attribution,
+    episodeType: rp.episodeType,
+    episodeStatus: rp.episodeStatus as EpisodeStatus,
+    episodeDaysActive: rp.episodeDaysActive,
+    pmpm: rp.pmpm,
+    pmpmTarget: rp.pmpmTarget,
+    rafScore: rp.rafScore,
+    rafDelta: 0,
+    riskTier: rp.riskLabel,
+    erRiskPct: rp.erRiskPct,
+    hccSuspects: rp.hccSuspects,
+    hccValue: rp.hccValue,
+    lastContact: rp.lastContact,
+    attributionDetail: rp.attribution,
+    phq9Score: rp.bhScore ?? 0,
+    phq9Trend: rp.bhScoreLabel,
+    auditC: rp.auditC,
+    traumaFlag: false,
+    bhRisk: rp.bhRisk as BHRiskLevel,
+    bhReferralStatus: rp.bhReferralStatus,
+    bhReferralDate: '',
+    bhProvider: rp.bhProvider,
+    pamScore: 2,
+    pamLabel: rp.burdenScore,
+    patientGoal: rp.patientGoal,
+    transportStatus: rp.transportStatus,
+    transportReferralId: '',
+    referralStatus: 'Active',
+    referralDaysOpen: 0,
+    foodSecurity: rp.foodSecurity,
+    housingStatus: rp.housingStatus,
+    language: rp.language,
+    literacy: 'moderate',
+    cohortFlag: rp.cohortFlag,
+    ruralDistance: rp.ruralDistance,
+    disparityFlag: rp.disparityFlag,
+    snapStatus: rp.snapStatus,
+    careGaps: rp.careGaps.map((g) => ({
+      id: g.id,
+      domain: g.domain as GapDomain,
+      name: g.name,
+      status: g.status as GapStatus,
+      daysOpen: g.daysOpen,
+      assignedTo: g.assignedTo,
+    })),
+    pathwaySteps: rp.pathwaySteps.map((s) => ({
+      id: s.id,
+      label: s.label,
+      completed: s.status === 'completed',
+      date: s.date,
+      metric: s.metric,
+    })),
+    crisisCount30d: 0,
+    lastCrisisDate: null,
+    activeCrisis: false,
+  };
+}
+
 export function PatientContextProvider({ patientId, children }: { patientId?: string; children: React.ReactNode }) {
   const getInitialState = (): PatientSharedState => {
     if (!patientId) return defaultMariaState;
@@ -456,6 +532,22 @@ export function PatientContextProvider({ patientId, children }: { patientId?: st
   };
 
   const [patient, setPatient] = useState<PatientSharedState>(getInitialState);
+
+  // When running against a live FHIR server, overlay the state with live data.
+  useEffect(() => {
+    if (USE_MOCK_DATA || !patientId) return;
+    // patientId may be a platform ID (MARIA_SD_001) or a FHIR id (patient-maria-001).
+    // Try FHIR lookup by stripping the "patient/" prefix if present.
+    const fhirId = patientId.replace(/^patient\//, '');
+    getFhirClient()
+      .getRegistryPatient(fhirId)
+      .then((rp) => {
+        if (rp) setPatient(buildStateFromFhirPatient(rp));
+      })
+      .catch((err) => {
+        console.warn('[PatientContext] FHIR patient load failed, keeping mock state:', err);
+      });
+  }, [patientId]);
 
   const updateEpisodeStatus = useCallback((status: EpisodeStatus) => {
     setPatient((p) => ({ ...p, episodeStatus: status }));
