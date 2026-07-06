@@ -1195,7 +1195,7 @@ function ControllerScreenInner() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="rounded-full" style={{ width: 7, height: 7, background: '#06b6d4', animation: 'authPulse 2s ease-in-out infinite', flexShrink: 0 }} />
-                      <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#06b6d4', letterSpacing: '0.1em' }}>CARE MANAGER — SARAH CHEN · H1ab</span>
+                      <span className="font-mono font-semibold" style={{ fontSize: '10px', color: '#06b6d4', letterSpacing: '0.1em' }}>CARE MANAGER — {careMgrName.toUpperCase()} · H1ab</span>
                     </div>
                     <div className="rounded px-1.5 py-0.5" style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.35)' }}>
                       <span className="font-mono" style={{ fontSize: '8px', color: '#06b6d4' }}>UPDATED ⟳ LIVE</span>
