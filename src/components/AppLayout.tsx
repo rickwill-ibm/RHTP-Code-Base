@@ -64,16 +64,17 @@ const navItems: NavItem[] = [
 
   { key: 'uhg-fragmentation', label: 'One Enterprise · Five Entities', icon: 'BuildingOffice2Icon', href: '/uhg-orchestrate/fragmentation-split-system-view', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-cdp-assembly', label: 'CDP Assembly', icon: 'CircleStackIcon', href: '/uhg-orchestrate/cdp-assembly-split', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-whole-person-view', label: 'Whole Person Care View', icon: 'CircleStackIcon', href: '/whole-person-care-summary', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-journey-aware', label: 'Journey-Aware Context', icon: 'MapIcon', href: '/uhg-orchestrate/consumer-360', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-whole-person', label: 'Whole Person Care Intelligence', icon: 'SparklesIcon', href: '/uhg-orchestrate/whole-person-care', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-signal-disposition', label: 'Signal Disposition Engine', icon: 'BoltIcon', href: '/uhg-orchestrate/signal-disposition-engine', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-super-orchestration', label: 'Agentic Super Orchestration', icon: 'CpuChipIcon', href: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', group: 'Agentic_Orchestrate-Screens' },
-  { key: 'uhg-super-agent', label: 'Agentic Super Agent', icon: 'CpuChipIcon', href: '/uhg-orchestrate/agent-library', group: 'Agentic_Orchestrate-Screens' },
-  { key: 'uhg-family-thread', label: 'Family Thread — Dependents', icon: 'HomeIcon', href: '/uhg-orchestrate/family-sofia', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-super-agent', label: 'Agentic Marketplace', icon: 'CpuChipIcon', href: '/uhg-orchestrate/agent-library', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-family-thread', label: 'Family Thread — Sofia', icon: 'HomeIcon', href: '/uhg-orchestrate/family-sofia', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-caregiver', label: 'Caregiver Intelligence — Elena', icon: 'UserIcon', href: '/uhg-orchestrate/caregiver-elena', group: 'Agentic_Orchestrate-Screens' },
+  { key: 'uhg-population-filter', label: 'Live Population Filter', icon: 'UserGroupIcon', href: '/uhg-orchestrate/portfolio-scale', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-agent-impact', label: 'Agent Impact Dashboard', icon: 'ChartBarIcon', href: '/uhg-orchestrate/agent-impact-dashboard', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-reporting', label: 'Agent Impact — Reporting', icon: 'ChartBarIcon', href: '/uhg-orchestrate/reporting-dashboard', group: 'Agentic_Orchestrate-Screens' },
-  { key: 'uhg-population-filter', label: 'Live Population Filter', icon: 'UserGroupIcon', href: '/uhg-orchestrate/portfolio-scale', group: 'Agentic_Orchestrate-Screens' },
   // System
   { key: 'nav-settings', label: 'EHR Settings', icon: 'Cog6ToothIcon', href: '/settings', group: 'System' },
   { key: 'nav-fhir-tester', label: 'FHIR API Tester', icon: 'BeakerIcon', href: '/settings/fhir-tester', group: 'System' },
@@ -107,7 +108,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [backupCollapsed, setBackupCollapsed] = useState(true);
-  const [agenticCollapsed, setAgenticCollapsed] = useState(true);
+  const [agenticCollapsed, setAgenticCollapsed] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const { user, setUser, entryContext, setEntryContext } = useAppContext();
   
