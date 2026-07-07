@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
-import AppLayout from '@/components/AppLayout';
 import {
   graphNodes,
   graphEdges,
@@ -1832,11 +1831,8 @@ export default function WholePersonCareSummaryPage() {
   });
 
   return (
-    <AppLayout
-      pageTitle="Whole Person Care View"
-      breadcrumbs={[{ label: 'Whole Person Care' }, { label: 'Whole Person Care View' }]}
-    >
-      <div
+    <>
+    <div
         className="flex flex-col overflow-hidden"
         style={{ background: DARK.bg, height: '100%', maxHeight: '100%' }}
       >
@@ -1976,7 +1972,7 @@ export default function WholePersonCareSummaryPage() {
       </div>
 
       {showCypher && <CypherModal lens={cypherLens} onClose={() => setShowCypher(false)} />}
-    </AppLayout>
+    </>
   );
 }
 

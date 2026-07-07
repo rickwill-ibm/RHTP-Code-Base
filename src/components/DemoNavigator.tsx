@@ -188,8 +188,23 @@ export default function DemoNavigator() {
   const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Find current step index by pathname
-  const currentStepIndex = ALL_STEPS.findIndex((s) => s.route === pathname);
+  // Track the last explicitly-navigated stepNum so duplicate-route pages
+  // (e.g. /crisis-pathway appears at steps 21 AND 22) resolve to the right step.
+  const lastStepNumRef = useRef<number | null>(null);
+
+  // Disambiguated lookup: if multiple steps share a pathname, prefer the one
+  // whose stepNum matches the last navigation; otherwise fall back to first match.
+  const currentStepIndex = (() => {
+    const matches = ALL_STEPS.reduce<number[]>((acc, s, i) => {
+      if (s.route === pathname) acc.push(i);
+      return acc;
+    }, []);
+    if (matches.length === 0) return -1;
+    if (matches.length === 1) return matches[0];
+    const preferred = matches.find((i) => ALL_STEPS[i].stepNum === lastStepNumRef.current);
+    return preferred ?? matches[0];
+  })();
+
   const currentStep = currentStepIndex >= 0 ? ALL_STEPS[currentStepIndex] : null;
   const currentPersona = currentStep
     ? DEMO_PERSONAS.find((p) => p.id === currentStep.personaId) ?? null
@@ -212,8 +227,10 @@ export default function DemoNavigator() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [expanded]);
 
-  // Helper: navigate to a step, setting active patient if specified
+  // Helper: navigate to a step, setting active patient if specified.
+  // Records stepNum so the disambiguated lookup above resolves correctly on arrival.
   const navigateToStep = (step: DemoStep) => {
+    lastStepNumRef.current = step.stepNum;
     if (step.activePatient) {
       setActivePatientId(step.activePatient);
     }
@@ -346,17 +363,42 @@ export default function DemoNavigator() {
         </div>
       )}
 
-      {/* Collapsed pill */}
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 px-3 py-2 shadow-lg text-white text-xs font-semibold transition-all hover:opacity-90 active:scale-95"
-        style={{ backgroundColor: pillColor, borderRadius: 0, minWidth: 160 }}
-        title="Demo Navigator"
+      {/* Collapsed pill — three zones: ◀ · label (toggles panel) · ▶ */}
+      <div
+        className="flex items-stretch shadow-lg text-white text-xs font-semibold"
+        style={{ backgroundColor: pillColor, borderRadius: 0, minWidth: 200 }}
       >
-        <Icon name="MapIcon" size={14} />
-        <span className="flex-1 text-left truncate">{stepLabel}</span>
-        <Icon name={expanded ? 'ChevronDownIcon' : 'ChevronUpIcon'} size={12} />
-      </button>
+        {/* ◀ Prev */}
+        <button
+          disabled={!prevStep}
+          onClick={(e) => { e.stopPropagation(); prevStep && navigateToStep(prevStep); }}
+          className="flex items-center justify-center px-2.5 py-2 hover:bg-black/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-white/20 flex-shrink-0"
+          title={prevStep ? `Back: ${prevStep.label}` : 'Start of sequence'}
+        >
+          <Icon name="ChevronLeftIcon" size={13} />
+        </button>
+
+        {/* Centre label — click to open/close panel */}
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-2 px-3 py-2 flex-1 min-w-0 hover:bg-black/10 transition-colors"
+          title="Demo Navigator"
+        >
+          <Icon name="MapIcon" size={13} className="flex-shrink-0" />
+          <span className="flex-1 text-left truncate">{stepLabel}</span>
+          <Icon name={expanded ? 'ChevronDownIcon' : 'ChevronUpIcon'} size={11} className="flex-shrink-0" />
+        </button>
+
+        {/* ▶ Next */}
+        <button
+          disabled={!nextStep}
+          onClick={(e) => { e.stopPropagation(); nextStep && navigateToStep(nextStep); }}
+          className="flex items-center justify-center px-2.5 py-2 hover:bg-black/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-white/20 flex-shrink-0"
+          title={nextStep ? `Next: ${nextStep.label}` : 'End of sequence'}
+        >
+          <Icon name="ChevronRightIcon" size={13} />
+        </button>
+      </div>
     </div>
   );
 }

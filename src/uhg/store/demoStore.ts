@@ -69,18 +69,19 @@ export const SCREEN_ROUTES: Record<ScreenId, string> = {
 // (see PresenterControls). Order follows the demo narrative arc.
 export interface OrchestrateStep { route: string; label: string }
 export const ORCHESTRATE_FLOW: OrchestrateStep[] = [
-  { route: '/uhg-orchestrate/fragmentation-split-system-view', label: 'Fragmentation' },
-  { route: '/uhg-orchestrate/cdp-assembly-split', label: 'CDP Assembly' },
-  { route: '/uhg-orchestrate/consumer-360', label: 'Consumer 360' },
-  { route: '/uhg-orchestrate/whole-person-care', label: 'Whole Person Care' },
-  { route: '/uhg-orchestrate/signal-disposition-engine', label: 'Signal Disposition' },
-  { route: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', label: 'Agentic Super Orchestration' },
-  { route: '/uhg-orchestrate/agent-impact-dashboard', label: 'Agent Impact' },
-  { route: '/uhg-orchestrate/family-sofia', label: 'Family · Sophia' },
-  { route: '/uhg-orchestrate/caregiver-elena', label: 'Caregiver · Elena' },
-  { route: '/uhg-orchestrate/portfolio-scale', label: 'Portfolio Scale' },
-  { route: '/uhg-orchestrate/reporting-dashboard', label: 'Reporting Dashboard' },
-  { route: '/uhg-orchestrate/agent-library', label: 'Agent Library' },
+  { route: '/uhg-orchestrate/fragmentation-split-system-view', label: 'Fragmentation' },        // step 32
+  { route: '/uhg-orchestrate/cdp-assembly-split', label: 'CDP Assembly' },                       // step 33
+  { route: '/whole-person-care-summary', label: 'Whole Person Care View' },                      // step 34
+  { route: '/uhg-orchestrate/consumer-360', label: 'Consumer 360' },                             // step 35
+  { route: '/uhg-orchestrate/whole-person-care', label: 'Whole Person Care Intelligence' },      // step 36
+  { route: '/uhg-orchestrate/signal-disposition-engine', label: 'Signal Disposition' },          // step 37
+  { route: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', label: 'Agentic Super Orchestration' }, // step 38
+  { route: '/uhg-orchestrate/agent-library', label: 'Agent Library' },                           // step 39
+  { route: '/uhg-orchestrate/family-sofia', label: 'Family · Sophia' },                          // step 40
+  { route: '/uhg-orchestrate/caregiver-elena', label: 'Caregiver · Elena' },                     // step 41
+  { route: '/uhg-orchestrate/portfolio-scale', label: 'Portfolio Scale' },                       // step 42
+  { route: '/uhg-orchestrate/agent-impact-dashboard', label: 'Agent Impact' },                   // step 43
+  { route: '/uhg-orchestrate/reporting-dashboard', label: 'Reporting Dashboard' },               // step 44
 ];
 
 export function orchestrateIndexFor(pathname: string | null | undefined): number {

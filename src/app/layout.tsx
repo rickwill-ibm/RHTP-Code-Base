@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { AppContextProvider } from '@/lib/appContext';
 import { WorkflowMachineProvider } from '@/lib/workflowMachine';
 import { GapClosureStoreProvider } from '@/lib/patientContext';
+import DemoNavigator from '@/components/DemoNavigator';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy
@@ -45,6 +46,7 @@ export default function RootLayout({
           <WorkflowMachineProvider>
             <GapClosureStoreProvider>
               {children}
+              <DemoNavigator />
             </GapClosureStoreProvider>
           </WorkflowMachineProvider>
         </AppContextProvider>

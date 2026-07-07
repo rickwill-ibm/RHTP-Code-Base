@@ -6,7 +6,6 @@ import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
 import { useAppContext } from '@/lib/appContext';
 import type { UserSession } from '@/lib/appContext';
-import DemoNavigator from '@/components/DemoNavigator';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy — TCOC Total Cost of Care Clinical Platform
@@ -406,8 +405,6 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
           {/* © Richard Hennessy — Austin, Texas 78726. All rights reserved. TCOC Total Cost of Care Clinical Platform. */}
         </main>
       </div>
-      {/* Floating Demo Navigator — visible on all screens */}
-      <DemoNavigator />
     </div>
   );
 }
