@@ -14,10 +14,12 @@ REM Works on any machine regardless of where the repo is cloned
 set "PROJECT_DIR=%~dp0"
 if "%PROJECT_DIR:~-1%"=="\" set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
 
+REM Always change to project directory first
+cd /d "%PROJECT_DIR%"
+
 REM Check if node_modules exists and install if needed
 if not exist "%PROJECT_DIR%\node_modules" (
     echo [0/3] node_modules not found - running npm install first...
-    cd /d "%PROJECT_DIR%"
     call npm install
     echo     ✓ Dependencies installed
     echo.
