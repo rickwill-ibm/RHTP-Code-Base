@@ -174,7 +174,7 @@ export default function SpecialistInboxPage() {
         const client = getFhirClient();
         // Fetch Tasks where performer = Jon (the specialist)
         const bundle = await client.search('Task', {
-          performer: `Practitioner/${activePhysician.fhirId}`,
+          owner: `Practitioner/${activePhysician.fhirId}`,
           _count: 50,
         }) as any;
         const entries: any[] = bundle.entry ?? [];

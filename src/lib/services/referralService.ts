@@ -195,20 +195,26 @@ export async function createReferralTask(
   serviceRequestId: string,
   patientId: string,
   performerId: string,
-  requesterId: string
+  requesterId: string,
+  serviceDisplay?: string,
+  priority?: string
 ): Promise<any> {
   return retryWithBackoff(async () => {
     const task = {
       resourceType: 'Task',
       status: 'requested',
       intent: 'order',
-      priority: 'routine',
+      priority: priority ?? 'routine',
+      description: serviceDisplay
+        ? `${serviceDisplay} — referral from ${requesterId === 'practitioner-rick' ? 'Dr. Rick Williams' : requesterId}`
+        : `Referral from Practitioner/${requesterId} → Practitioner/${performerId}`,
       code: {
         coding: [{
           system: 'http://hl7.org/fhir/CodeSystem/task-code',
           code: 'fulfill',
           display: 'Fulfill the focal request'
-        }]
+        }],
+        text: 'Specialist Referral'
       },
       focus: {
         reference: `ServiceRequest/${serviceRequestId}`
@@ -218,10 +224,12 @@ export async function createReferralTask(
       },
       authoredOn: new Date().toISOString(),
       requester: {
-        reference: `Practitioner/${requesterId}`
+        reference: `Practitioner/${requesterId}`,
+        display: requesterId === 'practitioner-rick' ? 'Dr. Rick Williams' : requesterId
       },
       owner: {
-        reference: `Practitioner/${performerId}`
+        reference: `Practitioner/${performerId}`,
+        display: performerId === 'practitioner-jon' ? 'Dr. Jon Noyes' : performerId
       },
       businessStatus: {
         text: 'Referral sent, awaiting appointment'
@@ -491,7 +499,9 @@ export async function initiateReferral(request: ReferralRequest): Promise<{
       serviceRequest.id,
       request.patientId,
       request.performerId,
-      request.requesterId
+      request.requesterId,
+      request.serviceDisplay,
+      request.priority
     );
     
     // Create Provenance
