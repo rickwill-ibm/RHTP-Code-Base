@@ -22,7 +22,8 @@ import type { SmartLaunchContext, CdsCard, MdOrder, CareTeamAssignment, FhirServ
 import { mockCdsCards } from '@/lib/smartFhirMockData';
 import Icon from '@/components/ui/AppIcon';
 import AppLogo from '@/components/ui/AppLogo';
-import { useAppContext } from '@/lib/appContext';
+import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
+import type { PhysicianPersona } from '@/lib/appContext';
 import { referralStore } from '@/lib/mockData';
 import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
 
@@ -48,7 +49,7 @@ function makeAuditId(): string {
 
 export default function MdSmartLaunchPage() {
   const router = useRouter();
-  const { entryContext, useMockData, setUseMockData } = useAppContext();
+  const { entryContext, useMockData, setUseMockData, physicianPersona, setPhysicianPersona, activePhysician } = useAppContext();
   useFhirModeSync();
   const [launchReady, setLaunchReady] = useState(false);
   const [launchContext, setLaunchContext] = useState<SmartLaunchContext | null>(null);
@@ -375,6 +376,30 @@ export default function MdSmartLaunchPage() {
               );
             })}
           </nav>
+          {/* Physician switcher — RW stays on Smart App, JN goes to Specialist Inbox */}
+          <div className="pb-2 flex flex-col items-center gap-1 border-t border-carbon-gray-80 pt-2">
+            {(Object.values(PHYSICIAN_PROFILES) as typeof PHYSICIAN_PROFILES[PhysicianPersona][]).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setPhysicianPersona(p.id);
+                  if (p.id === 'jon') router.push('/specialist-inbox');
+                }}
+                title={p.id === 'jon' ? `Switch to ${p.displayName} — opens Specialist Inbox` : `Switch to ${p.displayName} — PCP view`}
+                style={physicianPersona === p.id ? { background: p.color } : {}}
+                className={`w-9 h-9 flex items-center justify-center text-2xs font-bold transition-colors ${
+                  physicianPersona === p.id
+                    ? 'text-white'
+                    : 'bg-carbon-gray-80 text-carbon-gray-30 hover:bg-carbon-gray-70'
+                }`}
+              >
+                {p.id === 'rick' ? 'RW' : 'JN'}
+              </button>
+            ))}
+            <p className="text-[9px] text-center leading-tight px-1 mt-0.5" style={{ color: activePhysician.color }}>
+              {activePhysician.id === 'rick' ? 'PCP' : 'Spec'}
+            </p>
+          </div>
           {/* Cerner badge */}
           <div className="pb-4 flex flex-col items-center gap-2">
             <div className="w-8 h-8 bg-[#6929c4]/20 border border-[#6929c4]/40 flex items-center justify-center" title="SMART on FHIR Active">

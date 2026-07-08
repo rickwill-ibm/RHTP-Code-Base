@@ -158,7 +158,7 @@ interface DiagnosisEntry {
 
 export default function SpecialistInboxPage() {
   const router = useRouter();
-  const { activePatientId, assignments, activePhysician } = useAppContext();
+  const { activePatientId, assignments, activePhysician, useMockData, setPhysicianPersona } = useAppContext();
   const activePatient = getPatientById(activePatientId);
   const { submitClosure, isGapClosed } = useGapClosureStore();
 
@@ -370,11 +370,21 @@ export default function SpecialistInboxPage() {
       ]}
       contextBanner={
         <div className="bg-[#f6f2ff] border-b border-[#d4bbff] px-6 py-2 flex items-center gap-6 flex-wrap">
-          <span className="text-xs font-semibold text-[#6929c4]">Rural Health Transformation Program</span>
+          <span className="text-xs font-semibold text-[#6929c4]">Dr. Jon Noyes — Specialist Inbox</span>
           <span className="text-xs text-[#6929c4]">{pendingCount} Pending Tasks</span>
           {statCount > 0 && <span className="text-xs font-bold text-[#da1e28]">⚠ {statCount} STAT</span>}
           <span className="text-xs text-[#6929c4]">Potential Gain Share: ${totalGainShare}</span>
-          <span className="ml-auto text-xs text-carbon-gray-50">Data as of May 29, 2026</span>
+          <span className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-carbon-gray-50">Data as of May 29, 2026</span>
+            <button
+              onClick={() => { setPhysicianPersona('rick'); router.push('/md-smart-launch'); }}
+              className="flex items-center gap-1 text-xs font-semibold text-[#6929c4] hover:text-[#491d8b] border border-[#d4bbff] bg-white px-2 py-0.5 hover:bg-[#f6f2ff] transition-colors"
+              title="Switch back to Dr. Rick — Smart App"
+            >
+              <Icon name="ArrowLeftIcon" size={12} />
+              ⚡ Back to Smart App (RW)
+            </button>
+          </span>
         </div>
       }
     >
