@@ -24,7 +24,7 @@ if not exist "%PROJECT_DIR%\package.json" (
     exit /b 1
 )
 
-REM Move into the project folder - everything runs from here
+REM Move into the project folder
 cd /d "%PROJECT_DIR%"
 
 REM Install dependencies if missing
@@ -35,16 +35,28 @@ if not exist "%PROJECT_DIR%\node_modules" (
     echo.
 )
 
+REM Write a small helper bat for auto-sync so spaces in path are safe
+set "HELPER1=%TEMP%\tcoc_autosync.bat"
+echo @echo off > "%HELPER1%"
+echo cd /d "%PROJECT_DIR%" >> "%HELPER1%"
+echo call "%PROJECT_DIR%\auto-sync-github.bat" >> "%HELPER1%"
+
+REM Write a small helper bat for the dev server
+set "HELPER2=%TEMP%\tcoc_devserver.bat"
+echo @echo off > "%HELPER2%"
+echo cd /d "%PROJECT_DIR%" >> "%HELPER2%"
+echo npm run dev >> "%HELPER2%"
+
 REM Start auto-sync in its own window
 echo [1/3] Starting auto-sync with GitHub...
-start "TCOC Auto-Sync" cmd /k "cd /d "%PROJECT_DIR%" ^&^& call auto-sync-github.bat"
+start "TCOC Auto-Sync" cmd /k "%HELPER1%"
 timeout /t 2 /nobreak >nul
 echo     Auto-sync running
 echo.
 
 REM Start Next.js dev server in its own window
 echo [2/3] Starting Next.js dev server...
-start "TCOC Dev Server" cmd /k "cd /d "%PROJECT_DIR%" ^&^& npm run dev"
+start "TCOC Dev Server" cmd /k "%HELPER2%"
 echo     Dev server starting...
 echo.
 
