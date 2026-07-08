@@ -65,6 +65,14 @@ function PatientDetailContent() {
             <span className="text-xs text-[#0043ce]">RAF Score: {rafScore}</span>
             <span className="text-xs text-[#0043ce]">Risk: {riskLabel}</span>
             <span className="text-xs font-semibold text-[#da1e28]">{hccWarning}</span>
+            <a
+              href="/md-smart-launch"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1 text-2xs font-semibold bg-[#6929c4] text-white hover:bg-[#491d8b] transition-colors"
+              title="Open MD SMART on FHIR launch screen"
+            >
+              <span>⚡</span>
+              Smart App
+            </a>
           </div>
         }
       >

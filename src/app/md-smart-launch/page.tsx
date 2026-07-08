@@ -25,6 +25,8 @@ import AppLogo from '@/components/ui/AppLogo';
 import { useAppContext } from '@/lib/appContext';
 import { referralStore } from '@/lib/mockData';
 
+const USE_MOCK_ENV = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
+
 type ActiveTab = 'summary' | 'cds' | 'orders' | 'team' | 'careplan' | 'referrals' | 'return' | 'audit' | 'compliance';
 
 const TABS: Array<{ key: ActiveTab; label: string; icon: string }> = [
@@ -47,7 +49,7 @@ function makeAuditId(): string {
 
 export default function MdSmartLaunchPage() {
   const router = useRouter();
-  const { entryContext } = useAppContext();
+  const { entryContext, useMockData, setUseMockData } = useAppContext();
   const [launchReady, setLaunchReady] = useState(false);
   const [launchContext, setLaunchContext] = useState<SmartLaunchContext | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('summary');
@@ -404,6 +406,30 @@ export default function MdSmartLaunchPage() {
                   {launchContext.practitionerName} · Enc: <span className="font-mono">{launchContext.encounterId}</span>
                 </p>
               </div>
+              {/* FHIR / Mock toggle — same as RHTP header */}
+              <div className="w-px h-4 bg-carbon-gray-20" />
+              <button
+                onClick={() => setUseMockData(!useMockData)}
+                title={useMockData ? 'Switch to live FHIR data' : 'Switch to mock data'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-2xs font-semibold border transition-colors ${
+                  useMockData
+                    ? 'bg-[#fff1e0] text-[#8a3800] border-[#f1c21b] hover:bg-[#fdf6dd]'
+                    : 'bg-[#defbe6] text-[#198038] border-[#a7f0ba] hover:bg-[#c6efcd]'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${useMockData ? 'bg-[#b45309]' : 'bg-[#24a148]'}`} />
+                {useMockData ? 'Mock Data' : 'Live FHIR'}
+              </button>
+              {/* Navigate to RHTP screen */}
+              <div className="w-px h-4 bg-carbon-gray-20" />
+              <button
+                onClick={() => router.push('/patient-detail')}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-2xs font-semibold bg-[#0043ce] text-white hover:bg-[#0035a8] transition-colors"
+                title="Switch to RHTP Citizen Detail screen"
+              >
+                <Icon name="ArrowLeftIcon" size={11} />
+                RHTP Screen
+              </button>
             </div>
 
             {/* Tab nav in header */}
