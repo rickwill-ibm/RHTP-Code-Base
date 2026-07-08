@@ -1,0 +1,41 @@
+name: Daily Backup
+
+# Runs every day at 2:00 AM UTC (9:00 PM Central / 10:00 PM Eastern)
+# Also triggerable manually from the GitHub Actions tab
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "GitHub Actions Backup"
+          git config user.email "backup@github-actions"
+
+      - name: Push snapshot to backup/daily branch
+        run: |
+          DATE=$(date +'%Y-%m-%d')
+          BRANCH="backup/daily"
+
+          # Create or reset the backup branch to current main
+          git checkout -B $BRANCH
+
+          # Create an empty commit so the branch always has a new entry
+          git commit --allow-empty -m "Daily backup — $DATE — $(git rev-parse --short HEAD)"
+
+          # Force-push to overwrite yesterday's backup (keeps only latest)
+          git push origin $BRANCH --force
+
+          echo "✅ Backup pushed to branch: $BRANCH"
+          echo "   Snapshot of: main @ $(git rev-parse --short origin/main)"
+          echo "   Date: $DATE"
