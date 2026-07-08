@@ -27,6 +27,15 @@ if not exist "%PROJECT_DIR%\package.json" (
 REM Move into the project folder
 cd /d "%PROJECT_DIR%"
 
+REM Kill anything already running on port 4029
+echo Checking port 4029...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":4029 " 2^>nul') do (
+    echo   Stopping existing server (PID %%a)...
+    taskkill /PID %%a /F >nul 2>&1
+)
+echo     Port 4029 is free
+echo.
+
 REM Install dependencies if missing
 if not exist "%PROJECT_DIR%\node_modules" (
     echo [0/3] Installing dependencies...
@@ -35,13 +44,12 @@ if not exist "%PROJECT_DIR%\node_modules" (
     echo.
 )
 
-REM Write a small helper bat for auto-sync so spaces in path are safe
+REM Write helper bats to TEMP (avoids spaces-in-path issues)
 set "HELPER1=%TEMP%\tcoc_autosync.bat"
 echo @echo off > "%HELPER1%"
 echo cd /d "%PROJECT_DIR%" >> "%HELPER1%"
 echo call "%PROJECT_DIR%\auto-sync-github.bat" >> "%HELPER1%"
 
-REM Write a small helper bat for the dev server
 set "HELPER2=%TEMP%\tcoc_devserver.bat"
 echo @echo off > "%HELPER2%"
 echo cd /d "%PROJECT_DIR%" >> "%HELPER2%"
