@@ -1,0 +1,4182 @@
+{
+  "exportedAt": "2026-07-08T15:08:04.324Z",
+  "fhirBase": "http://localhost:8080/fhir",
+  "resources": {
+    "Patient": [
+      {
+        "resourceType": "Patient",
+        "id": "patient-alex-kirby",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:mrn",
+            "value": "FJVV987654321"
+          },
+          {
+            "system": "urn:nhs",
+            "value": "943 476 5829"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Kirby",
+            "given": [
+              "Alex"
+            ],
+            "prefix": [
+              "Mrs."
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "(617) 555-0142",
+            "use": "home"
+          },
+          {
+            "system": "phone",
+            "value": "(617) 555-0198",
+            "use": "mobile"
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1956-06-14",
+        "address": [
+          {
+            "line": [
+              "2847 Oak Avenue"
+            ],
+            "city": "Boston",
+            "state": "MA",
+            "postalCode": "02108",
+            "country": "US"
+          }
+        ],
+        "contact": [
+          {
+            "relationship": [
+              {
+                "text": "Eldest Daughter"
+              }
+            ],
+            "name": {
+              "family": "Kirby",
+              "given": [
+                "Sarah"
+              ]
+            },
+            "telecom": [
+              {
+                "system": "phone",
+                "value": "(617) 555-0142"
+              }
+            ]
+          },
+          {
+            "relationship": [
+              {
+                "text": "Husband"
+              }
+            ],
+            "name": {
+              "family": "Kirby",
+              "given": [
+                "John"
+              ]
+            },
+            "telecom": [
+              {
+                "system": "phone",
+                "value": "(617) 555-0267"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "resourceType": "Patient",
+        "id": "patient-maria-001",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 2.18
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/risk-tier",
+            "valueString": "Moderate"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/er-risk-pct",
+            "valueInteger": 42
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-manager",
+            "valueString": "Sarah Johnson"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/episode-type",
+            "valueString": "Postpartum Health"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm",
+            "valueDecimal": 1240
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm-target",
+            "valueDecimal": 780
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/contract",
+            "valueString": "SD Medicaid"
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:tcoc:platform-id",
+            "value": "MARIA_SD_001"
+          },
+          {
+            "system": "urn:tcoc:ehr-mrn",
+            "value": "MARIA_SD_001"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Redhawk",
+            "given": [
+              "Maria"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "(605) 555-0234",
+            "use": "home"
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1992-06-15",
+        "address": [
+          {
+            "use": "home",
+            "text": "Martin, SD 57551"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en"
+                }
+              ],
+              "text": "English"
+            },
+            "preferred": true
+          }
+        ],
+        "generalPractitioner": [
+          {
+            "display": "Bennett County Health"
+          }
+        ],
+        "managingOrganization": {
+          "display": "Bennett County Health (CAH)"
+        }
+      },
+      {
+        "resourceType": "Patient",
+        "id": "patient-dorothy-042",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 3.42
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/risk-tier",
+            "valueString": "Critical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/er-risk-pct",
+            "valueInteger": 84
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-manager",
+            "valueString": "Sarah Johnson"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/episode-type",
+            "valueString": "COPD Exacerbation"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm",
+            "valueDecimal": 2840
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm-target",
+            "valueDecimal": 890
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/contract",
+            "valueString": "MSSP Trk 3"
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:tcoc:platform-id",
+            "value": "PAT-0042"
+          },
+          {
+            "system": "urn:tcoc:ehr-mrn",
+            "value": "MRN-0042"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Simmons",
+            "given": [
+              "Dorothy"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "(417) 555-0198",
+            "use": "home"
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1951-03-14",
+        "address": [
+          {
+            "use": "home",
+            "text": "Ozark Regional FQHC Service Area"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en"
+                }
+              ],
+              "text": "English"
+            },
+            "preferred": true
+          }
+        ],
+        "generalPractitioner": [
+          {
+            "display": "Dr. Whitfield"
+          }
+        ],
+        "managingOrganization": {
+          "display": "Ozark Regional FQHC"
+        }
+      },
+      {
+        "resourceType": "Patient",
+        "id": "patient-james-087",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 2.8
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/risk-tier",
+            "valueString": "High"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/er-risk-pct",
+            "valueInteger": 67
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-manager",
+            "valueString": "Sarah Johnson"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/episode-type",
+            "valueString": "Diabetes · CHF"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm",
+            "valueDecimal": 1840
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm-target",
+            "valueDecimal": 1200
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/contract",
+            "valueString": "Medicaid RHTP Track 3"
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:tcoc:platform-id",
+            "value": "PAT-0087"
+          },
+          {
+            "system": "urn:tcoc:ehr-mrn",
+            "value": "MRN-0087"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Wilson",
+            "given": [
+              "James"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "(605) 555-0223",
+            "use": "home"
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1968-07-14",
+        "address": [
+          {
+            "use": "home",
+            "text": "Rural Route 2, Winner SD 57580"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en"
+                }
+              ],
+              "text": "English"
+            },
+            "preferred": true
+          }
+        ],
+        "generalPractitioner": [
+          {
+            "display": "Dr. Okonkwo"
+          }
+        ],
+        "managingOrganization": {
+          "display": "Winner Regional Medical Center"
+        }
+      },
+      {
+        "resourceType": "Patient",
+        "id": "patient-robert-103",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 1.9
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/risk-tier",
+            "valueString": "High"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/er-risk-pct",
+            "valueInteger": 52
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-manager",
+            "valueString": "Sarah Johnson"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/episode-type",
+            "valueString": "Hypertension · CKD"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm",
+            "valueDecimal": 980
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm-target",
+            "valueDecimal": 750
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/contract",
+            "valueString": "Medicaid RHTP Track 3"
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:tcoc:platform-id",
+            "value": "PAT-0103"
+          },
+          {
+            "system": "urn:tcoc:ehr-mrn",
+            "value": "MRN-0103"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Chen",
+            "given": [
+              "Robert"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "(605) 555-0334",
+            "use": "home"
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1964-11-03",
+        "address": [
+          {
+            "use": "home",
+            "text": "847 Oak Street, Rapid City SD 57701"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en"
+                }
+              ],
+              "text": "English / Mandarin"
+            },
+            "preferred": true
+          }
+        ],
+        "generalPractitioner": [
+          {
+            "display": "Dr. Castillo"
+          }
+        ],
+        "managingOrganization": {
+          "display": "Rapid City Regional Health"
+        }
+      },
+      {
+        "resourceType": "Patient",
+        "id": "patient-lisa-156",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 1.4
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/risk-tier",
+            "valueString": "Moderate"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/er-risk-pct",
+            "valueInteger": 31
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-manager",
+            "valueString": "Sarah Johnson"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/episode-type",
+            "valueString": "Asthma · Obesity"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm",
+            "valueDecimal": 620
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/pmpm-target",
+            "valueDecimal": 480
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/contract",
+            "valueString": "Medicaid RHTP Track 3"
+          }
+        ],
+        "identifier": [
+          {
+            "system": "urn:tcoc:platform-id",
+            "value": "PAT-0156"
+          },
+          {
+            "system": "urn:tcoc:ehr-mrn",
+            "value": "MRN-0156"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Thompson",
+            "given": [
+              "Lisa"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "(605) 555-0412",
+            "use": "home"
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1985-05-19",
+        "address": [
+          {
+            "use": "home",
+            "text": "223 Pine Ave, Sioux Falls SD 57104"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en"
+                }
+              ],
+              "text": "English"
+            },
+            "preferred": true
+          }
+        ],
+        "generalPractitioner": [
+          {
+            "display": "Dr. Torres"
+          }
+        ],
+        "managingOrganization": {
+          "display": "Sioux Falls Community Health"
+        }
+      }
+    ],
+    "Practitioner": [
+      {
+        "resourceType": "Practitioner",
+        "id": "pract-sarah-mitchell",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "name": [
+          {
+            "family": "Mitchell",
+            "given": [
+              "Sarah"
+            ]
+          }
+        ]
+      },
+      {
+        "resourceType": "Practitioner",
+        "id": "pract-james-patterson",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "name": [
+          {
+            "family": "Patterson",
+            "given": [
+              "James"
+            ]
+          }
+        ]
+      },
+      {
+        "resourceType": "Practitioner",
+        "id": "pract-nurse-jenkins",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "name": [
+          {
+            "family": "Jenkins"
+          }
+        ]
+      },
+      {
+        "resourceType": "Practitioner",
+        "id": "pract-nurse-wilson",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "name": [
+          {
+            "family": "Wilson"
+          }
+        ]
+      },
+      {
+        "resourceType": "Practitioner",
+        "id": "care-manager-sarah",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:32:59.465+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:tcoc:practitioner-id",
+            "value": "CM-SARAH-001"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Johnson",
+            "given": [
+              "Sarah"
+            ]
+          }
+        ]
+      },
+      {
+        "resourceType": "Practitioner",
+        "id": "lab-provider-001",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:32:59.566+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:tcoc:practitioner-id",
+            "value": "LAB-001"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Lab",
+            "given": [
+              "Provider"
+            ]
+          }
+        ]
+      }
+    ],
+    "Observation": [
+      {
+        "resourceType": "Observation",
+        "id": "obs-total-chol",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Total Cholesterol"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-20",
+        "valueQuantity": {
+          "value": 5.2,
+          "unit": "mmol/L"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 5.2,
+              "unit": "mmol/L"
+            },
+            "text": "<5.2 mmol/L"
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-tri",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Triglycerides"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-20",
+        "valueQuantity": {
+          "value": 1.8,
+          "unit": "mmol/L"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 1.7,
+              "unit": "mmol/L"
+            },
+            "text": "<1.7 mmol/L"
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-creat",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Creatinine"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-20",
+        "valueQuantity": {
+          "value": 78,
+          "unit": "µmol/L"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 60,
+              "unit": "µmol/L"
+            },
+            "high": {
+              "value": 110,
+              "unit": "µmol/L"
+            },
+            "text": "60-110 µmol/L"
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-tsh",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "TSH"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-10",
+        "valueQuantity": {
+          "value": 2.3,
+          "unit": "mIU/L"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.4,
+              "unit": "mIU/L"
+            },
+            "high": {
+              "value": 4,
+              "unit": "mIU/L"
+            },
+            "text": "0.4-4.0 mIU/L"
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "survey"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Social Risk Score"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueQuantity": {
+          "value": 63,
+          "unit": "score"
+        }
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-food-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "survey"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Food Risk Score"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "High"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-housing-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "survey"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Housing Stability Risk Score"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "High"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Smoking Status"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Ex-smoker (Quit 15 years ago)"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: History"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "20 pack-years (1976-2011)"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-3",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Alcohol Consumption"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Moderate - 6 units per week"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-4",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Typical"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Usually wine with evening meals"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-5",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Exercise"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Light to moderate activity"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-6",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Routine"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Walking 30 minutes, 4-5 days/week"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-7",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Diet"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Following diabetic diet plan"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-8",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Lifestyle: Note"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Reduced carbohydrate intake since diagnosis"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-9",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Marital Status"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Married"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-10",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Living Arrangements"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Lives with husband in own home"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-11",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Home"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "2-story house, stairs manageable"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-12",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Support Network"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Good family support"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-13",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Family"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Husband, 2 adult children nearby"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-14",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Occupation"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "Retired Primary School Teacher"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-social-15",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "code": "social-history"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Living Situation: Retired"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-27",
+        "valueString": "June 2021"
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-bmi",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Physical and Anthropometric Measurements"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs",
+                "display": "Vital Signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "39156-5",
+              "display": "Body mass index (BMI) [Ratio]"
+            }
+          ],
+          "text": "BMI"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 32,
+          "unit": "kg/m2",
+          "system": "http://unitsofmeasure.org",
+          "code": "kg/m2"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 18.5,
+              "unit": "kg/m2"
+            },
+            "high": {
+              "value": 25,
+              "unit": "kg/m2"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-bp",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Physical and Anthropometric Measurements"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs",
+                "display": "Vital Signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "85354-9",
+              "display": "Blood pressure panel with all children optional"
+            }
+          ],
+          "text": "Blood Pressure"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "referenceRange": [
+          {
+            "low": {
+              "value": 90,
+              "unit": "mmHg"
+            },
+            "high": {
+              "value": 140,
+              "unit": "mmHg"
+            },
+            "text": "Systolic"
+          }
+        ],
+        "component": [
+          {
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "8480-6",
+                  "display": "Systolic blood pressure"
+                }
+              ]
+            },
+            "valueQuantity": {
+              "value": 145,
+              "unit": "mmHg",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            }
+          },
+          {
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "8462-4",
+                  "display": "Diastolic blood pressure"
+                }
+              ]
+            },
+            "valueQuantity": {
+              "value": 100,
+              "unit": "mmHg",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-waist-height",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Physical and Anthropometric Measurements"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs",
+                "display": "Vital Signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "89270-3",
+              "display": "Waist-height ratio"
+            }
+          ],
+          "text": "Waist/Height Ratio"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 0.8,
+          "unit": "ratio",
+          "system": "http://unitsofmeasure.org",
+          "code": "{ratio}"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.4,
+              "unit": "ratio"
+            },
+            "high": {
+              "value": 0.5,
+              "unit": "ratio"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-triglycerides",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Laboratory Metabolic Panel"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2571-8",
+              "display": "Triglyceride [Mass/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "Triglycerides"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 200,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 150,
+              "unit": "mg/dL"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-alt",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Laboratory Metabolic Panel"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "1742-6",
+              "display": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "Liver Function Test (ALT/AST, U/L)"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 30,
+          "unit": "U/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "U/L"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 7,
+              "unit": "U/L"
+            },
+            "high": {
+              "value": 56,
+              "unit": "U/L"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-uacr",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Diabetes Complication Screening Markers"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "9318-7",
+              "display": "Albumin/Creatinine [Mass Ratio] in Urine"
+            }
+          ],
+          "text": "Urine Albumin/Creatine Ratio (UACR)"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 95,
+          "unit": "mg/g",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/g"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 30,
+              "unit": "mg/g"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-hba1c",
+        "meta": {
+          "versionId": "2",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Diagnostic and Glycemic Control Markers"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4548-4",
+              "display": "Hemoglobin A1c/Hemoglobin.total in Blood"
+            }
+          ],
+          "text": "HbA1c"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 9.8,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 4,
+              "unit": "%"
+            },
+            "high": {
+              "value": 7,
+              "unit": "%"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-fpg",
+        "meta": {
+          "versionId": "2",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Diagnostic and Glycemic Control Markers"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "1558-6",
+              "display": "Fasting glucose [Mass/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "Fasting Plasma Glucose (FPG)"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 125,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 70,
+              "unit": "mg/dL"
+            },
+            "high": {
+              "value": 100,
+              "unit": "mg/dL"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-ldl",
+        "meta": {
+          "versionId": "2",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Laboratory Metabolic Panel"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "18262-6",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "LDL Cholesterol"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 280,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 100,
+              "unit": "mg/dL"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-hdl",
+        "meta": {
+          "versionId": "2",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Laboratory Metabolic Panel"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2085-9",
+              "display": "Cholesterol in HDL [Mass/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "HDL Cholesterol"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 40,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 40,
+              "unit": "mg/dL"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "obs-egfr",
+        "meta": {
+          "versionId": "2",
+          "lastUpdated": "2026-04-15T19:38:17.619+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://example.org/fhir/StructureDefinition/diabetes-panel",
+            "valueString": "Diabetes Complication Screening Markers"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2160-0",
+              "display": "Creatinine [Mass/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "Serum Creatinine/eGFR"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "effectiveDateTime": "2026-03-15",
+        "valueQuantity": {
+          "value": 1.7,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.7,
+              "unit": "mg/dL"
+            },
+            "high": {
+              "value": 1.3,
+              "unit": "mg/dL"
+            }
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-maria-001-gap-mg-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 427
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "mg-2"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Edinburgh PND Screening"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "valueInteger": 427,
+        "note": [
+          {
+            "text": "Care gap open for 427 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-maria-001-gap-mg-4",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "BH"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "In Progress"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 427
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "mg-4"
+          }
+        ],
+        "status": "registered",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75626-2",
+                "display": "BH Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Postpartum Depression Follow-up"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "valueInteger": 427,
+        "note": [
+          {
+            "text": "Care gap open for 427 days. Domain: BH. Status: In Progress."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-maria-001-gap-mg-6",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Social"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "In Progress"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 38
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "mg-6"
+          }
+        ],
+        "status": "registered",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75630-4",
+                "display": "Social Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Transportation Barrier Resolution"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "valueInteger": 38,
+        "note": [
+          {
+            "text": "Care gap open for 38 days. Domain: Social. Status: In Progress."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-maria-001-gap-mg-7",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Social"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 60
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "mg-7"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75630-4",
+                "display": "Social Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Childcare Subsidy Enrollment"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "valueInteger": 60,
+        "note": [
+          {
+            "text": "Care gap open for 60 days. Domain: Social. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-dorothy-042-gap-gap-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 42
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "gap-1"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Spirometry (COPD)"
+        },
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        },
+        "valueInteger": 42,
+        "note": [
+          {
+            "text": "Care gap open for 42 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-dorothy-042-gap-gap-4",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 61
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "gap-4"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "A1C Recheck"
+        },
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        },
+        "valueInteger": 61,
+        "note": [
+          {
+            "text": "Care gap open for 61 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-dorothy-042-gap-gap-7",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "BH"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "In Progress"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 21
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "gap-7"
+          }
+        ],
+        "status": "registered",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75626-2",
+                "display": "BH Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "PHQ-9 Follow-up"
+        },
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        },
+        "valueInteger": 21,
+        "note": [
+          {
+            "text": "Care gap open for 21 days. Domain: BH. Status: In Progress."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-dorothy-042-gap-gap-9",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Social"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "In Progress"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 18
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "gap-9"
+          }
+        ],
+        "status": "registered",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75630-4",
+                "display": "Social Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Transport Referral — Active"
+        },
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        },
+        "valueInteger": 18,
+        "note": [
+          {
+            "text": "Care gap open for 18 days. Domain: Social. Status: In Progress."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-james-087-gap-jw-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 45
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "jw-1"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "A1C Recheck (Diabetes)"
+        },
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        },
+        "valueInteger": 45,
+        "note": [
+          {
+            "text": "Care gap open for 45 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-james-087-gap-jw-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 22
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "jw-2"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "BNP Lab Panel (CHF)"
+        },
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        },
+        "valueInteger": 22,
+        "note": [
+          {
+            "text": "Care gap open for 22 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-james-087-gap-jw-5",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "BH"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 30
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "jw-5"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75626-2",
+                "display": "BH Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "PHQ-9 Follow-up"
+        },
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        },
+        "valueInteger": 30,
+        "note": [
+          {
+            "text": "Care gap open for 30 days. Domain: BH. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-james-087-gap-jw-6",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Social"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 45
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "jw-6"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75630-4",
+                "display": "Social Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Transportation — Specialist Visits"
+        },
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        },
+        "valueInteger": 45,
+        "note": [
+          {
+            "text": "Care gap open for 45 days. Domain: Social. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-robert-103-gap-rc-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 28
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "rc-1"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "BP Control Check"
+        },
+        "subject": {
+          "reference": "Patient/patient-robert-103"
+        },
+        "valueInteger": 28,
+        "note": [
+          {
+            "text": "Care gap open for 28 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-robert-103-gap-rc-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 42
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "rc-2"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "eGFR / Creatinine (CKD)"
+        },
+        "subject": {
+          "reference": "Patient/patient-robert-103"
+        },
+        "valueInteger": 42,
+        "note": [
+          {
+            "text": "Care gap open for 42 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-robert-103-gap-rc-4",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "BH"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 21
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "rc-4"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75626-2",
+                "display": "BH Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "AUDIT-C Follow-up Counseling"
+        },
+        "subject": {
+          "reference": "Patient/patient-robert-103"
+        },
+        "valueInteger": 21,
+        "note": [
+          {
+            "text": "Care gap open for 21 days. Domain: BH. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-lisa-156-gap-lt-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 35
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "lt-1"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Asthma Action Plan Update"
+        },
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        },
+        "valueInteger": 35,
+        "note": [
+          {
+            "text": "Care gap open for 35 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-lisa-156-gap-lt-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "In Progress"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 60
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "lt-2"
+          }
+        ],
+        "status": "registered",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "BMI / Weight Management Referral"
+        },
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        },
+        "valueInteger": 60,
+        "note": [
+          {
+            "text": "Care gap open for 60 days. Domain: Clinical. Status: In Progress."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-lisa-156-gap-lt-3",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "BH"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 18
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "lt-3"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75626-2",
+                "display": "BH Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "PHQ-9 Annual Screening"
+        },
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        },
+        "valueInteger": 18,
+        "note": [
+          {
+            "text": "Care gap open for 18 days. Domain: BH. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-lisa-156-gap-lt-4",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Social"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 45
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "lt-4"
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "75630-4",
+                "display": "Social Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Nutrition Counseling Enrollment"
+        },
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        },
+        "valueInteger": 45,
+        "note": [
+          {
+            "text": "Care gap open for 45 days. Domain: Social. Status: Open."
+          }
+        ]
+      },
+      {
+        "resourceType": "Observation",
+        "id": "patient-maria-001-gap-mg-1",
+        "meta": {
+          "versionId": "9",
+          "lastUpdated": "2026-07-07T14:40:44.193+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain",
+            "valueString": "Clinical"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 38
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id",
+            "valueString": "mg-1"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 0
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 38
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 0
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 38
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 0
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 38
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 0
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-status",
+            "valueString": "Open"
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/care-gap-days-open",
+            "valueInteger": 38
+          }
+        ],
+        "status": "preliminary",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "11503-0",
+                "display": "Clinical Care Gap"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "HbA1c Lab"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "valueInteger": 38,
+        "note": [
+          {
+            "text": "Care gap open for 38 days. Domain: Clinical. Status: Open."
+          }
+        ]
+      }
+    ],
+    "Condition": [
+      {
+        "resourceType": "Condition",
+        "id": "cond-diabetes",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "clinicalStatus": {
+          "text": "active"
+        },
+        "verificationStatus": {
+          "text": "confirmed"
+        },
+        "severity": {
+          "text": "High Priority"
+        },
+        "code": {
+          "text": "Type 2 Diabetes Mellitus"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "note": [
+          {
+            "text": "Diagnosed: 12/03/2023 | Status: Active - Under Treatment"
+          },
+          {
+            "text": "Current HbA1c: 7.8% (Target: <7.0%)"
+          }
+        ]
+      },
+      {
+        "resourceType": "Condition",
+        "id": "cond-hypertension",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "clinicalStatus": {
+          "text": "active"
+        },
+        "verificationStatus": {
+          "text": "confirmed"
+        },
+        "severity": {
+          "text": "High Priority"
+        },
+        "code": {
+          "text": "Essential Hypertension"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "note": [
+          {
+            "text": "Diagnosed: 08/01/2022 | Status: Active - Controlled"
+          },
+          {
+            "text": "Current BP: 138/86 mmHg (Target: <140/90 mmHg)"
+          }
+        ]
+      },
+      {
+        "resourceType": "Condition",
+        "id": "cond-asthma",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "clinicalStatus": {
+          "text": "active"
+        },
+        "verificationStatus": {
+          "text": "confirmed"
+        },
+        "severity": {
+          "text": "Medium Priority"
+        },
+        "code": {
+          "text": "Asthma"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "note": [
+          {
+            "text": "Diagnosed: 22/09/2021 | Status: Active - Well Controlled"
+          },
+          {
+            "text": "Last exacerbation: None in 12 months"
+          }
+        ]
+      },
+      {
+        "resourceType": "Condition",
+        "id": "cond-obesity",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "clinicalStatus": {
+          "text": "active"
+        },
+        "verificationStatus": {
+          "text": "confirmed"
+        },
+        "severity": {
+          "text": "Medium Priority"
+        },
+        "code": {
+          "text": "Obesity (BMI 31.2)"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "note": [
+          {
+            "text": "Ongoing management | Status: Active - Weight Loss Program"
+          },
+          {
+            "text": "Progress: -2.3kg since 12/03/2026"
+          }
+        ]
+      },
+      {
+        "resourceType": "Condition",
+        "id": "cond-cad",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "clinicalStatus": {
+          "text": "active"
+        },
+        "verificationStatus": {
+          "text": "confirmed"
+        },
+        "severity": {
+          "text": "Medium Priority"
+        },
+        "code": {
+          "text": "Coronary artery disease"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "note": [
+          {
+            "text": "History of unstable angina and stent placement"
+          },
+          {
+            "text": "Ongoing management"
+          }
+        ]
+      }
+    ],
+    "ServiceRequest": [
+      {
+        "resourceType": "ServiceRequest",
+        "id": "1070",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:48:53.284+00:00"
+        },
+        "basedOn": [
+          {
+            "reference": "CarePlan/1069",
+            "display": "Care Plan - 75g Oral Glucose Tolerance Test (OGTT)"
+          }
+        ],
+        "status": "active",
+        "intent": "order",
+        "code": {
+          "text": "Endocrinologist"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "authoredOn": "2026-04-15T16:48:53.221Z",
+        "requester": {
+          "display": "Dr. Sarah Mitchell"
+        },
+        "performer": [
+          {
+            "display": "Dr. Olivia Chen"
+          }
+        ],
+        "reasonCode": [
+          {
+            "text": "Care Plan - 75g Oral Glucose Tolerance Test (OGTT)"
+          }
+        ],
+        "note": [
+          {
+            "text": "Dear Dr. Jones,\nThis referral is being sent to you for patient Mrs. Alex Kirby. She is being treated for chronic conditions for which we are conducting additional preventative measures to ensure co-morbidity conditions are not caused as a result of her condition or recent gap in care. We have already ordered labs and are addressing other social impacts that may affect her condition. Please refer to her patient record to reference other actions that have been taken for her ongoing care.\nSincerely,\nDr. Smith"
+          }
+        ]
+      },
+      {
+        "resourceType": "ServiceRequest",
+        "id": "1071",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:48:53.356+00:00"
+        },
+        "basedOn": [
+          {
+            "reference": "CarePlan/1069",
+            "display": "Care Plan - 75g Oral Glucose Tolerance Test (OGTT)"
+          }
+        ],
+        "status": "active",
+        "intent": "order",
+        "code": {
+          "text": "Labs"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        },
+        "authoredOn": "2026-04-15T16:48:53.221Z",
+        "requester": {
+          "display": "Dr. Sarah Mitchell"
+        },
+        "performer": [
+          {
+            "display": "Quest Diagnostic"
+          }
+        ],
+        "reasonCode": [
+          {
+            "text": "Care Plan - 75g Oral Glucose Tolerance Test (OGTT)"
+          }
+        ],
+        "note": [
+          {
+            "text": "Dear Dr. Jones,\nThis referral is being sent to you for patient Mrs. Alex Kirby. She is being treated for chronic conditions for which we are conducting additional preventative measures to ensure co-morbidity conditions are not caused as a result of her condition or recent gap in care. We have already ordered labs and are addressing other social impacts that may affect her condition. Please refer to her patient record to reference other actions that have been taken for her ongoing care.\nSincerely,\nDr. Smith"
+          }
+        ]
+      },
+      {
+        "resourceType": "ServiceRequest",
+        "id": "1142",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:31:07.087+00:00"
+        },
+        "status": "active",
+        "intent": "order",
+        "code": {
+          "text": "HbA1c Lab"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        }
+      },
+      {
+        "resourceType": "ServiceRequest",
+        "id": "1147",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:33:00.460+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.org/fhir/StructureDefinition/care-gap-reference",
+            "valueString": "mg-1"
+          },
+          {
+            "url": "http://tcoc.org/fhir/StructureDefinition/gainshare-eligible",
+            "valueBoolean": true
+          },
+          {
+            "url": "http://tcoc.org/fhir/StructureDefinition/gainshare-amount",
+            "valueDecimal": 250
+          }
+        ],
+        "status": "active",
+        "intent": "order",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "3457005",
+                "display": "Patient referral"
+              }
+            ]
+          }
+        ],
+        "priority": "routine",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4548-4",
+              "display": "Hemoglobin A1c/Hemoglobin.total in Blood"
+            }
+          ],
+          "text": "HbA1c Lab — Care Gap Closure Referral"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "authoredOn": "2026-07-07T14:33:00.453Z",
+        "requester": {
+          "reference": "Practitioner/care-manager-sarah"
+        },
+        "performer": [
+          {
+            "reference": "Practitioner/lab-provider-001"
+          }
+        ],
+        "note": [
+          {
+            "text": "TCOC test suite referral — safe to delete."
+          }
+        ]
+      }
+    ],
+    "Task": [
+      {
+        "resourceType": "Task",
+        "id": "task-001",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:cms-mips",
+            "value": "001"
+          }
+        ],
+        "status": "in-progress",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cms-mips",
+              "code": "001"
+            }
+          ],
+          "text": "A1C for diabetes"
+        },
+        "for": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      },
+      {
+        "resourceType": "Task",
+        "id": "task-487",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:cms-mips",
+            "value": "487"
+          }
+        ],
+        "status": "in-progress",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cms-mips",
+              "code": "487"
+            }
+          ],
+          "text": "Screening for SDoH"
+        },
+        "for": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      },
+      {
+        "resourceType": "Task",
+        "id": "task-134",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:cms-mips",
+            "value": "134"
+          }
+        ],
+        "status": "ready",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cms-mips",
+              "code": "134"
+            }
+          ],
+          "text": "Mental/Behavioral Health (Clinical)"
+        },
+        "for": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      },
+      {
+        "resourceType": "Task",
+        "id": "task-438",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:cms-mips",
+            "value": "438"
+          }
+        ],
+        "status": "on-hold",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cms-mips",
+              "code": "438"
+            }
+          ],
+          "text": "Statin Therapy for the Prevention and Treatment of Cardiovascular Disease"
+        },
+        "for": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      },
+      {
+        "resourceType": "Task",
+        "id": "task-236",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:cms-mips",
+            "value": "236"
+          }
+        ],
+        "status": "on-hold",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cms-mips",
+              "code": "236"
+            }
+          ],
+          "text": "Control of Hypertension"
+        },
+        "for": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      },
+      {
+        "resourceType": "Task",
+        "id": "task-008",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "identifier": [
+          {
+            "system": "urn:cms-mips",
+            "value": "008"
+          }
+        ],
+        "status": "on-hold",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cms-mips",
+              "code": "008"
+            }
+          ],
+          "text": "Preventive Care and Screening"
+        },
+        "for": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      }
+    ],
+    "Procedure": [
+      {
+        "resourceType": "Procedure",
+        "id": "1143",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:31:07.239+00:00"
+        },
+        "status": "completed",
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.ama-assn.org/go/cpt",
+              "code": "83036",
+              "display": "HbA1c level"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "performedDateTime": "2026-07-07T14:31:07.217Z"
+      },
+      {
+        "resourceType": "Procedure",
+        "id": "1152",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:33:14.835+00:00"
+        },
+        "status": "completed",
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.ama-assn.org/go/cpt",
+              "code": "83036",
+              "display": "HbA1c level"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "performedDateTime": "2025-01-01T00:00:00Z"
+      }
+    ],
+    "Flag": [
+      {
+        "resourceType": "Flag",
+        "id": "flag-er-visit",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-04-15T16:17:27.674+00:00"
+        },
+        "status": "active",
+        "category": [
+          {
+            "text": "Alert"
+          }
+        ],
+        "code": {
+          "text": "Patient seen in ER (08/2025)"
+        },
+        "subject": {
+          "reference": "Patient/patient-alex-kirby"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-maria-001-flag-cds-maria-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Pre-diabetic HbA1c recheck is 38 days overdue. Consider NEMT enrollment."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-maria-2"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "warning",
+              "display": "warning"
+            }
+          ],
+          "text": "HbA1c gap 38 days — pre-diabetes monitoring critical"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-dorothy-042-flag-cds-dorothy-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Moderate depression. BH referral to Cascade Valley BH sent Mar 15 — not engaged."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-dorothy-1"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "critical",
+              "display": "error"
+            }
+          ],
+          "text": "PHQ-9 14 — BH referral open since Mar 15, not engaged"
+        },
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-dorothy-042-flag-cds-dorothy-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Active COPD exacerbation episode. Follow-up within 7 days required per care plan."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-dorothy-2"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "warning",
+              "display": "warning"
+            }
+          ],
+          "text": "COPD Exacerbation — spirometry overdue 42 days"
+        },
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-james-087-flag-cds-james-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Diabetic A1C recheck is 45 days overdue. Bundle labs to reduce patient travel burden."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-james-1"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "warning",
+              "display": "warning"
+            }
+          ],
+          "text": "A1C overdue 45 days — diabetes management gap"
+        },
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-james-087-flag-cds-james-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "CHF monitoring BNP panel is 22 days overdue. Active CHF episode (89 days)."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-james-2"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "warning",
+              "display": "warning"
+            }
+          ],
+          "text": "BNP panel overdue 22 days — CHF monitoring gap"
+        },
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-robert-103-flag-cds-robert-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Last BP reading 158/96. Target <130/80. CKD makes BP control critical."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-robert-1"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "warning",
+              "display": "warning"
+            }
+          ],
+          "text": "BP control check overdue 28 days — hypertension gap"
+        },
+        "subject": {
+          "reference": "Patient/patient-robert-103"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-robert-103-flag-cds-robert-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "CKD monitoring labs overdue. Last eGFR 42 (Stage 3b). Nephrology referral recommended."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-robert-2"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "warning",
+              "display": "warning"
+            }
+          ],
+          "text": "eGFR overdue 42 days — CKD monitoring gap"
+        },
+        "subject": {
+          "reference": "Patient/patient-robert-103"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-maria-001-flag-cds-maria-1",
+        "meta": {
+          "versionId": "9",
+          "lastUpdated": "2026-07-07T14:40:44.232+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Postpartum depression screening shows Edinburgh PND score 11 (Moderate). Immediate follow-up required."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-maria-1"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "critical",
+              "display": "error"
+            }
+          ],
+          "text": "Edinburgh PND overdue 427 days — postpartum depression untreated"
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-lisa-156-flag-cds-lisa-1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "Annual asthma action plan review is 35 days overdue. Consider spirometry."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-lisa-1"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "info",
+              "display": "information"
+            }
+          ],
+          "text": "Asthma action plan update overdue 35 days"
+        },
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        }
+      },
+      {
+        "resourceType": "Flag",
+        "id": "patient-lisa-156-flag-cds-lisa-2",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/cds-detail",
+            "valueString": "BMI elevated. SNAP-Ed nutrition counseling eligible."
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/tcoc-cds-id",
+            "valueString": "cds-lisa-2"
+          }
+        ],
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                "code": "clinical",
+                "display": "Clinical"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://tcoc.example.org/fhir/CodeSystem/cds-indicator",
+              "code": "info",
+              "display": "information"
+            }
+          ],
+          "text": "Weight management referral in progress — BMI elevated"
+        },
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        }
+      }
+    ],
+    "RiskAssessment": [
+      {
+        "resourceType": "RiskAssessment",
+        "id": "patient-maria-001-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:30.658+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 2.18
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-suspects",
+            "valueInteger": 3
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-value",
+            "valueDecimal": 12400
+          }
+        ],
+        "status": "final",
+        "subject": {
+          "reference": "Patient/patient-maria-001"
+        },
+        "prediction": [
+          {
+            "outcome": {
+              "text": "Emergency Room Visit"
+            },
+            "probabilityDecimal": 0.42,
+            "rationale": "Predicted ER risk 42% based on RAF score 2.18 and clinical profile."
+          }
+        ]
+      },
+      {
+        "resourceType": "RiskAssessment",
+        "id": "patient-dorothy-042-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.724+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 3.42
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-suspects",
+            "valueInteger": 4
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-value",
+            "valueDecimal": 24800
+          }
+        ],
+        "status": "final",
+        "subject": {
+          "reference": "Patient/patient-dorothy-042"
+        },
+        "prediction": [
+          {
+            "outcome": {
+              "text": "Emergency Room Visit"
+            },
+            "probabilityDecimal": 0.84,
+            "rationale": "Predicted ER risk 84% based on RAF score 3.42 and clinical profile."
+          }
+        ]
+      },
+      {
+        "resourceType": "RiskAssessment",
+        "id": "patient-james-087-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:31.959+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 2.8
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-suspects",
+            "valueInteger": 3
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-value",
+            "valueDecimal": 18600
+          }
+        ],
+        "status": "final",
+        "subject": {
+          "reference": "Patient/patient-james-087"
+        },
+        "prediction": [
+          {
+            "outcome": {
+              "text": "Emergency Room Visit"
+            },
+            "probabilityDecimal": 0.67,
+            "rationale": "Predicted ER risk 67% based on RAF score 2.8 and clinical profile."
+          }
+        ]
+      },
+      {
+        "resourceType": "RiskAssessment",
+        "id": "patient-robert-103-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.110+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 1.9
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-suspects",
+            "valueInteger": 2
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-value",
+            "valueDecimal": 11200
+          }
+        ],
+        "status": "final",
+        "subject": {
+          "reference": "Patient/patient-robert-103"
+        },
+        "prediction": [
+          {
+            "outcome": {
+              "text": "Emergency Room Visit"
+            },
+            "probabilityDecimal": 0.52,
+            "rationale": "Predicted ER risk 52% based on RAF score 1.9 and clinical profile."
+          }
+        ]
+      },
+      {
+        "resourceType": "RiskAssessment",
+        "id": "patient-lisa-156-risk",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-07-07T14:28:32.248+00:00"
+        },
+        "extension": [
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/raf-score",
+            "valueDecimal": 1.4
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-suspects",
+            "valueInteger": 1
+          },
+          {
+            "url": "http://tcoc.example.org/fhir/StructureDefinition/hcc-value",
+            "valueDecimal": 5800
+          }
+        ],
+        "status": "final",
+        "subject": {
+          "reference": "Patient/patient-lisa-156"
+        },
+        "prediction": [
+          {
+            "outcome": {
+              "text": "Emergency Room Visit"
+            },
+            "probabilityDecimal": 0.31,
+            "rationale": "Predicted ER risk 31% based on RAF score 1.4 and clinical profile."
+          }
+        ]
+      }
+    ]
+  }
+}

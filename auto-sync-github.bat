@@ -13,6 +13,8 @@ echo.
 echo This script will:
 echo   - Pull changes from GitHub every 5 seconds
 echo   - Push your changes to GitHub automatically
+echo   - Auto-import FHIR state after every pull
+echo   - Auto-export FHIR state before every push
 echo   - Keep you in sync with your team in real-time
 echo.
 echo Press Ctrl+C to stop
@@ -29,14 +31,24 @@ git diff --quiet HEAD origin/main
 if errorlevel 1 (
     echo [%date% %time%] Remote changes detected! Pulling...
     git pull origin main --no-edit
-    echo [%date% %time%] Pull completed - you now have the latest changes!
+    echo [%date% %time%] Pull completed - importing FHIR state...
+    node fhir/sync-fhir-state.mjs import >nul 2>&1
+    if errorlevel 1 (
+        echo [%date% %time%] FHIR import skipped (server may be offline)
+    ) else (
+        echo [%date% %time%] FHIR state synced from GitHub!
+    )
     echo.
 )
 
 REM Now check for local changes to push
 git add -A
 
-REM Check if there are any changes to commit
+REM Export FHIR state before committing so latest data goes up with the push
+node fhir/sync-fhir-state.mjs export >nul 2>&1
+
+REM Check if there are any changes to commit (including fhir-state.json)
+git add -A
 git diff-index --quiet HEAD
 if errorlevel 1 (
     echo [%date% %time%] Local changes detected! Committing and pushing...
