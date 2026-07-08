@@ -5,7 +5,8 @@ import Icon from '@/components/ui/AppIcon';
 import { toast } from 'sonner';
 import { useAppContext } from '@/lib/appContext';
 import { useRouter } from 'next/navigation';
-import { getAllPatients, getPatientById } from '@/lib/patientRegistry';
+import { getVisiblePatients, getPatientById } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { computeCaseloads } from '@/lib/careTeam/assignments';
 import { CARE_TEAM_MEMBERS, cohortOwnerPool, getMember } from '@/lib/careTeam/members';
 
@@ -26,7 +27,7 @@ export default function CaseloadDashboard() {
   const { cohorts, assignments, reassignPatient, auditLog, activeCohortId, setActiveCohortId, activePatientId, setActivePatientId } =
     useAppContext();
   const router = useRouter();
-  const registryCitizens = getAllPatients();
+  const registryCitizens = getVisiblePatients(getFhirMockMode());
   const featured = getPatientById(activePatientId);
 
   const [editing, setEditing] = useState<string | null>(null);

@@ -60,7 +60,7 @@ const SDOH_PER_EPISODE = 5300;
 
 function cohortFor(categories: ResourceCategory[], keystoneOnly = false): ProgramCohortMember[] {
   const out: ProgramCohortMember[] = [];
-  for (const p of getAllPatients()) {
+  for (const p of getVisiblePatients(getFhirMockMode())) {
     for (const n of citizenNeeds(p.platformId)) {
       if (!categories.includes(n.category)) continue;
       if (keystoneOnly && !n.keystone) continue;

@@ -41,5 +41,5 @@ export function personaFor(citizenId?: string): UhgPersona {
 }
 
 export function citizenRoster(): { id: string; name: string }[] {
-  return getAllPatients().map((p) => ({ id: p.platformId, name: p.name }));
+  return getVisiblePatients(getFhirMockMode()).map((p) => ({ id: p.platformId, name: p.name }));
 }

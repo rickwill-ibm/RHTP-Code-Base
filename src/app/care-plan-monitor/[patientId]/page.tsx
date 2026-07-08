@@ -19,7 +19,7 @@ export default function CarePlanMonitorPage() {
 
   useEffect(() => {
     // Find patient
-    const allPatients = getAllPatients();
+    const allPatients = getVisiblePatients(getFhirMockMode());
     const patient = allPatients.find((p: any) => p.platformId === patientId || p.id === patientId);
     if (!patient) {
       setLoading(false);

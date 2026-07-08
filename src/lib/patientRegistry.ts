@@ -47,6 +47,14 @@ export interface RegistryPatient {
   fhirId: string;
   ehrMrn: string;
 
+  /**
+   * mockOnly = true  → patient is always loaded from mock data.
+   *                    Visible regardless of the FHIR/Mock toggle.
+   * mockOnly = false → patient is loaded from live FHIR only.
+   *                    Hidden when the toggle is set to Mock Data.
+   */
+  mockOnly?: boolean;
+
   // Demographics
   name: string;
   age: number;
@@ -144,8 +152,9 @@ export const FHIR_ID_MAP: Record<string, string> = {
 // ─── Patient Registry ─────────────────────────────────────────────────────────
 
 const PATIENT_REGISTRY: RegistryPatient[] = [
-  // ── Maria Redhawk — Primary Demo Patient (Standardized from Maria_Redhawk_Summary.py) ──────────────────────
+  // ── Maria Redhawk — Mock Data Only (always visible, never reads FHIR) ────────
   {
+    mockOnly: true,
     platformId: 'MARIA_SD_001',
     journey: { id: 'POSTPARTUM_90D', currentDay: 34 },
     household: {
@@ -685,6 +694,24 @@ export function resolveFhirToPlatformId(fhirId: string): string | undefined {
  * Get all patients in the registry
  */
 export function getAllPatients(): RegistryPatient[] {
+  return PATIENT_REGISTRY;
+}
+
+/**
+ * Get patients visible for the current data mode.
+ *
+ * useMock=true  → only patients tagged mockOnly:true (Maria only)
+ * useMock=false → all patients (FHIR patients + Maria as demo anchor)
+ *
+ * Import getFhirMockMode from fhirClient to get the current runtime value,
+ * or pass it directly from appContext.useMockData.
+ */
+export function getVisiblePatients(useMock: boolean): RegistryPatient[] {
+  if (useMock) {
+    // Mock mode: only show Maria (the guaranteed mock patient)
+    return PATIENT_REGISTRY.filter((p) => p.mockOnly === true);
+  }
+  // Live FHIR mode: show everyone
   return PATIENT_REGISTRY;
 }
 

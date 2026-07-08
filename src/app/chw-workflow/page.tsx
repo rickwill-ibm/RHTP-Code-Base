@@ -573,7 +573,7 @@ export default function CHWWorkflowPage() {
   const recommendedResources = recommendResources(activePatientId, CBOS);
   const nbas = citizenNBAs(activePatientId, CBOS);
   const panelDoNow = buildTriageQueue({ adt: [], tasks: CHW_SOCIAL_TASKS, transitions: [] }).filter((sig) => sig.domain === 'Social' && sig.tier === 'Do Now').length;
-  const citizensWithNeeds = getAllPatients().filter((c) => citizenNeeds(c.platformId).length > 0).length;
+  const citizensWithNeeds = getVisiblePatients(getFhirMockMode()).filter((c) => citizenNeeds(c.platformId).length > 0).length;
   const keystoneUnblocks = nbas.filter((n) => n.keystone).length;
   const [clinicalContextPatient, setClinicalContextPatient] = useState<string | null>(null);
   const [startVisitData, setStartVisitData] = useState<VisitData | null>(null);
@@ -700,7 +700,7 @@ export default function CHWWorkflowPage() {
         <div className="space-y-3">
           {(() => {
             const scheduled = new Set(CHW_VISITS.map(v => v.patientId));
-            const recs = getAllPatients().filter(c => !scheduled.has(c.platformId) && citizenNBAs(c.platformId, CBOS).length > 0);
+            const recs = getVisiblePatients(getFhirMockMode()).filter(c => !scheduled.has(c.platformId) && citizenNBAs(c.platformId, CBOS).length > 0);
             return recs.length > 0 ? (
               <div className="bg-white border border-[#97c1ff]">
                 <div className="px-4 py-2.5 bg-[#edf5ff] border-b border-carbon-gray-20 flex items-center gap-2">

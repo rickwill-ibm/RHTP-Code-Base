@@ -45,7 +45,7 @@ function domainForSpecialty(s: Specialty): PrimaryDomain {
 }
 
 function matchingRealPatients(specialty: Specialty): AttributablePatient[] {
-  return getAllPatients()
+  return getVisiblePatients(getFhirMockMode())
     .map(toAttributable)
     .filter((p) => p.specialtyNeed === specialty);
 }

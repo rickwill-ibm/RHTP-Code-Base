@@ -318,7 +318,7 @@ function genOtherScenarios(activeId: string): ScOtherScenario[] {
     return s ? (s.domain === 'Social' ? 'SDOH' : s.domain === 'BH' ? 'BEHAVIORAL' : 'CARE_GAP') : 'ELIGIBILITY';
   };
   const counts = ['4:32', '7:15', '2:48', '5:09', '3:21'];
-  return getAllPatients()
+  return getVisiblePatients(getFhirMockMode())
     .filter((p) => p.platformId !== activeId)
     .slice(0, 3)
     .map((p, i) => ({

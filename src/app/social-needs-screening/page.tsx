@@ -9,7 +9,8 @@ import {
 } from '@/lib/socialMockData';
 import { useAppContext } from '@/lib/appContext';
 import { SD_RECOMMENDATIONS } from '@/lib/sdResourceData';
-import { getPatientById, getAllPatients } from '@/lib/patientRegistry';
+import { getPatientById, getVisiblePatients } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { citizenNeeds, nbaForCategory, type ResourceCategory } from '@/lib/careTeam/graph/resources';
 import { toast } from 'sonner';
 
@@ -342,7 +343,7 @@ export default function SocialNeedsScreeningPage() {
     const m = monthsSince(screenedDate.get(pid));
     return m === Infinity ? 'Never' : m > 12 ? 'Overdue' : m > 10 ? 'Due Soon' : 'Current';
   };
-  const dueCitizens = getAllPatients().filter(c => screeningStatus(c.platformId) !== 'Current');
+  const dueCitizens = getVisiblePatients(getFhirMockMode()).filter(c => screeningStatus(c.platformId) !== 'Current');
   const confirmReferrals = () => {
     if (!referModal) return;
     const cname = getPatientById(activePatientId)?.name ?? 'Citizen';
