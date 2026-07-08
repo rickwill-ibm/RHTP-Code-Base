@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
-import { useAppContext } from '@/lib/appContext';
-import type { UserSession } from '@/lib/appContext';
+import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
+import type { UserSession, PhysicianPersona } from '@/lib/appContext';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy — TCOC Total Cost of Care Clinical Platform
@@ -109,7 +109,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [backupCollapsed, setBackupCollapsed] = useState(true);
   const [agenticCollapsed, setAgenticCollapsed] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
-  const { user, setUser, entryContext, setEntryContext } = useAppContext();
+  const { user, setUser, entryContext, setEntryContext, physicianPersona, setPhysicianPersona, activePhysician } = useAppContext();
   
   // Ref for nav container to enable scrollIntoView
   const navRef = useRef<HTMLElement>(null);
@@ -274,6 +274,33 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
 
         {/* Bottom — role/context switcher + user */}
         <div className="border-t border-carbon-gray-80 p-3 space-y-2">
+          {/* Physician persona switcher — Rick (PCP) vs Jon (Specialist) */}
+          {!collapsed && (
+            <div className="space-y-1.5">
+              <p className="text-2xs text-carbon-gray-50 uppercase tracking-widest font-semibold px-1">Physician View</p>
+              <div className="flex gap-1">
+                {(Object.values(PHYSICIAN_PROFILES) as typeof PHYSICIAN_PROFILES[PhysicianPersona][]).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPhysicianPersona(p.id)}
+                    style={physicianPersona === p.id ? { background: p.color } : {}}
+                    className={`flex-1 text-2xs py-1.5 px-1.5 font-semibold transition-colors ${
+                      physicianPersona === p.id
+                        ? 'text-white'
+                        : 'bg-carbon-gray-80 text-carbon-gray-30 hover:bg-carbon-gray-70'
+                    }`}
+                    title={`${p.displayName} — ${p.role}`}
+                  >
+                    {p.displayName}
+                  </button>
+                ))}
+              </div>
+              <p className="text-2xs px-1" style={{ color: activePhysician.color }}>
+                {activePhysician.displayName} · {activePhysician.role} · {activePhysician.specialty}
+              </p>
+            </div>
+          )}
+
           {/* Role switcher */}
           {!collapsed && (
             <div className="space-y-1.5">

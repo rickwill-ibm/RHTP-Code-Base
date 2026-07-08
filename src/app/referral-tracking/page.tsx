@@ -13,6 +13,10 @@ import { mockReferrals } from './components/ActiveReferralsTable';
 import { exportReferralsCSV, generatePDFReport } from '@/lib/exportUtils';
 import { CARE_TEAM_INBOX_TASKS, PROGRAM_TYPE_CONFIG, TASK_STATUS_CONFIG } from '@/lib/fhirCareTeamData';
 import type { TaskProgramType, TaskStatus } from '@/lib/fhirCareTeamData';
+import { useAppContext } from '@/lib/appContext';
+import { initiateReferral } from '@/lib/services/referralService';
+
+const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
 
 export type ReferralStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Awaiting EMR' | 'Completed' | 'Cancelled';
 export type ReferralUrgency = 'Routine' | 'Urgent' | 'STAT';
@@ -49,6 +53,7 @@ export interface ReferralFilters {
 }
 
 export default function ReferralTrackingPage() {
+  const { activePhysician, activePatientId } = useAppContext();
   const [filters, setFilters] = useState<ReferralFilters>({
     search: '',
     status: 'All',
@@ -77,6 +82,39 @@ export default function ReferralTrackingPage() {
   const handleExportCSV = () => {
     exportReferralsCSV(mockReferrals);
     toast.success('Referrals CSV downloaded', { description: `${mockReferrals.length} referrals exported` });
+  };
+
+  // Step 3 — send referral to FHIR as ServiceRequest + Task
+  const handleSendReferral = async (
+    patientFhirId: string,
+    specialty: string,
+    icdCode: string,
+    notes: string,
+    urgency: 'routine' | 'urgent' | 'asap' | 'stat' = 'routine'
+  ) => {
+    if (USE_MOCK) {
+      toast.success(`Referral sent (mock) — ${specialty}`, { description: `Patient: ${patientFhirId}` });
+      return;
+    }
+    try {
+      const result = await initiateReferral({
+        patientId: patientFhirId,
+        requesterId: activePhysician.fhirId,          // Dr. Rick
+        performerId: 'practitioner-jon',              // Dr. Jon always receives
+        serviceCode: icdCode || 'referral',
+        serviceDisplay: specialty,
+        reasonCode: icdCode,
+        reasonDisplay: notes,
+        priority: urgency,
+        notes: `Referral from ${activePhysician.displayName} to Dr. Jon — ${specialty}`,
+        gainshareEligible: true,
+      });
+      toast.success(`Referral sent to Dr. Jon — ${specialty}`, {
+        description: `ServiceRequest: ${result.serviceRequest.id} · Task: ${result.task.id}`,
+      });
+    } catch (err) {
+      toast.error('Referral failed', { description: String(err) });
+    }
   };
 
   const handleReferralReport = () => {
@@ -151,6 +189,32 @@ export default function ReferralTrackingPage() {
     >
       <ReferralKPIStrip />
       <div className="px-6 pb-4 space-y-4">
+        {/* Send Referral to Dr. Jon — Step 3 */}
+        <div className="bg-white border border-[#97c1ff] px-4 py-3 flex items-center gap-4 flex-wrap"
+          style={{ borderLeftWidth: 4, borderLeftColor: activePhysician.color }}>
+          <div className="flex items-center gap-2">
+            <Icon name="ArrowsRightLeftIcon" size={14} className="text-[#0043ce]" />
+            <span className="text-xs font-semibold" style={{ color: activePhysician.color }}>
+              {activePhysician.displayName} ({activePhysician.role}) — Send Referral to Dr. Jon
+            </span>
+          </div>
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <button
+              onClick={() => handleSendReferral('patient-maria-001', 'Cardiology Evaluation', 'I10', 'Uncontrolled hypertension — BP 158/96', 'urgent')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#0043ce] text-white hover:bg-[#0035a8] transition-colors"
+            >
+              <Icon name="UserPlusIcon" size={12} />
+              Refer Maria → Cardiology {USE_MOCK ? '(mock)' : '→ FHIR'}
+            </button>
+            <button
+              onClick={() => handleSendReferral('patient-dorothy-042', 'Pulmonology Follow-up', 'J44.1', 'COPD exacerbation — spirometry overdue', 'stat')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#0043ce] text-[#0043ce] hover:bg-[#d0e2ff] transition-colors"
+            >
+              <Icon name="UserPlusIcon" size={12} />
+              Refer Dorothy → Pulmonology {USE_MOCK ? '(mock)' : '→ FHIR'}
+            </button>
+          </div>
+        </div>
         {/* View toggle */}
         <div className="flex gap-0.5 bg-carbon-gray-10 p-0.5 border border-carbon-gray-20">
           {[

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { useRouter } from 'next/navigation';
@@ -9,6 +9,10 @@ import { effectiveMemberId } from '@/lib/careTeam/identity';
 import { getMemberName } from '@/lib/careTeam/members';
 import { useGapClosureStore } from '@/lib/patientContext';
 import type { GapClosureEvidence } from '@/lib/patientContext';
+import { getFhirClient } from '@/lib/services/fhirClient';
+import { completeServiceAndCloseGap } from '@/lib/services/referralService';
+
+const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
 
 interface SpecialistTask {
   id: string;
@@ -147,13 +151,71 @@ const STATUS_STYLE: Record<string, string> = {
   'Completed': 'bg-[#defbe6] text-[#0e6027]',
 };
 
+// ─── Diagnosis panel state ────────────────────────────────────────────────────
+interface DiagnosisEntry {
+  icdCode: string;
+  description: string;
+  savedToFhir: boolean;
+}
+
 export default function SpecialistInboxPage() {
   const router = useRouter();
-  const { activePatientId, assignments } = useAppContext();
+  const { activePatientId, assignments, activePhysician } = useAppContext();
   const activePatient = getPatientById(activePatientId);
   const { submitClosure, isGapClosed } = useGapClosureStore();
 
-  // Build the first task dynamically from the active patient
+  // ── FHIR live tasks (Step 4) ──────────────────────────────────────────────
+  const [fhirTasks, setFhirTasks] = useState<SpecialistTask[]>([]);
+  const [fhirLoading, setFhirLoading] = useState(false);
+
+  useEffect(() => {
+    if (USE_MOCK) return; // skip in mock mode
+    const load = async () => {
+      setFhirLoading(true);
+      try {
+        const client = getFhirClient();
+        // Fetch Tasks where performer = Jon (the specialist)
+        const bundle = await client.search('Task', {
+          performer: `Practitioner/${activePhysician.fhirId}`,
+          _count: 50,
+        }) as any;
+        const entries: any[] = bundle.entry ?? [];
+        const tasks: SpecialistTask[] = entries
+          .map((e: any) => e.resource)
+          .filter((r: any) => r?.resourceType === 'Task')
+          .map((t: any) => ({
+            id: t.id,
+            patient: t.for?.display ?? 'Unknown Patient',
+            patientId: t.for?.reference?.split('/')[1] ?? '',
+            dob: '—',
+            requestedIntervention: t.description ?? t.code?.text ?? 'Referral Task',
+            referringProvider: t.requester?.display ?? 'Dr. Rick',
+            referringOrg: 'RHTP Network',
+            dueDate: t.executionPeriod?.end?.split('T')[0] ?? '—',
+            urgency: (t.priority === 'stat' ? 'STAT' : t.priority === 'urgent' ? 'Urgent' : 'Routine') as 'STAT' | 'Urgent' | 'Routine',
+            status: (t.status === 'completed' ? 'Completed' : t.status === 'in-progress' ? 'In Progress' : t.status === 'accepted' ? 'Accepted' : 'Pending') as SpecialistTask['status'],
+            specialty: t.code?.text ?? 'Specialist',
+            qualityMeasure: t.note?.[0]?.text ?? '—',
+            qualityProgram: 'HEDIS',
+            gainShareValue: '$0',
+            sharedSavingsAttribution: '$0',
+            networkIncentiveImpact: 'Medium',
+            icdCode: '—',
+            clinicalContext: t.note?.[0]?.text ?? '',
+            fhirTaskId: t.id,
+            serviceRequestRef: t.focus?.reference ?? '',
+          }));
+        if (tasks.length > 0) setFhirTasks(tasks);
+      } catch (err) {
+        console.warn('[SpecialistInbox] FHIR task load failed, using mock:', err);
+      } finally {
+        setFhirLoading(false);
+      }
+    };
+    load();
+  }, [activePhysician.fhirId]);
+
+  // Build the first task dynamically from the active patient (mock)
   const firstTask: SpecialistTask = {
     ...STATIC_SPECIALIST_TASKS[0],
     patient: activePatient?.name ?? 'Unknown Patient',
@@ -161,13 +223,23 @@ export default function SpecialistInboxPage() {
     dob: activePatient?.dob ?? '—',
   };
 
-  const SPECIALIST_TASKS: SpecialistTask[] = [firstTask, ...OTHER_SPECIALIST_TASKS];
+  // Use FHIR tasks if available, otherwise fall back to mock
+  const SPECIALIST_TASKS: SpecialistTask[] = !USE_MOCK && fhirTasks.length > 0
+    ? fhirTasks
+    : [firstTask, ...OTHER_SPECIALIST_TASKS];
 
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterUrgency, setFilterUrgency] = useState('All');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [closedByFhir, setClosedByFhir] = useState<Set<string>>(new Set());
+
+  // ── Diagnosis panel (Step 6) ──────────────────────────────────────────────
+  const [showDiagnosisPanel, setShowDiagnosisPanel] = useState<string | null>(null);
+  const [diagnosisInput, setDiagnosisInput] = useState({ icdCode: '', description: '' });
+  const [savedDiagnoses, setSavedDiagnoses] = useState<Record<string, DiagnosisEntry[]>>({});
+  const [diagnosisSaving, setDiagnosisSaving] = useState(false);
 
   // Auto-populate gap closure evidence for Maria Redhawk's task
   const autoPopulateEvidence = useCallback((task: SpecialistTask): GapClosureEvidence => {
@@ -192,26 +264,85 @@ export default function SpecialistInboxPage() {
     };
   }, []);
 
-  // Handle gap closure attestation
-  const handleAttestAndClose = useCallback((task: SpecialistTask) => {
+  // Handle gap closure attestation — Step 5: writes to FHIR when live
+  const handleAttestAndClose = useCallback(async (task: SpecialistTask) => {
     setIsSubmitting(true);
-    
-    // Auto-populate evidence
     const evidence = autoPopulateEvidence(task);
-    
-    // Submit to gap closure store
-    submitClosure(evidence);
-    
-    // Show success feedback
+    submitClosure(evidence); // always update local store
+
+    if (!USE_MOCK) {
+      try {
+        // Find the FHIR observation ID for this care gap
+        const patientFhirId = task.patientId.startsWith('patient-') ? task.patientId : `patient-maria-001`;
+        await completeServiceAndCloseGap({
+          taskId: (task as any).fhirTaskId ?? `task-${task.id}`,
+          serviceRequestId: (task as any).serviceRequestRef ?? `sr-${task.id}`,
+          patientId: patientFhirId,
+          performerId: activePhysician.fhirId,
+          procedureCode: task.icdCode !== '—' ? task.icdCode : 'PROC-001',
+          procedureDisplay: task.requestedIntervention,
+          performedDate: new Date().toISOString().split('T')[0],
+          observations: [{
+            code: '4548-4',
+            codeSystem: 'http://loinc.org',
+            display: task.requestedIntervention,
+            valueQuantity: { value: evidence.resultValue ?? 6.8, unit: evidence.resultUnit ?? '%', system: 'http://unitsofmeasure.org', code: '%' },
+          }],
+          notes: `Gap closed by ${activePhysician.displayName} on ${new Date().toLocaleDateString()}`,
+        });
+        setClosedByFhir(prev => new Set(prev).add(task.id));
+        console.log('[SpecialistInbox] Gap closed in FHIR for task', task.id);
+      } catch (err) {
+        console.warn('[SpecialistInbox] FHIR gap closure failed (local store updated):', err);
+      }
+    }
+
     setShowSuccessToast(true);
     setSelectedTask(null);
-    
-    // Navigate to verification screen after brief delay
     setTimeout(() => {
       setIsSubmitting(false);
       router.push('/care-gap-closure-verification');
     }, 1500);
-  }, [autoPopulateEvidence, submitClosure, router]);
+  }, [autoPopulateEvidence, submitClosure, router, activePhysician]);
+
+  // Handle diagnosis save to FHIR — Step 6
+  const handleSaveDiagnosis = useCallback(async (task: SpecialistTask) => {
+    if (!diagnosisInput.icdCode.trim()) return;
+    setDiagnosisSaving(true);
+    const entry: DiagnosisEntry = { ...diagnosisInput, savedToFhir: false };
+
+    if (!USE_MOCK) {
+      try {
+        const client = getFhirClient();
+        const patientFhirId = task.patientId.startsWith('patient-') ? task.patientId : 'patient-maria-001';
+        const condition = {
+          resourceType: 'Condition',
+          id: `cond-${activePhysician.id}-${Date.now()}`,
+          clinicalStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: 'active' }] },
+          verificationStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status', code: 'confirmed' }] },
+          code: { coding: [{ system: 'http://hl7.org/fhir/sid/icd-10', code: diagnosisInput.icdCode, display: diagnosisInput.description }], text: diagnosisInput.description },
+          subject: { reference: `Patient/${patientFhirId}` },
+          recorder: { reference: `Practitioner/${activePhysician.fhirId}`, display: activePhysician.displayName },
+          recordedDate: new Date().toISOString().split('T')[0],
+          note: [{ text: `Added by ${activePhysician.displayName} from Specialist Inbox` }],
+        };
+        await client.create(condition as any);
+        entry.savedToFhir = true;
+        console.log('[SpecialistInbox] Condition saved to FHIR:', diagnosisInput.icdCode);
+      } catch (err) {
+        console.warn('[SpecialistInbox] FHIR Condition save failed:', err);
+      }
+    } else {
+      entry.savedToFhir = false;
+    }
+
+    setSavedDiagnoses(prev => ({
+      ...prev,
+      [task.id]: [...(prev[task.id] ?? []), entry],
+    }));
+    setDiagnosisInput({ icdCode: '', description: '' });
+    setDiagnosisSaving(false);
+  }, [diagnosisInput, activePhysician]);
 
   const filtered = SPECIALIST_TASKS.filter((t) => {
     const statusMatch = filterStatus === 'All' || t.status === filterStatus;
@@ -383,6 +514,15 @@ export default function SpecialistInboxPage() {
                 {/* Expanded detail */}
                 {isSelected && (
                   <div className="border-t border-carbon-gray-20 px-5 py-4 space-y-4">
+                    {/* Physician context banner */}
+                    <div className="flex items-center gap-2 px-3 py-2 border rounded text-xs font-medium"
+                      style={{ borderColor: activePhysician.color, color: activePhysician.color, background: activePhysician.color + '15' }}>
+                      <Icon name="UserCircleIcon" size={14} />
+                      Viewing as {activePhysician.displayName} · {activePhysician.role}
+                      {closedByFhir.has(task.id) && (
+                        <span className="ml-auto text-[#198038] font-semibold">✓ Closed in FHIR</span>
+                      )}
+                    </div>
                     {/* Quality measure */}
                     <div className="bg-[#f6f2ff] border border-[#d4bbff] px-4 py-3">
                       <div className="flex items-center gap-2 mb-1">
@@ -465,6 +605,60 @@ export default function SpecialistInboxPage() {
                       </div>
                     )}
 
+                    {/* Diagnosis panel — Step 6 */}
+                    <div className="border border-carbon-gray-20 bg-carbon-gray-10">
+                      <button
+                        onClick={() => setShowDiagnosisPanel(showDiagnosisPanel === task.id ? null : task.id)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-carbon-gray-70 hover:bg-carbon-gray-20 transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon name="DocumentTextIcon" size={13} />
+                          Add / Edit Diagnosis Code
+                          {(savedDiagnoses[task.id]?.length ?? 0) > 0 && (
+                            <span className="bg-[#0043ce] text-white text-2xs px-1.5 py-0.5 rounded">
+                              {savedDiagnoses[task.id].length} saved
+                            </span>
+                          )}
+                        </span>
+                        <Icon name={showDiagnosisPanel === task.id ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={13} />
+                      </button>
+                      {showDiagnosisPanel === task.id && (
+                        <div className="border-t border-carbon-gray-20 px-4 py-3 space-y-3 bg-white">
+                          {(savedDiagnoses[task.id] ?? []).map((d, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                              <span className="font-mono font-semibold text-carbon-gray-100">{d.icdCode}</span>
+                              <span className="text-carbon-gray-70">{d.description}</span>
+                              {d.savedToFhir
+                                ? <span className="ml-auto text-[#198038] text-2xs font-semibold">✓ In FHIR</span>
+                                : <span className="ml-auto text-carbon-gray-40 text-2xs">mock only</span>
+                              }
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <input
+                              className="border border-carbon-gray-20 px-2 py-1.5 text-xs w-24 font-mono focus:outline-none focus:border-[#0043ce]"
+                              placeholder="ICD-10"
+                              value={diagnosisInput.icdCode}
+                              onChange={e => setDiagnosisInput(p => ({ ...p, icdCode: e.target.value.toUpperCase() }))}
+                            />
+                            <input
+                              className="border border-carbon-gray-20 px-2 py-1.5 text-xs flex-1 focus:outline-none focus:border-[#0043ce]"
+                              placeholder="Description (e.g. Type 2 Diabetes)"
+                              value={diagnosisInput.description}
+                              onChange={e => setDiagnosisInput(p => ({ ...p, description: e.target.value }))}
+                            />
+                            <button
+                              onClick={() => handleSaveDiagnosis(task)}
+                              disabled={diagnosisSaving || !diagnosisInput.icdCode.trim()}
+                              className="px-3 py-1.5 text-xs font-medium bg-[#0043ce] text-white hover:bg-[#0035a8] disabled:opacity-50 transition-colors whitespace-nowrap"
+                            >
+                              {diagnosisSaving ? 'Saving...' : USE_MOCK ? 'Save (mock)' : 'Save to FHIR'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
                       <button
@@ -477,11 +671,11 @@ export default function SpecialistInboxPage() {
                       {task.id === 'st-001' ? (
                         <button
                           onClick={() => handleAttestAndClose(task)}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || closedByFhir.has(task.id)}
                           className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-[#24a148] text-white hover:bg-[#0e6027] transition-colors disabled:opacity-50"
                         >
                           <Icon name="CheckCircleIcon" size={13} />
-                          {isSubmitting ? 'Closing...' : 'Attest & Close Gap'}
+                          {closedByFhir.has(task.id) ? '✓ Closed in FHIR' : isSubmitting ? 'Closing...' : 'Attest & Close Gap'}
                         </button>
                       ) : (
                         <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-[#24a148] text-[#24a148] hover:bg-[#defbe6] transition-colors">
