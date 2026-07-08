@@ -109,7 +109,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [backupCollapsed, setBackupCollapsed] = useState(true);
   const [agenticCollapsed, setAgenticCollapsed] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
-  const { user, setUser, entryContext, setEntryContext, physicianPersona, setPhysicianPersona, activePhysician } = useAppContext();
+  const { user, setUser, entryContext, setEntryContext, physicianPersona, setPhysicianPersona, activePhysician, useMockData, setUseMockData } = useAppContext();
   
   // Ref for nav container to enable scrollIntoView
   const navRef = useRef<HTMLElement>(null);
@@ -392,6 +392,19 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* FHIR / Mock data toggle */}
+            <button
+              onClick={() => setUseMockData(!useMockData)}
+              title={useMockData ? 'Switch to live FHIR data' : 'Switch to mock data'}
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 text-2xs font-semibold border transition-colors ${
+                useMockData
+                  ? 'bg-[#fff1e0] text-[#8a3800] border-[#f1c21b] hover:bg-[#fdf6dd]'
+                  : 'bg-[#defbe6] text-[#198038] border-[#a7f0ba] hover:bg-[#c6efcd]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${useMockData ? 'bg-[#b45309]' : 'bg-[#24a148]'}`} />
+              {useMockData ? 'Mock Data' : 'Live FHIR'}
+            </button>
             {/* Role + context indicator */}
             <div className="hidden md:flex items-center gap-1.5 mr-2">
               <span className={`text-2xs font-semibold px-2 py-1 ${user.role === 'physician' ? 'bg-[#f6f2ff] text-[#6929c4]' : 'bg-[#d0e2ff] text-[#0043ce]'}`}>

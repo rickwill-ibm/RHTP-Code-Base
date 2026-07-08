@@ -90,6 +90,10 @@ interface AppContextValue {
   setPhysicianPersona: (persona: PhysicianPersona) => void;
   activePhysician: PhysicianProfile;
 
+  // Runtime data source toggle — overrides NEXT_PUBLIC_USE_MOCK_DATA
+  useMockData: boolean;
+  setUseMockData: (val: boolean) => void;
+
   // The roster member the logged-in user maps to (single identity model).
   currentMemberId: string | null;
 
@@ -155,6 +159,9 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppContextProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession>(defaultUser);
   const [physicianPersona, setPhysicianPersona] = useState<PhysicianPersona>('rick');
+  const [useMockData, setUseMockData] = useState<boolean>(
+    (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true'
+  );
   const [entryContext, setEntryContext] = useState<EntryContext>('browse');
   const [selectedContractId, setSelectedContractId] = useState<string | null>('contract-001');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>('patient-001');
@@ -224,6 +231,8 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         physicianPersona,
         setPhysicianPersona,
         activePhysician: PHYSICIAN_PROFILES[physicianPersona],
+        useMockData,
+        setUseMockData,
         currentMemberId: USER_TO_MEMBER[user.userId] || null,
         entryContext,
         setEntryContext,
