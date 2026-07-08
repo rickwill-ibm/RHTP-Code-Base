@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-# Node modules
+﻿# Node modules
 node_modules/
 package-lock.json
 
@@ -23,18 +22,18 @@ Thumbs.db
 # Vercel deployment
 .vercel/
 
-# Optional: if using TypeScript
+# TypeScript
 *.tsbuildinfo
 
-# Optional: if using testing tools
+# Testing
 coverage/
 jest-test-results.json
 
-# Optional: if using IDEs
+# IDEs
 .vscode/
 .idea/
 
-# Optional: if using TurboRepo or monorepo
+# TurboRepo / monorepo
 turbo/
 
 # Java/Maven build artifacts
@@ -49,42 +48,8 @@ fhir/**/target/
 fhir/**/*.class
 fhir/**/*.jar
 fhir/**/*.war
-=======
-# Node modules
-node_modules/
-package-lock.json
 
-# Next.js build output
-.next/
-out/
-
-# Production build
-build/
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# Vercel deployment
-.vercel/
-
-# Optional: if using TypeScript
-*.tsbuildinfo
-
-# Optional: if using testing tools
-coverage/
-jest-test-results.json
-
-# Optional: if using IDEs
-.vscode/
-.idea/
-
-# Optional: if using TurboRepo or monorepo
-turbo/
->>>>>>> c235a9e90cfeccbdc390c6f3155370c2f75da71e
+# Environment — never commit secrets
+# Use .env.example as the template (that IS committed)
+.env.local
+.env.*.local
