@@ -6,6 +6,7 @@ import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
 import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
 import type { UserSession, PhysicianPersona } from '@/lib/appContext';
+import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy — TCOC Total Cost of Care Clinical Platform
@@ -110,6 +111,7 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const [agenticCollapsed, setAgenticCollapsed] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const { user, setUser, entryContext, setEntryContext, physicianPersona, setPhysicianPersona, activePhysician, useMockData, setUseMockData } = useAppContext();
+  useFhirModeSync(); // keeps fhirClient singleton in sync with the UI toggle
   
   // Ref for nav container to enable scrollIntoView
   const navRef = useRef<HTMLElement>(null);

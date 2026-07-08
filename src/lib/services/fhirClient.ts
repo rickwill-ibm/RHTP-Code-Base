@@ -16,8 +16,20 @@ const FHIR_BASE =
 
 const TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_FHIR_TIMEOUT ?? 30_000);
 
-const USE_MOCK =
+// Runtime-overridable mock flag.
+// Starts from env var but can be toggled at runtime via setFhirMockMode().
+let _useMock =
   (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
+
+/** Toggle mock mode at runtime — called by the FHIR/Mock toggle in the UI. */
+export function setFhirMockMode(mock: boolean): void {
+  _useMock = mock;
+}
+
+/** Read current mock mode — useful for components that need to check. */
+export function getFhirMockMode(): boolean {
+  return _useMock;
+}
 
 // ─── Low-level fetch wrapper ──────────────────────────────────────────────────
 
@@ -56,7 +68,7 @@ export class FhirClient {
 
   /** Read a single resource by type and id */
   async read<T = unknown>(resourceType: string, id: string): Promise<T> {
-    if (USE_MOCK) {
+    if (_useMock) {
       console.debug(`[FhirClient][mock] read ${resourceType}/${id}`);
       return { resourceType, id } as T;
     }
@@ -65,7 +77,7 @@ export class FhirClient {
 
   /** Create a resource (server assigns id) */
   async create<T = unknown>(resource: Record<string, unknown>): Promise<T> {
-    if (USE_MOCK) {
+    if (_useMock) {
       console.debug(`[FhirClient][mock] create ${resource.resourceType}`);
       return { ...resource, id: `mock-${Date.now()}` } as T;
     }
@@ -77,7 +89,7 @@ export class FhirClient {
 
   /** Update (PUT) a resource — id must be set on the resource */
   async update<T = unknown>(resource: Record<string, unknown> & { id: string }): Promise<T> {
-    if (USE_MOCK) {
+    if (_useMock) {
       console.debug(`[FhirClient][mock] update ${resource.resourceType}/${resource.id}`);
       return resource as T;
     }
@@ -92,7 +104,7 @@ export class FhirClient {
     resourceType: string,
     params: Record<string, string | number | boolean>,
   ): Promise<T> {
-    if (USE_MOCK) {
+    if (_useMock) {
       console.debug(`[FhirClient][mock] search ${resourceType}`, params);
       return { resourceType: 'Bundle', entry: [] } as T;
     }
@@ -104,7 +116,7 @@ export class FhirClient {
 
   /** Delete a resource */
   async delete(resourceType: string, id: string): Promise<void> {
-    if (USE_MOCK) {
+    if (_useMock) {
       console.debug(`[FhirClient][mock] delete ${resourceType}/${id}`);
       return;
     }
@@ -167,7 +179,7 @@ export class FhirClient {
    * Falls back to empty array on error.
    */
   async getAllRegistryPatients(): Promise<RegistryPatient[]> {
-    if (USE_MOCK) return [];
+    if (_useMock) return [];
 
     try {
       const bundle = await fhirFetch<{ resourceType: string; entry?: { resource?: { id?: string } }[] }>(

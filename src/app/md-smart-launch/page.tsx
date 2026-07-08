@@ -24,8 +24,7 @@ import Icon from '@/components/ui/AppIcon';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAppContext } from '@/lib/appContext';
 import { referralStore } from '@/lib/mockData';
-
-const USE_MOCK_ENV = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
+import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
 
 type ActiveTab = 'summary' | 'cds' | 'orders' | 'team' | 'careplan' | 'referrals' | 'return' | 'audit' | 'compliance';
 
@@ -50,6 +49,7 @@ function makeAuditId(): string {
 export default function MdSmartLaunchPage() {
   const router = useRouter();
   const { entryContext, useMockData, setUseMockData } = useAppContext();
+  useFhirModeSync();
   const [launchReady, setLaunchReady] = useState(false);
   const [launchContext, setLaunchContext] = useState<SmartLaunchContext | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('summary');

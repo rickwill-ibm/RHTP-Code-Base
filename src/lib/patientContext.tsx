@@ -6,8 +6,9 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { getFhirClient } from './services/fhirClient';
 import type { RegistryPatient } from './patientRegistry';
 
-const USE_MOCK_DATA =
-  (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
+// Note: patientContext reads the runtime flag from fhirClient so it respects
+// the UI toggle rather than the build-time env var.
+import { getFhirMockMode } from './services/fhirClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -535,7 +536,7 @@ export function PatientContextProvider({ patientId, children }: { patientId?: st
 
   // When running against a live FHIR server, overlay the state with live data.
   useEffect(() => {
-    if (USE_MOCK_DATA || !patientId) return;
+    if (getFhirMockMode() || !patientId) return;
     // patientId may be a platform ID (MARIA_SD_001) or a FHIR id (patient-maria-001).
     // Try FHIR lookup by stripping the "patient/" prefix if present.
     const fhirId = patientId.replace(/^patient\//, '');

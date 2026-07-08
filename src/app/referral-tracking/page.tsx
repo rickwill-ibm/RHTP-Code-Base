@@ -16,8 +16,6 @@ import type { TaskProgramType, TaskStatus } from '@/lib/fhirCareTeamData';
 import { useAppContext } from '@/lib/appContext';
 import { initiateReferral } from '@/lib/services/referralService';
 
-const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
-
 export type ReferralStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Awaiting EMR' | 'Completed' | 'Cancelled';
 export type ReferralUrgency = 'Routine' | 'Urgent' | 'STAT';
 
@@ -53,7 +51,7 @@ export interface ReferralFilters {
 }
 
 export default function ReferralTrackingPage() {
-  const { activePhysician, activePatientId } = useAppContext();
+  const { activePhysician, activePatientId, useMockData } = useAppContext();
   const [filters, setFilters] = useState<ReferralFilters>({
     search: '',
     status: 'All',
@@ -92,7 +90,7 @@ export default function ReferralTrackingPage() {
     notes: string,
     urgency: 'routine' | 'urgent' | 'asap' | 'stat' = 'routine'
   ) => {
-    if (USE_MOCK) {
+    if (useMockData) {
       toast.success(`Referral sent (mock) — ${specialty}`, { description: `Patient: ${patientFhirId}` });
       return;
     }
@@ -204,14 +202,14 @@ export default function ReferralTrackingPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#0043ce] text-white hover:bg-[#0035a8] transition-colors"
             >
               <Icon name="UserPlusIcon" size={12} />
-              Refer Maria → Cardiology {USE_MOCK ? '(mock)' : '→ FHIR'}
+              Refer Maria → Cardiology {useMockData ? '(mock)' : '→ FHIR'}
             </button>
             <button
               onClick={() => handleSendReferral('patient-dorothy-042', 'Pulmonology Follow-up', 'J44.1', 'COPD exacerbation — spirometry overdue', 'stat')}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#0043ce] text-[#0043ce] hover:bg-[#d0e2ff] transition-colors"
             >
               <Icon name="UserPlusIcon" size={12} />
-              Refer Dorothy → Pulmonology {USE_MOCK ? '(mock)' : '→ FHIR'}
+              Refer Dorothy → Pulmonology {useMockData ? '(mock)' : '→ FHIR'}
             </button>
           </div>
         </div>

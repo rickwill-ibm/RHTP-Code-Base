@@ -12,8 +12,6 @@ import type { GapClosureEvidence } from '@/lib/patientContext';
 import { getFhirClient } from '@/lib/services/fhirClient';
 import { completeServiceAndCloseGap } from '@/lib/services/referralService';
 
-const USE_MOCK = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
-
 interface SpecialistTask {
   id: string;
   patient: string;
@@ -169,7 +167,7 @@ export default function SpecialistInboxPage() {
   const [fhirLoading, setFhirLoading] = useState(false);
 
   useEffect(() => {
-    if (USE_MOCK) return; // skip in mock mode
+    if (useMockData) return; // skip in mock mode
     const load = async () => {
       setFhirLoading(true);
       try {
@@ -224,7 +222,7 @@ export default function SpecialistInboxPage() {
   };
 
   // Use FHIR tasks if available, otherwise fall back to mock
-  const SPECIALIST_TASKS: SpecialistTask[] = !USE_MOCK && fhirTasks.length > 0
+  const SPECIALIST_TASKS: SpecialistTask[] = !useMockData && fhirTasks.length > 0
     ? fhirTasks
     : [firstTask, ...OTHER_SPECIALIST_TASKS];
 
@@ -270,7 +268,7 @@ export default function SpecialistInboxPage() {
     const evidence = autoPopulateEvidence(task);
     submitClosure(evidence); // always update local store
 
-    if (!USE_MOCK) {
+    if (!useMockData) {
       try {
         // Find the FHIR observation ID for this care gap
         const patientFhirId = task.patientId.startsWith('patient-') ? task.patientId : `patient-maria-001`;
@@ -311,7 +309,7 @@ export default function SpecialistInboxPage() {
     setDiagnosisSaving(true);
     const entry: DiagnosisEntry = { ...diagnosisInput, savedToFhir: false };
 
-    if (!USE_MOCK) {
+    if (!useMockData) {
       try {
         const client = getFhirClient();
         const patientFhirId = task.patientId.startsWith('patient-') ? task.patientId : 'patient-maria-001';
@@ -652,7 +650,7 @@ export default function SpecialistInboxPage() {
                               disabled={diagnosisSaving || !diagnosisInput.icdCode.trim()}
                               className="px-3 py-1.5 text-xs font-medium bg-[#0043ce] text-white hover:bg-[#0035a8] disabled:opacity-50 transition-colors whitespace-nowrap"
                             >
-                              {diagnosisSaving ? 'Saving...' : USE_MOCK ? 'Save (mock)' : 'Save to FHIR'}
+                              {diagnosisSaving ? 'Saving...' : useMockData ? 'Save (mock)' : 'Save to FHIR'}
                             </button>
                           </div>
                         </div>
