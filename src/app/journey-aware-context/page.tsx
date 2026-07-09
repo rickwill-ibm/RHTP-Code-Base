@@ -2,12 +2,8 @@
 import React, { useState, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
-
-// ─── Named Constants — Maria Redhawk · SD RHTP Demo ──────────────────────────
-const MEMBER_NAME = 'Maria Redhawk';
-const MEMBER_ID = 'MARIA_SD_001';
-const MEMBER_LOCATION = 'Martin, SD 57551 · Bennett County';
-const MEMBER_PROGRAM = 'SD RHTP Track 3 · Medicaid';
+import { useAppContext } from '@/lib/appContext';
+import { getPatientSync } from '@/lib/services/patientService';
 
 // Active window: post-shift, pre-caregiving
 const ACTIVE_WINDOW_START_HOUR = 15; // 3:00 PM
@@ -137,6 +133,13 @@ interface TooltipData {
 }
 
 export default function JourneyAwareContextPage() {
+  const { activePatientId } = useAppContext();
+  const patient = getPatientSync(activePatientId);
+  const MEMBER_NAME = patient?.name ?? 'Maria Redhawk';
+  const MEMBER_ID = patient?.platformId ?? 'MARIA_SD_001';
+  const MEMBER_LOCATION = patient?.location ?? 'Martin, SD 57551 · Bennett County';
+  const MEMBER_PROGRAM = patient?.contract ?? 'SD RHTP Track 3 · Medicaid';
+
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 

@@ -2,13 +2,8 @@
 import React, { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
-
-// ─── Named Constants — Maria Redhawk · SD RHTP Demo ──────────────────────────
-const MEMBER_NAME = 'Maria Redhawk';
-const MEMBER_ID = 'MARIA_SD_001';
-const MEMBER_AGE_SEX = '34y F';
-const MEMBER_LOCATION = 'Martin, SD 57551 · Bennett County';
-const MEMBER_PROGRAM = 'Medicaid RHTP Track 3';
+import { useAppContext } from '@/lib/appContext';
+import { getPatientSync } from '@/lib/services/patientService';
 const IDENTITY_STATE = 'UNIFIED';
 const CONFIDENCE_SCORE = 94;
 const IDENTITY_SOURCES = 4;
@@ -222,6 +217,14 @@ function ConsentBadge({ status }: { status: string }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function WholePersonIntelligencePage() {
+  const { activePatientId } = useAppContext();
+  const patient = getPatientSync(activePatientId);
+  const MEMBER_NAME = patient?.name ?? 'Maria Redhawk';
+  const MEMBER_ID = patient?.platformId ?? 'MARIA_SD_001';
+  const MEMBER_AGE_SEX = patient ? `${patient.age}y ${patient.gender}` : '34y F';
+  const MEMBER_LOCATION = patient?.location ?? 'Martin, SD 57551 · Bennett County';
+  const MEMBER_PROGRAM = patient?.contract ?? 'Medicaid RHTP Track 3';
+
   const [expandedSdoh, setExpandedSdoh] = useState<string | null>(null);
 
   return (

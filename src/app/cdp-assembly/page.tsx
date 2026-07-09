@@ -1,13 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
-
-// ─── Named Constants — swap scenario without touching render logic ─────────────
-const MEMBER_NAME = 'Maria Redhawk';
-const MEMBER_ID = 'MARIA_SD_001';
-const MEMBER_LOCATION = 'Martin, SD 57551 · Bennett County';
-const MEMBER_AGE = '34';
-const MEMBER_ROLES = ['PATIENT', 'PARENT', 'CAREGIVER', 'WORKER'];
+import { useAppContext } from '@/lib/appContext';
+import { getPatientSync } from '@/lib/services/patientService';
 const DEVICE_FINGERPRINT = 'dv_SD_8821x';
 const PRE_AUTH_CONFIDENCE = '87%';
 const POST_AUTH_CONFIDENCE = '94%';
@@ -16,10 +11,7 @@ const IDENTITY_STATE_BEFORE = 'FRAGMENTED';
 const IDENTITY_STATE_AFTER = 'UNIFIED';
 const PROGRAM = 'Medicaid RHTP Track 3';
 const STATE_AGENCY = 'SD DHSS';
-const GOLDEN_RECORD_LABEL = `${MEMBER_ID} · Golden Record Assembled`;
 const LOG_LINE_DELAY_MS = 80;
-
-const COMPLETION_MESSAGE = `✓ Knowledge Graph complete — ${MEMBER_NAME} is now known · 52 nodes · 67 edges`;
 
 const IDENTITY_SOURCES = [
   { label: 'SD Medicaid MRN', value: 'SD_MBR_MARIA_001' },
@@ -30,20 +22,22 @@ const IDENTITY_SOURCES = [
 
 const SURVIVORSHIP_RULES = ['Clinical (EHR) > Claims (Medicaid) > Pharmacy > DSS Benefits'];
 
-const GRAPH_NODES_LOADED = [
-  `Member identity — ${MEMBER_ID} · 4 roles confirmed`,
-  'Insurance — SD Medicaid ACTIVE · CHIP (Sophia) ACTIVE',
-  'Care Gaps — 3 clinical · 2 BH · 4 social (9 total)',
-  'Episodes — Pre-Diabetic ACTIVE · Postpartum UNMANAGED',
-  'Medications — Metformin · Lisinopril (Elena) · Amoxicillin (Sophia)',
-  'Provider — Bennett County Health CAH · Sarah Johnson CM',
-  'SDOH — Transport HIGH · Childcare HIGH · Food MODERATE',
-  'Consent — Layer 1 ACTIVE · Layer 2 ACTIVE · Layer 3 ACTIVE · Layer 4 PENDING',
-  'Dependents — Sophia Redhawk (24mo) · Elena Redhawk (58y)',
-  'Benefits — WIC LAPSED · Childcare Subsidy ELIGIBLE_NOT_ENROLLED',
-  'Pharmacy Intelligence — Martin Pharmacy 2x/month family pickup',
-  'Caregiver Burden — Zarit 48 · 18hrs/week · no respite',
-];
+function buildGraphNodes(memberId: string): string[] {
+  return [
+    `Member identity — ${memberId} · 4 roles confirmed`,
+    'Insurance — SD Medicaid ACTIVE · CHIP (Sophia) ACTIVE',
+    'Care Gaps — 3 clinical · 2 BH · 4 social (9 total)',
+    'Episodes — Pre-Diabetic ACTIVE · Postpartum UNMANAGED',
+    'Medications — Metformin · Lisinopril (Elena) · Amoxicillin (Sophia)',
+    'Provider — Bennett County Health CAH · Sarah Johnson CM',
+    'SDOH — Transport HIGH · Childcare HIGH · Food MODERATE',
+    'Consent — Layer 1 ACTIVE · Layer 2 ACTIVE · Layer 3 ACTIVE · Layer 4 PENDING',
+    'Dependents — Sophia Redhawk (24mo) · Elena Redhawk (58y)',
+    'Benefits — WIC LAPSED · Childcare Subsidy ELIGIBLE_NOT_ENROLLED',
+    'Pharmacy Intelligence — Martin Pharmacy 2x/month family pickup',
+    'Caregiver Burden — Zarit 48 · 18hrs/week · no respite',
+  ];
+}
 
 interface SourceSystem {
   id: string;
@@ -131,59 +125,62 @@ interface LogLine {
   phase?: number;
 }
 
-const LOG_LINES: LogLine[] = [
-  // Phase 1
-  { text: '── PHASE 1: ANONYMOUS SESSION DETECTION ──────────────────', type: 'phase', phase: 1 },
-  { text: `> SD RHTP Platform session initiated`, type: 'default' },
-  { text: `> Device fingerprint detected: ${DEVICE_FINGERPRINT}`, type: 'default' },
-  { text: `> Identity state: ANONYMOUS`, type: 'default' },
-  { text: `> Behavioral pattern cross-reference initiated...`, type: 'default' },
-  { text: `> SD Medicaid claims history lookup: RUNNING`, type: 'default' },
-  // Phase 2
-  { text: '── PHASE 2: PROBABILISTIC IDENTITY MATCH ─────────────────', type: 'phase', phase: 2 },
-  { text: `> Cross-reference complete`, type: 'default' },
-  { text: `> Candidate match: ${MEMBER_ID}`, type: 'amber' },
-  { text: `> Confidence score: ${PRE_AUTH_CONFIDENCE} [████████░░]`, type: 'amber' },
-  { text: `> Identity state: CANDIDATE · held pending authentication`, type: 'default' },
-  { text: `> 4 source identifiers queued for resolution:`, type: 'default' },
-  { text: `    SD Medicaid MRN: SD_MBR_MARIA_001`, type: 'indent' },
-  { text: `    CAH EHR MRN: MRN-SD-001`, type: 'indent' },
-  { text: `    CHIP Guardian ID: SD_CHIP_GUARDIAN_001`, type: 'indent' },
-  { text: `    Pharmacy Account: MARTIN_PHARM_MARIA`, type: 'indent' },
-  // Phase 3
-  { text: '── PHASE 3: SIX SOURCE STREAM INGESTION ──────────────────', type: 'phase', phase: 3 },
-  { text: `> [SD Medicaid MMIS]       X12 837 EDI  → FHIR ExplanationOfBenefit ✓`, type: 'lime', cardTrigger: 1 },
-  { text: `> [Bennett County EHR]     HL7 v2.x     → FHIR Patient + Condition ✓`, type: 'lime', cardTrigger: 2 },
-  { text: `> [SD CHIP Coverage]       X12 837 EDI  → FHIR Patient + Coverage ✓`, type: 'lime', cardTrigger: 3 },
-  { text: `> [Martin Pharmacy PMS]    NCPDP SCRIPT → FHIR MedicationDispense ✓`, type: 'lime', cardTrigger: 4 },
-  { text: `> [SD DSS Benefits]        EDI 834+CSV  → FHIR Coverage + Task ✓`, type: 'lime', cardTrigger: 5 },
-  { text: `> [SD BH Division]         REST API     → FHIR CarePlan ⚠ 42 CFR Pt 2`, type: 'red' },
-  { text: `    > BH consent verified: ACTIVE`, type: 'indent' },
-  { text: `    > SD BH Division stream: FHIR EpisodeOfCare ✓`, type: 'lime', cardTrigger: 6 },
-  { text: `> Survivorship rules applied:`, type: 'default' },
-  { text: `    Clinical > Claims > Pharmacy > DSS Benefits`, type: 'indent' },
-  // Phase 4
-  { text: '── PHASE 4: IDENTITY PROMOTION ───────────────────────────', type: 'phase', phase: 4 },
-  { text: `> Authentication event received`, type: 'default' },
-  { text: `> ANONYMOUS → KNOWN promotion triggered`, type: 'amber' },
-  { text: `> Confidence score: ${PRE_AUTH_CONFIDENCE} → ${POST_AUTH_CONFIDENCE} [█████████░]`, type: 'amber' },
-  { text: `> Identity method: ${IDENTITY_METHOD}`, type: 'default' },
-  { text: `> Golden ID locked: ${MEMBER_ID}`, type: 'amber' },
-  { text: `> Session promoted: anon_sess_SD_8821x → known_sess_${MEMBER_ID}`, type: 'default' },
-  { text: `> Identity roles confirmed: ${MEMBER_ROLES.join(' · ')}`, type: 'default' },
-  { text: `> Identity state: ${IDENTITY_STATE_BEFORE} → ${IDENTITY_STATE_AFTER}`, type: 'amber' },
-  // Phase 5
-  { text: '── PHASE 5: KNOWLEDGE GRAPH ASSEMBLY ─────────────────────', type: 'phase', phase: 5 },
-  { text: `> Graph population agent activated`, type: 'default' },
-  { text: `> Writing nodes:`, type: 'default' },
-  ...GRAPH_NODES_LOADED.map((n) => ({ text: `    ✦ ${n}`, type: 'indent' as LogLineType })),
-  { text: `> 52 nodes written · 67 edges created`, type: 'default' },
-  { text: `> Consent enforcement: 4 layers checked`, type: 'default' },
-  { text: `    Layer 4 (Elena caregiver): PENDING — household view partial`, type: 'indent' },
-  // Completion
-  { text: COMPLETION_MESSAGE, type: 'amber' },
-  { text: `    52 nodes · 67 edges · 4 roles · 14 streams · <3 minutes`, type: 'indent' },
-];
+function buildLogLines(memberId: string, memberRoles: string[], completionMessage: string): LogLine[] {
+  const graphNodes = buildGraphNodes(memberId);
+  return [
+    // Phase 1
+    { text: '── PHASE 1: ANONYMOUS SESSION DETECTION ──────────────────', type: 'phase', phase: 1 },
+    { text: `> SD RHTP Platform session initiated`, type: 'default' },
+    { text: `> Device fingerprint detected: ${DEVICE_FINGERPRINT}`, type: 'default' },
+    { text: `> Identity state: ANONYMOUS`, type: 'default' },
+    { text: `> Behavioral pattern cross-reference initiated...`, type: 'default' },
+    { text: `> SD Medicaid claims history lookup: RUNNING`, type: 'default' },
+    // Phase 2
+    { text: '── PHASE 2: PROBABILISTIC IDENTITY MATCH ─────────────────', type: 'phase', phase: 2 },
+    { text: `> Cross-reference complete`, type: 'default' },
+    { text: `> Candidate match: ${memberId}`, type: 'amber' },
+    { text: `> Confidence score: ${PRE_AUTH_CONFIDENCE} [████████░░]`, type: 'amber' },
+    { text: `> Identity state: CANDIDATE · held pending authentication`, type: 'default' },
+    { text: `> 4 source identifiers queued for resolution:`, type: 'default' },
+    { text: `    SD Medicaid MRN: SD_MBR_MARIA_001`, type: 'indent' },
+    { text: `    CAH EHR MRN: MRN-SD-001`, type: 'indent' },
+    { text: `    CHIP Guardian ID: SD_CHIP_GUARDIAN_001`, type: 'indent' },
+    { text: `    Pharmacy Account: MARTIN_PHARM_MARIA`, type: 'indent' },
+    // Phase 3
+    { text: '── PHASE 3: SIX SOURCE STREAM INGESTION ──────────────────', type: 'phase', phase: 3 },
+    { text: `> [SD Medicaid MMIS]       X12 837 EDI  → FHIR ExplanationOfBenefit ✓`, type: 'lime', cardTrigger: 1 },
+    { text: `> [Bennett County EHR]     HL7 v2.x     → FHIR Patient + Condition ✓`, type: 'lime', cardTrigger: 2 },
+    { text: `> [SD CHIP Coverage]       X12 837 EDI  → FHIR Patient + Coverage ✓`, type: 'lime', cardTrigger: 3 },
+    { text: `> [Martin Pharmacy PMS]    NCPDP SCRIPT → FHIR MedicationDispense ✓`, type: 'lime', cardTrigger: 4 },
+    { text: `> [SD DSS Benefits]        EDI 834+CSV  → FHIR Coverage + Task ✓`, type: 'lime', cardTrigger: 5 },
+    { text: `> [SD BH Division]         REST API     → FHIR CarePlan ⚠ 42 CFR Pt 2`, type: 'red' },
+    { text: `    > BH consent verified: ACTIVE`, type: 'indent' },
+    { text: `    > SD BH Division stream: FHIR EpisodeOfCare ✓`, type: 'lime', cardTrigger: 6 },
+    { text: `> Survivorship rules applied:`, type: 'default' },
+    { text: `    Clinical > Claims > Pharmacy > DSS Benefits`, type: 'indent' },
+    // Phase 4
+    { text: '── PHASE 4: IDENTITY PROMOTION ───────────────────────────', type: 'phase', phase: 4 },
+    { text: `> Authentication event received`, type: 'default' },
+    { text: `> ANONYMOUS → KNOWN promotion triggered`, type: 'amber' },
+    { text: `> Confidence score: ${PRE_AUTH_CONFIDENCE} → ${POST_AUTH_CONFIDENCE} [█████████░]`, type: 'amber' },
+    { text: `> Identity method: ${IDENTITY_METHOD}`, type: 'default' },
+    { text: `> Golden ID locked: ${memberId}`, type: 'amber' },
+    { text: `> Session promoted: anon_sess_SD_8821x → known_sess_${memberId}`, type: 'default' },
+    { text: `> Identity roles confirmed: ${memberRoles.join(' · ')}`, type: 'default' },
+    { text: `> Identity state: ${IDENTITY_STATE_BEFORE} → ${IDENTITY_STATE_AFTER}`, type: 'amber' },
+    // Phase 5
+    { text: '── PHASE 5: KNOWLEDGE GRAPH ASSEMBLY ─────────────────────', type: 'phase', phase: 5 },
+    { text: `> Graph population agent activated`, type: 'default' },
+    { text: `> Writing nodes:`, type: 'default' },
+    ...graphNodes.map((n) => ({ text: `    ✦ ${n}`, type: 'indent' as LogLineType })),
+    { text: `> 52 nodes written · 67 edges created`, type: 'default' },
+    { text: `> Consent enforcement: 4 layers checked`, type: 'default' },
+    { text: `    Layer 4 (Elena caregiver): PENDING — household view partial`, type: 'indent' },
+    // Completion
+    { text: completionMessage, type: 'amber' },
+    { text: `    52 nodes · 67 edges · 4 roles · 14 streams · <3 minutes`, type: 'indent' },
+  ];
+}
 
 type CardStatus = 'PENDING' | 'INGESTING' | 'NORMALISING' | 'COMPLETE' | 'CONSENT_CHECK';
 
@@ -197,6 +194,16 @@ const FORMAT_BADGE: Record<string, { bg: string; text: string }> = {
 };
 
 export default function CdpAssemblyPage() {
+  const { activePatientId } = useAppContext();
+  const patient = getPatientSync(activePatientId);
+  const MEMBER_NAME = patient?.name ?? 'Maria Redhawk';
+  const MEMBER_ID = patient?.platformId ?? 'MARIA_SD_001';
+  const MEMBER_LOCATION = patient?.location ?? 'Martin, SD 57551 · Bennett County';
+  const MEMBER_ROLES = ['PATIENT', 'PARENT', 'CAREGIVER', 'WORKER'];
+  const GOLDEN_RECORD_LABEL = `${MEMBER_ID} · Golden Record Assembled`;
+  const COMPLETION_MESSAGE = `✓ Knowledge Graph complete — ${MEMBER_NAME} is now known · 52 nodes · 67 edges`;
+  const LOG_LINES = buildLogLines(MEMBER_ID, MEMBER_ROLES, COMPLETION_MESSAGE);
+
   const [visibleLines, setVisibleLines] = useState<number>(0);
   const [cardStatuses, setCardStatuses] = useState<CardStatus[]>(
     SOURCE_SYSTEMS.map(() => 'PENDING')

@@ -2,16 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
-
-// ─── Named Constants — Maria Redhawk · SD RHTP Signal Disposition Engine ─────
-const MEMBER_NAME = 'Maria Redhawk';
-const MEMBER_ID = 'MARIA_SD_001';
-const MEMBER_RISK = 'HIGH 7.8';
-const MEMBER_AUTH = 'AUTH T-4 days';
-const MEMBER_CARE_GAP = 'HbA1c Gap 45d';
-const MEMBER_EPISODE = 'Pre-Diabetic · Postpartum';
-const MEMBER_SDOH = '7 Barriers';
-const MEMBER_PROGRAM = 'ORCHESTRATION';
+import { useAppContext } from '@/lib/appContext';
+import { getPatientSync } from '@/lib/services/patientService';
 
 const SIGNAL_TYPES = {
   CARE_GAP: 'CARE_GAP',
@@ -48,57 +40,59 @@ interface Signal {
   consentGate?: string;
 }
 
-const SIGNALS: Signal[] = [
-  {
-    id: 'sig-1', type: 'CARE_GAP', label: 'CARE_GAP — HbA1c Deadline',
-    source: 'Knowledge Graph Watcher 5', member: MEMBER_ID,
-    timestamp: 'T+0:00', rawScore: 0.94,
-    status: 'CLASSIFYING', urgency: 'CRITICAL',
-  },
-  {
-    id: 'sig-2', type: 'BENEFIT_GAP', label: 'BENEFIT_GAP — Childcare CCAP',
-    source: 'SD DSS Benefits Stream 8', member: MEMBER_ID,
-    timestamp: 'T+0:23', rawScore: 0.89,
-    status: 'CLASSIFIED', urgency: 'HIGH',
-  },
-  {
-    id: 'sig-3', type: 'PHARMACY_INTELLIGENCE', label: 'PHARMACY_INTELLIGENCE — Pickup Flag',
-    source: 'Martin Pharmacy PMS Stream 4', member: MEMBER_ID,
-    timestamp: 'T+0:41', rawScore: 0.82,
-    status: 'CLASSIFIED', urgency: 'HIGH',
-  },
-  {
-    id: 'sig-4', type: 'BH_SCREENING_INDICATED', label: 'BH_SCREENING — Zarit/Edinburgh',
-    source: 'Knowledge Graph Watcher 3', member: MEMBER_ID,
-    timestamp: 'T+1:05', rawScore: 0.88,
-    status: 'PENDING', urgency: 'HIGH',
-    consentGate: '42 CFR PART 2 CHECK',
-  },
-  {
-    id: 'sig-5', type: 'SDOH_BARRIER', label: 'SDOH_BARRIER — Transport Unconfirmed',
-    source: 'Knowledge Graph Watcher 2', member: MEMBER_ID,
-    timestamp: 'T+1:30', rawScore: 0.85,
-    status: 'CLASSIFIED', urgency: 'HIGH',
-  },
-  {
-    id: 'sig-6', type: 'BENEFIT_GAP', label: 'BENEFIT_GAP — WIC Lapsed',
-    source: 'SD WIC Program Stream 9', member: MEMBER_ID,
-    timestamp: 'T+2:00', rawScore: 0.91,
-    status: 'CLASSIFIED', urgency: 'MEDIUM',
-  },
-  {
-    id: 'sig-7', type: 'CAREGIVER_BURDEN', label: 'CAREGIVER_BURDEN — Zarit 48',
-    source: 'Martin Pharmacy + Knowledge Graph', member: MEMBER_ID,
-    timestamp: 'T+2:45', rawScore: 0.78,
-    status: 'CLASSIFIED', urgency: 'MEDIUM',
-  },
-  {
-    id: 'sig-8', type: 'BEHAVIORAL', label: 'BEHAVIORAL — SMS Window Signal',
-    source: 'Platform Channel Intelligence', member: MEMBER_ID,
-    timestamp: 'T+3:12', rawScore: 0.71,
-    status: 'HELD', urgency: 'LOW',
-  },
-];
+function buildSignals(memberId: string): Signal[] {
+  return [
+    {
+      id: 'sig-1', type: 'CARE_GAP', label: 'CARE_GAP — HbA1c Deadline',
+      source: 'Knowledge Graph Watcher 5', member: memberId,
+      timestamp: 'T+0:00', rawScore: 0.94,
+      status: 'CLASSIFYING', urgency: 'CRITICAL',
+    },
+    {
+      id: 'sig-2', type: 'BENEFIT_GAP', label: 'BENEFIT_GAP — Childcare CCAP',
+      source: 'SD DSS Benefits Stream 8', member: memberId,
+      timestamp: 'T+0:23', rawScore: 0.89,
+      status: 'CLASSIFIED', urgency: 'HIGH',
+    },
+    {
+      id: 'sig-3', type: 'PHARMACY_INTELLIGENCE', label: 'PHARMACY_INTELLIGENCE — Pickup Flag',
+      source: 'Martin Pharmacy PMS Stream 4', member: memberId,
+      timestamp: 'T+0:41', rawScore: 0.82,
+      status: 'CLASSIFIED', urgency: 'HIGH',
+    },
+    {
+      id: 'sig-4', type: 'BH_SCREENING_INDICATED', label: 'BH_SCREENING — Zarit/Edinburgh',
+      source: 'Knowledge Graph Watcher 3', member: memberId,
+      timestamp: 'T+1:05', rawScore: 0.88,
+      status: 'PENDING', urgency: 'HIGH',
+      consentGate: '42 CFR PART 2 CHECK',
+    },
+    {
+      id: 'sig-5', type: 'SDOH_BARRIER', label: 'SDOH_BARRIER — Transport Unconfirmed',
+      source: 'Knowledge Graph Watcher 2', member: memberId,
+      timestamp: 'T+1:30', rawScore: 0.85,
+      status: 'CLASSIFIED', urgency: 'HIGH',
+    },
+    {
+      id: 'sig-6', type: 'BENEFIT_GAP', label: 'BENEFIT_GAP — WIC Lapsed',
+      source: 'SD WIC Program Stream 9', member: memberId,
+      timestamp: 'T+2:00', rawScore: 0.91,
+      status: 'CLASSIFIED', urgency: 'MEDIUM',
+    },
+    {
+      id: 'sig-7', type: 'CAREGIVER_BURDEN', label: 'CAREGIVER_BURDEN — Zarit 48',
+      source: 'Martin Pharmacy + Knowledge Graph', member: memberId,
+      timestamp: 'T+2:45', rawScore: 0.78,
+      status: 'CLASSIFIED', urgency: 'MEDIUM',
+    },
+    {
+      id: 'sig-8', type: 'BEHAVIORAL', label: 'BEHAVIORAL — SMS Window Signal',
+      source: 'Platform Channel Intelligence', member: memberId,
+      timestamp: 'T+3:12', rawScore: 0.71,
+      status: 'HELD', urgency: 'LOW',
+    },
+  ];
+}
 
 interface DispositionRoute {
   signalId: string;
@@ -396,7 +390,7 @@ function ClassificationEngine({ signal }: { signal: Signal }) {
               {signal.type}
             </span>
             <p className="text-sm font-semibold text-white mt-2">{signal.label}</p>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">{MEMBER_ID} · {signal.source}</p>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">{signal.member} · {signal.source}</p>
           </div>
           <div className="text-right">
             <span
@@ -557,6 +551,19 @@ function DispositionCard({ route, signal }: { route: DispositionRoute; signal: S
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SignalDispositionEnginePage() {
+  const { activePatientId } = useAppContext();
+  const patient = getPatientSync(activePatientId);
+  const MEMBER_NAME = patient?.name ?? 'Maria Redhawk';
+  const MEMBER_ID = patient?.platformId ?? 'MARIA_SD_001';
+  const MEMBER_RISK = `${patient?.riskTier?.toUpperCase() ?? 'HIGH'} ${patient?.rafScore?.toFixed(1) ?? '7.8'}`;
+  const MEMBER_AUTH = 'AUTH T-4 days';
+  const MEMBER_CARE_GAP = patient?.careGaps?.[0]?.name
+    ? `${patient.careGaps[0].name.split(' ')[0]} Gap ${patient.careGaps[0].daysOpen}d`
+    : 'HbA1c Gap 45d';
+  const MEMBER_EPISODE = patient?.episodeType ?? 'Pre-Diabetic · Postpartum';
+  const MEMBER_SDOH = patient ? `${patient.openCareGaps} Barriers` : '7 Barriers';
+  const SIGNALS = buildSignals(MEMBER_ID);
+
   const [activeSignalId, setActiveSignalId] = useState('sig-1');
   const [tick, setTick] = useState(0);
 
@@ -584,9 +591,11 @@ export default function SignalDispositionEnginePage() {
         >
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
-              <span className="text-xs font-bold text-black">MR</span>
+              <span className="text-xs font-bold text-black">
+                {MEMBER_NAME.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
+              </span>
             </div>
-            <span className="text-sm font-semibold text-white font-mono">Maria Redhawk</span>
+            <span className="text-sm font-semibold text-white font-mono">{MEMBER_NAME}</span>
             <span className="text-xs text-slate-500 font-mono">{MEMBER_ID}</span>
           </div>
           <div className="flex items-center gap-1">

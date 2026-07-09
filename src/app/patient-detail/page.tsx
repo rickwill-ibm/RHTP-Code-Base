@@ -9,7 +9,7 @@ import LegendPanel from './components/LegendPanel';
 import WholePersonSummary from './components/WholePersonSummary';
 import { PatientContextProvider } from '@/lib/patientContext';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientSync } from '@/lib/services/patientService';
 
 // Map mockData patient IDs → registry platform IDs
 const MOCK_ID_TO_PLATFORM_ID: Record<string, string> = {
@@ -38,7 +38,7 @@ function PatientDetailContent() {
   const resolvedId = MOCK_ID_TO_PLATFORM_ID[rawId] ?? rawId;
 
   // Look up patient from registry — works for any patient, not just Maria
-  const registryPatient = getPatientById(resolvedId);
+  const registryPatient = getPatientSync(resolvedId);
 
   // Derive display values from registry (falls back gracefully if patient not in registry)
   const patientName = registryPatient?.name ?? 'Maria Redhawk';

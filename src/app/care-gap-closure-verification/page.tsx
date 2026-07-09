@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { PROGRAM_TYPE_CONFIG } from '@/lib/fhirCareTeamData';
 import type { TaskProgramType } from '@/lib/fhirCareTeamData';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientSync } from '@/lib/services/patientService';
 import { useGapClosureStore } from '@/lib/patientContext';
 
 // ─── Program-specific evidence configurations ─────────────────────────────────
@@ -176,7 +176,7 @@ const PROGRAM_TABS = [
 export default function CareGapClosureVerificationPage() {
   const router = useRouter();
   const { activePatientId } = useAppContext();
-  const patient = getPatientById(activePatientId);
+  const patient = getPatientSync(activePatientId);
   // Always show Maria Redhawk for this screen (HbA1c gap closure context)
   const patientName = 'Maria Redhawk';
   const patientId = 'PAT-0006';
