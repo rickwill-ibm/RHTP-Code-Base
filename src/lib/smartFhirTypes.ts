@@ -12,6 +12,10 @@ export interface SmartLaunchContext {
   tokenExpiry: number;
   launchTimestamp: string;
   cernerOrgId: string;
+  // Optional fields used by audit log and display
+  launchToken?: string;
+  patientName?: string;
+  encounterType?: string;
 }
 
 // ─── FHIR Resources ───────────────────────────────────────────────────────────
