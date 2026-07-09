@@ -7,6 +7,7 @@ import Icon from '@/components/ui/AppIcon';
 import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
 import type { UserSession, PhysicianPersona } from '@/lib/appContext';
 import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
+import PatientSwitcherDropdown from '@/components/PatientSwitcherDropdown';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy — TCOC Total Cost of Care Clinical Platform
@@ -416,6 +417,9 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
                 {entryContext === 'cerner-launch' ? '⚡ Cerner' : 'Browse'}
               </span>
             </div>
+            {/* Patient switcher */}
+            <PatientSwitcherDropdown />
+            <div className="w-px h-6 bg-carbon-gray-20 mx-1" />
             <button className="p-2 text-carbon-gray-50 hover:text-carbon-gray-100 hover:bg-carbon-gray-10 transition-colors relative">
               <Icon name="BellIcon" size={18} />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-carbon-red rounded-full" />
