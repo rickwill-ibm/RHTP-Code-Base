@@ -132,7 +132,7 @@ export class FhirClient {
    * Returns undefined if not found.
    */
   async getRegistryPatient(fhirPatientId: string): Promise<RegistryPatient | undefined> {
-    if (USE_MOCK) return undefined;
+    if (_useMock) return undefined;
 
     try {
       const { mapFhirPatientToRegistryPatient, bundleEntries } = await import('./fhirResourceMappers');

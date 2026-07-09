@@ -1,6 +1,7 @@
 // uhg/data/persona.ts — display persona for RHTP-Orchestrate screens, sourced from the
 // RHTP patient registry. Works for ANY citizen; default = Maria Redhawk (MARIA_SD_001).
-import { getPatientById, getAllPatients, type RegistryPatient } from '@/lib/patientRegistry';
+import { getPatientById, getAllPatients, getVisiblePatients, type RegistryPatient } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 
 export const DEFAULT_CITIZEN = 'MARIA_SD_001';
 

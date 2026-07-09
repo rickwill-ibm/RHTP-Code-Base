@@ -12,7 +12,8 @@ import { visitPlanFor } from '@/lib/careTeam/visitPlan';
 import ActionQueue from '@/app/care-manager/components/ActionQueue';
 import { buildTriageQueue, type TaskInput } from '@/lib/careTeam/triage';
 import { recommendResources, citizenNBAs, citizenNeeds, type CitizenNeed } from '@/lib/careTeam/graph/resources';
-import { getAllPatients } from '@/lib/patientRegistry';
+import { getAllPatients, getVisiblePatients } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { toast } from 'sonner';
 
 type CBORecord = (typeof CBOS)[number];

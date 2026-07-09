@@ -1,4 +1,5 @@
-import { getAllPatients } from '../patientRegistry';
+import { getAllPatients, getVisiblePatients } from '../patientRegistry';
+import { getFhirMockMode } from '../services/fhirClient';
 import { CARE_TEAM_MEMBERS, type Specialty } from './members';
 import {
   attributePatient,

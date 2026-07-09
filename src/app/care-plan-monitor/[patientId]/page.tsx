@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCarePlanStore, type MonitoredCarePlan } from '@/lib/stores/carePlanStore';
-import { getAllPatients } from '@/lib/patientRegistry';
+import { getAllPatients, getVisiblePatients } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { generateHolisticCarePlan } from '@/lib/services/carePlanGenerator';
 import type { Patient, InterventionStatus } from '@/lib/mockData';
 
@@ -159,7 +160,7 @@ export default function CarePlanMonitorPage() {
                 ← Back
               </button>
               <h1 className="text-2xl font-semibold text-carbon-gray-100">
-                Care Plan Monitor - {patientInfo?.name}
+                Care Plan Monitor - {patientId}
               </h1>
               <p className="text-sm text-carbon-gray-70 mt-1">
                 Generated {new Date(plan.generatedDate).toLocaleDateString()}

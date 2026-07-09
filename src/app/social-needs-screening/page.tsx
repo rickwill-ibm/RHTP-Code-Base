@@ -9,7 +9,8 @@ import {
 } from '@/lib/socialMockData';
 import { useAppContext } from '@/lib/appContext';
 import { SD_RECOMMENDATIONS } from '@/lib/sdResourceData';
-import { getPatientById, getVisiblePatients } from '@/lib/patientRegistry';
+import { getPatientSync } from '@/lib/services/patientService';
+import { getVisiblePatients } from '@/lib/patientRegistry';
 import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { citizenNeeds, nbaForCategory, type ResourceCategory } from '@/lib/careTeam/graph/resources';
 import { toast } from 'sonner';
@@ -346,7 +347,7 @@ export default function SocialNeedsScreeningPage() {
   const dueCitizens = getVisiblePatients(getFhirMockMode()).filter(c => screeningStatus(c.platformId) !== 'Current');
   const confirmReferrals = () => {
     if (!referModal) return;
-    const cname = getPatientById(activePatientId)?.name ?? 'Citizen';
+    const cname = getPatientSync(activePatientId)?.name ?? 'Citizen';
     addReferralTasks(referModal.map((it, i) => ({ id: `ref-${activePatientId}-${it.category}-${Date.now()}-${i}`, patientId: activePatientId, citizenName: cname, action: it.action, category: it.category, cboName: it.cboName, keystone: it.keystone, status: 'pending' as const, source: 'screening' as const, createdAt: new Date().toISOString() })));
     toast.success(`${referModal.length} referral${referModal.length !== 1 ? 's' : ''} sent to caseload`, { description: `${cname} — now in the CHW Action Queue` });
     setReferModal(null);
@@ -696,7 +697,7 @@ export default function SocialNeedsScreeningPage() {
           )}
 
           {referModal && (
-            <ScreeningReferralModal items={referModal} citizenName={getPatientById(activePatientId)?.name ?? 'Citizen'} onConfirm={confirmReferrals} onClose={() => setReferModal(null)} />
+            <ScreeningReferralModal items={referModal} citizenName={getPatientSync(activePatientId)?.name ?? 'Citizen'} onConfirm={confirmReferrals} onClose={() => setReferModal(null)} />
           )}
 
           {/* Domain filter pills */}

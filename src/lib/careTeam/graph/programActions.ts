@@ -3,7 +3,8 @@
 // NBAs that each DRIVE A SET of actions (citizen referrals + an ops decision).
 // Evidence prioritization ranks candidates; low/no-evidence candidates are SUPPRESSED.
 
-import { getAllPatients } from '@/lib/patientRegistry';
+import { getAllPatients, getVisiblePatients } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { citizenNeeds, type ResourceCategory } from './resources';
 
 export interface ProgramCohortMember {

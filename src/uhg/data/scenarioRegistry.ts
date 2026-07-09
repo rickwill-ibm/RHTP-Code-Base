@@ -7,7 +7,8 @@
 // walkthrough is unchanged. Every other citizen is GENERATED from their RHTP registry record
 // (via contextFor + getPatientById) so the heading and detailed sections stay consistent with
 // the data feeding the knowledge graph. Unknown ids degrade gracefully to the default.
-import { getPatientById, getAllPatients, type RegistryPatient } from '@/lib/patientRegistry';
+import { getPatientById, getAllPatients, getVisiblePatients, type RegistryPatient } from '@/lib/patientRegistry';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { contextFor, DEFAULT_CITIZEN, type CitizenContext } from '@/uhg/data/citizenContext';
 import { journeyForPatient } from '@/uhg/data/journeys';
 import { dispatchAgentsForPatient } from '@/app/uhg-orchestrate/agent-library/page';
