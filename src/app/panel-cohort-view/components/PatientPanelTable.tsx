@@ -11,6 +11,9 @@ import { toast } from 'sonner';
 import PatientRowActions from './PatientRowActions';
 import { exportPanelCSV } from '@/lib/exportUtils';
 import { useAppContext } from '@/lib/appContext';
+import { getAllPatients } from '@/lib/patientRegistry';
+import type { RegistryPatient } from '@/lib/patientRegistry';
+import { getFhirClient } from '@/lib/services/fhirClient';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -36,7 +39,7 @@ function AttributionBadge({ status }: { status: Patient['attributionStatus'] }) 
     Disputed: { v: 'danger', label: 'Disputed' },
     Dropped: { v: 'neutral', label: 'Dropped' },
   };
-  const { v, label } = map[status];
+  const { v, label } = map[status] ?? { v: 'neutral' as const, label: status ?? '—' };
   return <StatusBadge label={label} variant={v} size="sm" />;
 }
 
@@ -162,11 +165,62 @@ interface PatientPanelTableProps {
 
 export default function PatientPanelTable({ filters, onFiltersChange, selectedPatients, onSelectionChange }: PatientPanelTableProps) {
   const router = useRouter();
-  const { setActivePatientId } = useAppContext();
+  const { setActivePatientId, useMockData } = useAppContext();
   const [page, setPage] = useState(1);
   const perPage = 10;
 
-  const basePatients = mockPatients.filter((p) => p.contractId === 'contract-001');
+  // In Live FHIR mode, fetch the patient list from HAPI FHIR and overlay it
+  // over the registry so RAF scores, gaps, and risk tiers reflect server state.
+  const [fhirPatients, setFhirPatients] = useState<RegistryPatient[]>([]);
+  useEffect(() => {
+    if (useMockData) { setFhirPatients([]); return; }
+    getFhirClient()
+      .getAllRegistryPatients()
+      .then((pts) => { if (pts.length > 0) setFhirPatients(pts); })
+      .catch((err) => console.warn('[PatientPanelTable] FHIR patient list load failed:', err));
+  }, [useMockData]);
+
+  // In Live FHIR mode use the server list; otherwise fall back to registry.
+  const sourcePatients: RegistryPatient[] = !useMockData && fhirPatients.length > 0
+    ? fhirPatients
+    : getAllPatients();
+
+  // Build a Patient-shaped list so existing filter/sort logic works unchanged.
+  const registryAsMockPatients: Patient[] = sourcePatients.map((rp) => ({
+    id: rp.platformId,
+    name: rp.name,
+    dob: rp.dob,
+    mrn: rp.ehrMrn,
+    age: rp.age,
+    gender: rp.gender,
+    contractId: 'contract-001',
+    riskTier: rp.riskTier as Patient['riskTier'],
+    rafScore: rp.rafScore,
+    rafScoreDelta: 0,
+    predictedErRisk: rp.erRiskPct / 100,
+    openHCCSuspects: rp.hccSuspects,
+    hccSuspectValue: rp.hccValue,
+    openCareGaps: rp.openCareGaps,
+    pmpmCost: rp.pmpm,
+    pmpmTarget: rp.pmpmTarget,
+    attributionStatus: (rp.attribution ?? 'Provisional') as Patient['attributionStatus'],
+    lastContactDate: rp.lastContact || new Date().toISOString(),
+    primaryCareProvider: rp.pcp,
+    payer: rp.organization || 'Unknown',
+    carePlanStatus: (rp.episodeStatus === 'Active' ? 'Active' : rp.episodeStatus === 'Closed' ? 'None' : 'Pending') as Patient['carePlanStatus'],
+    phone: rp.phone ?? '',
+    address: rp.location ?? '',
+    insuranceId: '',
+    enrollmentDate: '',
+    activeAlerts: rp.cdsCards?.filter((c) => c.indicator === 'critical').length ?? 0,
+  }));
+
+  // Merge: registry patients first, then any mock patients not already present
+  // (avoids duplicating entries when mock and registry overlap).
+  const registryIds = new Set(registryAsMockPatients.map((p) => p.id));
+  const mockFallback = mockPatients
+    .filter((p) => p.contractId === 'contract-001' && !registryIds.has(p.id));
+  const basePatients = [...registryAsMockPatients, ...mockFallback];
 
   const filteredPatients = useMemo(() => {
     let result = [...basePatients];
@@ -181,7 +235,7 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
     if (filters.hcc === 'Has Suspects') result = result.filter((p) => p.openHCCSuspects > 0);
     else if (filters.hcc === 'No Suspects') result = result.filter((p) => p.openHCCSuspects === 0);
     if (filters.alert === 'Has Alerts') result = result.filter((p) => p.predictedErRisk >= 0.4);
-    else if (filters.alert === 'No Alerts') result = result.filter((p) => p.predictedErisk < 0.4);
+    else if (filters.alert === 'No Alerts') result = result.filter((p) => p.predictedErRisk < 0.4);
     if (filters.attribution !== 'All') result = result.filter((p) => p.attributionStatus === filters.attribution);
 
     const riskOrder: Record<string, number> = { Critical: 0, High: 1, Moderate: 2, Low: 3 };
@@ -219,12 +273,10 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
   React.useEffect(() => { setPage(1); }, [filters]);
 
   const toggleRow = useCallback((id: string) => {
-    onSelectionChange(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, [onSelectionChange]);
+    const next = new Set(selectedPatients);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onSelectionChange(next);
+  }, [selectedPatients, onSelectionChange]);
 
   const toggleAll = useCallback(() => {
     if (selectedPatients.size === filteredPatients.length) onSelectionChange(new Set());

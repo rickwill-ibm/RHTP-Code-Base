@@ -6,6 +6,7 @@ import { AppContextProvider } from '@/lib/appContext';
 import { WorkflowMachineProvider } from '@/lib/workflowMachine';
 import { GapClosureStoreProvider } from '@/lib/patientContext';
 import DemoNavigator from '@/components/DemoNavigator';
+import FhirModeSyncMount from '@/components/FhirModeSyncMount';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy
@@ -43,6 +44,7 @@ export default function RootLayout({
 </head>
       <body>
         <AppContextProvider>
+          <FhirModeSyncMount />
           <WorkflowMachineProvider>
             <GapClosureStoreProvider>
               {children}

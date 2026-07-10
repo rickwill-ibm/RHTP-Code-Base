@@ -612,6 +612,35 @@ function EpisodeDetailContent() {
                 ))}
               </div>
             </div>
+
+            {/* FHIR Encounters — live from HAPI FHIR when in Live mode */}
+            {activePatient?.recentEncounters && activePatient.recentEncounters.length > 0 && (
+              <div className="bg-white border border-[#a7f0ba]">
+                <div className="px-5 py-3 border-b border-[#a7f0ba] bg-[#defbe6] flex items-center gap-2">
+                  <Icon name="ServerIcon" size={14} className="text-[#198038]" />
+                  <h3 className="text-sm font-semibold text-[#0e6027]">FHIR Encounters ({activePatient.recentEncounters.length})</h3>
+                  <span className="ml-auto text-2xs text-[#0e6027] font-mono">Live · HAPI FHIR R4</span>
+                </div>
+                <div className="divide-y divide-carbon-gray-10">
+                  {activePatient.recentEncounters.map((enc) => (
+                    <div key={enc.id} className="px-5 py-3 flex items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-carbon-gray-100">{enc.type}</span>
+                          <span className="text-2xs px-1.5 py-0.5 bg-[#d0e2ff] text-[#0043ce]">{enc.setting}</span>
+                          <span className="text-2xs font-mono text-carbon-gray-30">{enc.date}</span>
+                        </div>
+                        {enc.provider && <p className="text-xs text-carbon-gray-50 mt-0.5">Provider: {enc.provider}</p>}
+                        {enc.reason && <p className="text-xs text-carbon-gray-50">{enc.reason}</p>}
+                      </div>
+                      <span className={`text-2xs font-semibold px-2 py-0.5 flex-shrink-0 ${enc.status === 'finished' ? 'bg-[#defbe6] text-[#0e6027]' : 'bg-[#fdf6dd] text-[#b45309]'}`}>
+                        {enc.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
 

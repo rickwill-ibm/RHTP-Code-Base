@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { mockPatients, mockHCCSuspects, mockCareGaps, referralStore } from '@/lib/mockData';
@@ -10,7 +10,7 @@ import CarePlanForm from '@/app/patient-detail/components/CarePlanForm';
 import ReferralModal, { type ReferralFormData } from './ReferralModal';
 import GapClosureMetricsPanel from './GapClosureMetricsPanel';
 
-// ΓöÇΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface MdSmartSummaryScreenProps {
   launchContext: SmartLaunchContext;
   cdsCards: CdsCard[];
@@ -24,7 +24,7 @@ type CloseGapStep = 1 | 2 | 3;
 type ConfirmDocStep = 1 | 2 | 3;
 type ReferralStatus = 'Not Sent' | 'Pending' | 'Scheduled' | 'Completed';
 
-// ΓöÇΓöÇΓöÇ Static Data ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Static Data ──────────────────────────────────────────────────────────────
 const JOURNEY_PHASES = [
   { key: 'stable-management', label: 'Stable', color: 'bg-[#24a148]', textColor: 'text-[#24a148]', borderColor: 'border-[#24a148]', bgLight: 'bg-[#defbe6]' },
   { key: 'gap-in-care', label: 'Gap in Care', color: 'bg-[#f1c21b]', textColor: 'text-[#b45309]', borderColor: 'border-[#f1c21b]', bgLight: 'bg-[#fdf6dd]' },
@@ -42,10 +42,10 @@ const SDOH_BADGES = [
 ];
 
 const CARE_GAPS_ENHANCED = [
-  { id: 'cg-001', name: 'A1C Control ΓÇö Diabetes', program: 'HEDIS', cmsMips: 'CDC-001', priority: 'High', status: 'In Process' as GapStatusType, daysOpen: 112 },
+  { id: 'cg-001', name: 'A1C Control — Diabetes', program: 'HEDIS', cmsMips: 'CDC-001', priority: 'High', status: 'In Process' as GapStatusType, daysOpen: 112 },
   { id: 'cg-002', name: 'SDoH Screening', program: 'MIPS', cmsMips: 'MIPS-487', priority: 'Medium', status: 'In Process' as GapStatusType, daysOpen: 67 },
   { id: 'cg-003', name: 'Mental/Behavioral Health', program: 'MIPS', cmsMips: 'MIPS-134', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 45 },
-  { id: 'cg-004', name: 'Statin Therapy ΓÇö CVD', program: 'HEDIS', cmsMips: 'SPC-438', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 89 },
+  { id: 'cg-004', name: 'Statin Therapy — CVD', program: 'HEDIS', cmsMips: 'SPC-438', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 89 },
   { id: 'cg-005', name: 'Controlling Hypertension', program: 'HEDIS', cmsMips: 'CBP-236', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 134 },
   { id: 'cg-006', name: 'Colorectal Cancer Screening', program: 'HEDIS', cmsMips: 'COL-113', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 22 },
 ];
@@ -116,7 +116,7 @@ const MEDS_DATA = [
 const LABS_DATA = [
   { name: 'A1C', value: '9.2%', date: '2026-02-10', flag: true, ref: '<7.0%' },
   { name: 'eGFR', value: '42', date: '2026-03-15', flag: true, ref: '>60' },
-  { name: 'K+', value: '5.1 mEq/L', date: '2026-04-01', flag: true, ref: '3.5ΓÇô5.0' },
+  { name: 'K+', value: '5.1 mEq/L', date: '2026-04-01', flag: true, ref: '3.5–5.0' },
   { name: 'LDL', value: '118 mg/dL', date: '2026-02-10', flag: false, ref: '<100' },
   { name: 'BNP', value: '210 pg/mL', date: '2026-03-20', flag: true, ref: '<100' },
   { name: 'BP', value: '158/96', date: '2026-04-01', flag: true, ref: '<130/80' },
@@ -145,14 +145,14 @@ const CDI_OPPORTUNITIES = [
   },
   {
     id: 'cdi-002',
-    condition: 'Heart Failure ΓÇö HFpEF',
+    condition: 'Heart Failure — HFpEF',
     icd: 'I50.30',
     hcc: 'HCC 85',
     confidence: 87,
     rafDelta: '+0.28',
     revenueDelta: '$2,100',
     evidenceSources: ['EMR', 'Claims'],
-    justification: 'Echo confirms EF 55% consistent with HFpEF. BNP 210 pg/mL elevated. Prior year claims coded I50.9 (unspecified) ΓÇö specificity upgrade required for HCC 85 capture.',
+    justification: 'Echo confirms EF 55% consistent with HFpEF. BNP 210 pg/mL elevated. Prior year claims coded I50.9 (unspecified) — specificity upgrade required for HCC 85 capture.',
     signals: [
       { label: 'Echo EF', value: '55% (2026-01-15)', source: 'EMR', flagged: false },
       { label: 'BNP', value: '210 pg/mL (2026-03-20)', source: 'EMR', flagged: true },
@@ -171,12 +171,12 @@ const CDI_OPPORTUNITIES = [
     rafDelta: '+0.19',
     revenueDelta: '$1,450',
     evidenceSources: ['EMR', 'HIE'],
-    justification: 'ECG on 2026-01-20 confirms persistent AFib. Not coded in current encounter. HCC 96 requires annual recapture ΓÇö last coded 2025-08-12.',
+    justification: 'ECG on 2026-01-20 confirms persistent AFib. Not coded in current encounter. HCC 96 requires annual recapture — last coded 2025-08-12.',
     signals: [
       { label: 'ECG', value: 'Persistent AFib (2026-01-20)', source: 'EMR', flagged: true },
-      { label: 'Last Coded', value: 'I48.91 ΓÇö 2025-08-12', source: 'Claims', flagged: false },
+      { label: 'Last Coded', value: 'I48.91 — 2025-08-12', source: 'Claims', flagged: false },
     ],
-    icd10Guidance: 'Use I48.91 (unspecified AFib). Annual recapture required ΓÇö HCC 96 does not carry forward.',
+    icd10Guidance: 'Use I48.91 (unspecified AFib). Annual recapture required — HCC 96 does not carry forward.',
     currentCode: 'Not coded this encounter',
     suggestedCode: 'I48.91 (Unspecified AFib)',
   },
@@ -191,10 +191,10 @@ const CHRONIC_CONDITIONS = [
 
 const RECENT_ACTIVITY = [
   { date: '04/01/2026', type: 'Lab', desc: 'BMP + A1C drawn', flag: true },
-  { date: '03/29/2026', type: 'ER', desc: 'ER visit ΓÇö chest pain', flag: true },
-  { date: '03/19/2026', type: 'Visit', desc: 'Diabetes F/U ΓÇö Dr. Whitfield', flag: false },
+  { date: '03/29/2026', type: 'ER', desc: 'ER visit — chest pain', flag: true },
+  { date: '03/19/2026', type: 'Visit', desc: 'Diabetes F/U — Dr. Whitfield', flag: false },
   { date: '03/17/2026', type: 'BP', desc: 'BP Check 158/96', flag: true },
-  { date: '02/18/2026', type: 'ER', desc: 'ER visit ΓÇö dyspnea', flag: true },
+  { date: '02/18/2026', type: 'ER', desc: 'ER visit — dyspnea', flag: true },
 ];
 
 const VITALS_TREND = [
@@ -205,9 +205,9 @@ const VITALS_TREND = [
 
 const ACTIVE_REFERRALS = [
   { id: 'ref-001', specialty: 'Cardiology', provider: 'Dr. Patel', tier: 'Tier 1', status: 'Pending' as ReferralStatus, urgency: 'Routine', date: '2026-03-28', reason: 'HFpEF follow-up, BNP elevation' },
-  { id: 'ref-002', specialty: 'Nephrology', provider: 'Unassigned', tier: 'ΓÇö', status: 'Not Sent' as ReferralStatus, urgency: 'Urgent', date: '2026-04-01', reason: 'CKD Stage 3b progression, eGFR 42' },
+  { id: 'ref-002', specialty: 'Nephrology', provider: 'Unassigned', tier: '—', status: 'Not Sent' as ReferralStatus, urgency: 'Urgent', date: '2026-04-01', reason: 'CKD Stage 3b progression, eGFR 42' },
   { id: 'ref-003', specialty: 'Ophthalmology', provider: 'Dr. Chen', tier: 'Tier 2', status: 'Scheduled' as ReferralStatus, urgency: 'Routine', date: '2026-04-15', reason: 'Annual diabetic eye exam' },
-  { id: 'ref-004', specialty: 'Endocrinology', provider: 'Dr. Reyes', tier: 'Tier 1', status: 'Completed' as ReferralStatus, urgency: 'Routine', date: '2026-02-20', reason: 'T2DM management ΓÇö A1C 9.2%' },
+  { id: 'ref-004', specialty: 'Endocrinology', provider: 'Dr. Reyes', tier: 'Tier 1', status: 'Completed' as ReferralStatus, urgency: 'Routine', date: '2026-02-20', reason: 'T2DM management — A1C 9.2%' },
 ];
 
 const SOURCE_BADGE: Record<string, string> = {
@@ -238,7 +238,7 @@ const ENCOUNTER_TABS = [
   { key: 'return', label: 'Γå⌐ Return to Cerner' },
 ];
 
-// ΓöÇΓöÇΓöÇ Sparkline Component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Sparkline Component ──────────────────────────────────────────────────────
 function Sparkline({ values, flag }: { values: number[]; flag: boolean }) {
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -263,14 +263,14 @@ function Sparkline({ values, flag }: { values: number[]; flag: boolean }) {
   );
 }
 
-// ΓöÇΓöÇΓöÇ Close Gap Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Close Gap Modal ──────────────────────────────────────────────────────────
 function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENHANCED[0]; onClose: () => void; onComplete: (gapId: string) => void }) {
   const [step, setStep] = useState<CloseGapStep>(1);
   const [method, setMethod] = useState('');
   const [sources, setSources] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [attested, setAttested] = useState(false);
-  const METHODS = ['Performed in this encounter', 'Performed previously ΓÇö date picker', 'Patient declined ΓÇö reason required', 'Medically excluded ΓÇö exclusion code required'];
+  const METHODS = ['Performed in this encounter', 'Performed previously — date picker', 'Patient declined — reason required', 'Medically excluded — exclusion code required'];
   const SOURCES = ['EMR', 'HIE', 'CLAIMS', 'Patient Report'];
   const toggleSource = (s: string) => setSources((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   return (
@@ -279,7 +279,7 @@ function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENH
         <div className="px-5 py-4 border-b border-carbon-gray-20 flex items-start justify-between">
           <div>
             <p className="text-xs font-bold text-carbon-gray-100">Close Care Gap</p>
-            <p className="text-2xs text-carbon-gray-50 mt-0.5">Mrs. Alex Kirby ΓÇö {gap.name} ┬╖ {gap.cmsMips}</p>
+            <p className="text-2xs text-carbon-gray-50 mt-0.5">Mrs. Alex Kirby — {gap.name} · {gap.cmsMips}</p>
           </div>
           <button onClick={onClose} className="text-carbon-gray-50 hover:text-carbon-gray-100 p-1"><Icon name="XMarkIcon" size={16} /></button>
         </div>
@@ -325,8 +325,8 @@ function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENH
                 <p className="text-xs font-semibold text-carbon-gray-100 mb-2">Closure Summary</p>
                 <div className="flex justify-between text-2xs"><span className="text-carbon-gray-50">Gap</span><span className="font-medium text-carbon-gray-100">{gap.name}</span></div>
                 <div className="flex justify-between text-2xs"><span className="text-carbon-gray-50">Measure</span><span className="font-medium text-carbon-gray-100">{gap.cmsMips}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-carbon-gray-50">Method</span><span className="font-medium text-carbon-gray-100">{method || 'ΓÇö'}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-carbon-gray-50">Evidence Sources</span><span className="font-medium text-carbon-gray-100">{sources.join(', ') || 'ΓÇö'}</span></div>
+                <div className="flex justify-between text-2xs"><span className="text-carbon-gray-50">Method</span><span className="font-medium text-carbon-gray-100">{method || '—'}</span></div>
+                <div className="flex justify-between text-2xs"><span className="text-carbon-gray-50">Evidence Sources</span><span className="font-medium text-carbon-gray-100">{sources.join(', ') || '—'}</span></div>
               </div>
               <div className="bg-[#defbe6] border border-[#a7f0ba] px-3 py-2 flex items-center gap-2">
                 <Icon name="TrophyIcon" size={12} className="text-[#0e6027]" />
@@ -355,7 +355,7 @@ function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENH
   );
 }
 
-// ΓöÇΓöÇΓöÇ Confirm & Document Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Confirm & Document Modal ─────────────────────────────────────────────────
 function ConfirmDocumentModal({ cdi, onClose, onComplete }: { cdi: typeof CDI_OPPORTUNITIES[0]; onClose: () => void; onComplete: (cdiId: string) => void }) {
   const [step, setStep] = useState<ConfirmDocStep>(1);
   const [icdOverride, setIcdOverride] = useState(cdi.suggestedCode);
@@ -369,7 +369,7 @@ function ConfirmDocumentModal({ cdi, onClose, onComplete }: { cdi: typeof CDI_OP
         <div className="px-5 py-4 border-b border-carbon-gray-20 flex items-start justify-between">
           <div>
             <p className="text-xs font-bold text-carbon-gray-100">Confirm Diagnosis & Document</p>
-            <p className="text-2xs text-carbon-gray-50 mt-0.5">Mrs. Alex Kirby ΓÇö {cdi.condition}</p>
+            <p className="text-2xs text-carbon-gray-50 mt-0.5">Mrs. Alex Kirby — {cdi.condition}</p>
           </div>
           <button onClick={onClose} className="text-carbon-gray-50 hover:text-carbon-gray-100 p-1"><Icon name="XMarkIcon" size={16} /></button>
         </div>
@@ -454,7 +454,7 @@ function ConfirmDocumentModal({ cdi, onClose, onComplete }: { cdi: typeof CDI_OP
   );
 }
 
-// ΓöÇΓöÇΓöÇ Referral Triage Actions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Referral Triage Actions ──────────────────────────────────────────────────
 function ReferralTriageMenu({ referral, onAction }: { referral: typeof ACTIVE_REFERRALS[0]; onAction: (refId: string, action: string) => void }) {
   const [open, setOpen] = useState(false);
   const actions: Record<ReferralStatus, Array<{ label: string; icon: string; color: string }>> = {
@@ -506,7 +506,7 @@ function ReferralTriageMenu({ referral, onAction }: { referral: typeof ACTIVE_RE
   );
 }
 
-// ΓöÇΓöÇΓöÇ Pagination helpers (module-level) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Pagination helpers (module-level) ───────────────────────────────────────
 const PAGE_SIZE = 5;
 
 function paginate<T>(arr: T[], page: number): T[] {
@@ -540,7 +540,7 @@ function PanelPager({ total, page, onPage }: { total: number; page: number; onPa
   );
 }
 
-// ΓöÇΓöÇΓöÇ Main Component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOpenOrderEntry }: MdSmartSummaryScreenProps) {
   // Get Maria Redhawk from patient registry using FHIR ID
   const registryPatient = getPatientByFhirId(launchContext.patientId);
@@ -605,7 +605,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [referralSuccess, setReferralSuccess] = useState<string | null>(null);
 
-  // ΓöÇΓöÇ Pagination state (5 rows per page) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Pagination state (5 rows per page) ──────────────────────────────────
   const [chronicPage, setChronicPage] = useState(0);
   const [medsPage, setMedsPage] = useState(0);
   const [gapsPage, setGapsPage] = useState(0);
@@ -764,10 +764,10 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
     const confirmed = window.confirm(
       '≡ƒöä Reset Demo Data?\n\n' +
       'This will:\n' +
-      'ΓÇó Clear all created referrals (except initial 3 samples)\n' +
-      'ΓÇó Reset all care gaps to "Open" status\n' +
-      'ΓÇó Clear gainshare records\n' +
-      'ΓÇó Reset quality metrics to baseline\n\n' +
+      '• Clear all created referrals (except initial 3 samples)\n' +
+      '• Reset all care gaps to "Open" status\n' +
+      '• Clear gainshare records\n' +
+      '• Reset quality metrics to baseline\n\n' +
       'This is useful for running the demo multiple times.\n\n' +
       'Continue with reset?'
     );
@@ -809,14 +809,14 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#f4f4f4]">
 
-      {/* ΓöÇΓöÇ ER/Admission Alert Banner ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ── ER/Admission Alert Banner ─────────────────────────────────────── */}
       <div className="bg-[#da1e28] text-white px-4 py-2 flex items-center gap-3 flex-shrink-0">
         <Icon name="ExclamationTriangleIcon" size={14} />
-        <span className="text-xs font-bold">ΓÜá Patient seen in ER (03/29/2026) ΓÇö High utilization risk ┬╖ 2 ER visits in 60 days</span>
+        <span className="text-xs font-bold">⚠ Patient seen in ER (03/29/2026) — High utilization risk · 2 ER visits in 60 days</span>
         <button className="ml-auto text-xs font-semibold px-3 py-1 bg-white text-[#da1e28] hover:bg-[#ffe0e0] transition-colors flex-shrink-0">Escalate Now</button>
       </div>
 
-      {/* ΓöÇΓöÇ Gap Closure Metrics Panel (shows when gaps are closed) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ── Gap Closure Metrics Panel (shows when gaps are closed) ─────────── */}
       <div className="flex-shrink-0">
         <GapClosureMetricsPanel
           patientId={displayPatient.id}
@@ -824,7 +824,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
         />
       </div>
 
-      {/* ΓöÇΓöÇ Encounter-phase top tabs + Complexity selector ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ── Encounter-phase top tabs + Complexity selector ────────────────── */}
       <div className="bg-white border-b border-carbon-gray-20 flex items-center flex-shrink-0">
         {ENCOUNTER_TABS.map((tab) => (
           <button
@@ -843,11 +843,11 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
         </div>
       </div>
 
-      {/* ΓöÇΓöÇ Scrollable content ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ── Scrollable content ────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-3 space-y-3">
 
-          {/* ΓöÇΓöÇ PATIENT HEADER ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+          {/* ── PATIENT HEADER ─────────────────────────────────────────────── */}
           <div className="bg-white border border-carbon-gray-20">
             {/* Identity row */}
             <div className="px-4 py-3 flex items-start gap-3 border-b border-carbon-gray-20">
@@ -881,7 +881,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
               </div>
             </div>
 
-            {/* ΓöÇΓöÇ PROMINENT JOURNEY STRIP ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+            {/* ── PROMINENT JOURNEY STRIP ──────────────────────────────────── */}
             <div className="px-4 py-4 border-b border-carbon-gray-20 bg-[#fafafa]">
               <div className="flex items-center gap-0 mb-3">
                 {JOURNEY_PHASES.map((phase, idx) => {
@@ -920,7 +920,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                 <div className="bg-red-50 border border-red-200 px-4 py-3 mb-3 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-red-700 mb-1">High-Risk Transition ┬╖ 47 days in phase</p>
+                      <p className="text-xs font-bold text-red-700 mb-1">High-Risk Transition · 47 days in phase</p>
                       <p className="text-2xs text-gray-700 leading-relaxed mb-2">Recent ER utilization, deteriorating chronic condition control, and multiple open care gaps indicate elevated near-term risk. Trajectory: <span className="font-semibold text-red-700">Worsening Γåô</span></p>
                       <p className="text-2xs text-gray-600"><span className="font-medium">Next milestone:</span> Post-acute follow-up due within 7 days</p>
                     </div>
@@ -931,7 +931,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-1 mt-2">
-                    {[{ label: 'A1C', value: '9.2% (2026-02-10)', flagged: true }, { label: 'ER Visits (90d)', value: '2 visits ΓÇö $11,000', flagged: true }, { label: 'BP Control', value: '158/96 (2026-04-01)', flagged: true }, { label: 'Med Adherence', value: '61% PDC', flagged: true }].map((sig, i) => (
+                    {[{ label: 'A1C', value: '9.2% (2026-02-10)', flagged: true }, { label: 'ER Visits (90d)', value: '2 visits — $11,000', flagged: true }, { label: 'BP Control', value: '158/96 (2026-04-01)', flagged: true }, { label: 'Med Adherence', value: '61% PDC', flagged: true }].map((sig, i) => (
                       <div key={i} className="flex items-center gap-1.5 px-2 py-1 border bg-white border-red-200 text-2xs">
                         <div className="w-1 h-1 rounded-full bg-red-600 flex-shrink-0" />
                         <span className="text-gray-600 truncate">{sig.label}:</span>
@@ -947,7 +947,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                 <button onClick={() => setJourneyExpanded(!journeyExpanded)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors shadow-sm">
                   <Icon name="ExclamationTriangleIcon" size={11} className="text-red-700" />
                   <span className="text-xs font-bold text-red-700 whitespace-nowrap">High-Risk Transition</span>
-                  <span className="text-xs text-red-600">┬╖ 47d</span>
+                  <span className="text-xs text-red-600">· 47d</span>
                   <Icon name={journeyExpanded ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={10} className="text-red-700" />
                 </button>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 shadow-sm">
@@ -970,7 +970,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
               </div>
             </div>
           </div>
-          {/* ΓöÇΓöÇ AI-POWERED CARE PLAN GENERATION BANNER ΓÇö Prominent display below risk scores ΓöÇΓöÇ */}
+          {/* ── AI-POWERED CARE PLAN GENERATION BANNER — Prominent display below risk scores ── */}
           {patient && (hccSuspects.length > 0 || careGaps.length > 0) && (
             <div className={`relative z-10 ${generatedPlan ? 'bg-gradient-to-r from-[#0f5323] to-[#198038]' : 'bg-gradient-to-r from-[#1e3a8a] to-[#1e40af]'} border ${generatedPlan ? 'border-[#198038]' : 'border-[#1e40af]'} p-6 text-white shadow-lg`}>
               <div className="flex items-start justify-between">
@@ -1078,7 +1078,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
             </div>
           )}
 
-          {/* ΓöÇΓöÇ Patient History Summary/Details (Collapsible) ΓöÇΓöÇ */}
+          {/* ── Patient History Summary/Details (Collapsible) ── */}
           <div className="bg-white border border-carbon-gray-20">
             {/* Collapsible Header */}
             <button
@@ -1220,7 +1220,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                               </div>
                               <div className="flex items-center gap-4 text-2xs text-carbon-gray-50">
                                 <span>Onset: {condition.onset}</span>
-                                <span>ΓÇó</span>
+                                <span>•</span>
                                 <span>Status: {condition.status}</span>
                               </div>
                             </div>
@@ -1238,7 +1238,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
                                   <p className="text-xs font-semibold text-carbon-gray-100">{med.name}</p>
-                                  <p className="text-2xs text-carbon-gray-50 mt-0.5">Frequency: {med.freq} ΓÇó Dosage: {med.dosage}</p>
+                                  <p className="text-2xs text-carbon-gray-50 mt-0.5">Frequency: {med.freq} • Dosage: {med.dosage}</p>
                                 </div>
                                 <div className="text-right">
                                   <p className={`text-xs font-bold ${med.flag ? 'text-[#da1e28]' : 'text-[#24a148]'}`}>
@@ -1399,9 +1399,9 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                                   <p className="text-xs text-carbon-gray-70 mb-2">{generatedPlan.description}</p>
                                   <div className="flex items-center gap-4 text-2xs text-carbon-gray-50">
                                     <span>Created: {new Date().toLocaleDateString()}</span>
-                                    <span>ΓÇó</span>
+                                    <span>•</span>
                                     <span>Type: AI-Generated Comprehensive Plan</span>
-                                    <span>ΓÇó</span>
+                                    <span>•</span>
                                     <span>Status: Active</span>
                                   </div>
                                 </div>
@@ -1713,7 +1713,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
           </div>
 
 
-          {/* ΓöÇΓöÇ ROW 1: 4 columns ΓÇö Chronic Conditions | Medications | Open Care Gaps | Labs & Vitals ΓöÇΓöÇ */}
+          {/* ── ROW 1: 4 columns — Chronic Conditions | Medications | Open Care Gaps | Labs & Vitals ── */}
           <div className="grid grid-cols-4 gap-3">
 
             {/* CHRONIC CONDITIONS */}
@@ -1730,7 +1730,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-0.5 ${cond.acuity === 'critical' ? 'bg-[#da1e28]' : 'bg-[#f1c21b]'}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-carbon-gray-100 leading-tight">{cond.label}</p>
-                        <p className="text-2xs text-carbon-gray-50 mt-0.5">{cond.icd} ┬╖ <span className="font-mono">{cond.hcc}</span></p>
+                        <p className="text-2xs text-carbon-gray-50 mt-0.5">{cond.icd} · <span className="font-mono">{cond.hcc}</span></p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={`text-2xs font-mono font-bold ${cond.acuity === 'critical' ? 'text-[#da1e28]' : 'text-[#b45309]'}`}>{cond.metric}</span>
                           <span className={`text-2xs px-1 py-0.5 font-semibold ${cond.trend === 'worsening' ? 'bg-[#ffe0e0] text-[#da1e28]' : 'bg-[#defbe6] text-[#0e6027]'}`}>
@@ -1867,7 +1867,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
             </div>
           </div>
 
-          {/* ΓöÇΓöÇ ROW 2: 4 columns ΓÇö Potential Undiagnosed | Vitals Trend | Recent Clinical Activity | Active Referrals ΓöÇΓöÇ */}
+          {/* ── ROW 2: 4 columns — Potential Undiagnosed | Vitals Trend | Recent Clinical Activity | Active Referrals ── */}
           {/* NOTE: Recent Clinical Activity is col 3, Active Referrals is col 4 (swapped per request) */}
           <div className="grid grid-cols-4 gap-3">
 
@@ -1905,7 +1905,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                             <div className="flex items-start justify-between gap-1 mb-1">
                               <div className="min-w-0">
                                 <p className="text-2xs font-semibold text-carbon-gray-100 leading-tight">{cdi.condition}</p>
-                                <p className="text-2xs text-carbon-gray-50">{cdi.icd} ┬╖ {cdi.hcc}</p>
+                                <p className="text-2xs text-carbon-gray-50">{cdi.icd} · {cdi.hcc}</p>
                               </div>
                               <span className="text-2xs font-mono font-bold text-[#0e6027] flex-shrink-0">{cdi.rafDelta}</span>
                             </div>
@@ -1981,7 +1981,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
               <PanelPager total={VITALS_TREND.length} page={vitalsPage} onPage={setVitalsPage} />
             </div>
 
-            {/* RECENT CLINICAL ACTIVITY ΓÇö moved to col 3 (one left) */}
+            {/* RECENT CLINICAL ACTIVITY — moved to col 3 (one left) */}
             <div className="bg-white border border-carbon-gray-20 flex flex-col">
               <div className="px-3 py-2.5 border-b border-carbon-gray-20 flex items-center gap-2 flex-shrink-0">
                 <Icon name="ClockIcon" size={13} className="text-[#0043ce]" />
@@ -2005,7 +2005,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
               <PanelPager total={RECENT_ACTIVITY.length} page={activityPage} onPage={setActivityPage} />
             </div>
 
-            {/* ACTIVE REFERRALS + MD TRIAGE ΓÇö moved to col 4 (one right) */}
+            {/* ACTIVE REFERRALS + MD TRIAGE — moved to col 4 (one right) */}
             <div className="bg-white border border-carbon-gray-20 flex flex-col">
               <div className="px-3 py-2.5 border-b border-carbon-gray-20 flex items-center gap-2 flex-shrink-0">
                 <Icon name="ArrowTopRightOnSquareIcon" size={13} className="text-[#6929c4]" />
@@ -2020,7 +2020,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-1 min-w-0">
                           <p className="text-2xs font-semibold text-carbon-gray-100">{ref.specialty}</p>
-                          <p className="text-2xs text-carbon-gray-50 truncate">{ref.provider}{ref.tier !== 'ΓÇö' ? ` ┬╖ ${ref.tier}` : ''}</p>
+                          <p className="text-2xs text-carbon-gray-50 truncate">{ref.provider}{ref.tier !== '—' ? ` · ${ref.tier}` : ''}</p>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <div className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
@@ -2043,7 +2043,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
             </div>
           </div>
 
-          {/* ΓöÇΓöÇ ROW 3: Full-width Financials Toggle Panel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+          {/* ── ROW 3: Full-width Financials Toggle Panel ─────────────────── */}
           <div className="bg-white border border-carbon-gray-20">
             {/* Header with toggle */}
             <div className="px-4 py-3 border-b border-carbon-gray-20 flex items-center gap-3">
@@ -2073,19 +2073,19 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                   <div className="bg-[#fdf6dd] border border-[#f1c21b] px-4 py-3">
                     <p className="text-2xs text-carbon-gray-50 mb-1">RAF Revenue at Risk</p>
                     <p className="text-2xl font-bold font-mono text-[#b45309]">${(totalRevenueAtRisk / 1000).toFixed(1)}K</p>
-                    <p className="text-2xs text-carbon-gray-50 mt-1">{CDI_OPPORTUNITIES.length} HCC suspects ┬╖ RAF +{totalRafAtRisk.toFixed(2)}</p>
+                    <p className="text-2xs text-carbon-gray-50 mt-1">{CDI_OPPORTUNITIES.length} HCC suspects · RAF +{totalRafAtRisk.toFixed(2)}</p>
                   </div>
                   {/* VBP Projected Savings */}
                   <div className="bg-[#defbe6] border border-[#a7f0ba] px-4 py-3">
                     <p className="text-2xs text-carbon-gray-50 mb-1">VBP Projected Savings</p>
                     <p className="text-2xl font-bold font-mono text-[#0e6027]">$4,200</p>
-                    <p className="text-2xs text-carbon-gray-50 mt-1">Gap closure ΓÇö 5 measures</p>
+                    <p className="text-2xs text-carbon-gray-50 mt-1">Gap closure — 5 measures</p>
                   </div>
                   {/* Prior Auth Signals */}
                   <div className="bg-[#edf5ff] border border-[#97c1ff] px-4 py-3">
                     <p className="text-2xs text-carbon-gray-50 mb-1">Prior Auth Signals</p>
                     <p className="text-2xl font-bold font-mono text-[#0043ce]">2 pending</p>
-                    <p className="text-2xs text-carbon-gray-50 mt-1">Nephrology ┬╖ Renal US</p>
+                    <p className="text-2xs text-carbon-gray-50 mt-1">Nephrology · Renal US</p>
                   </div>
                   {/* MIPS Quality Impact */}
                   <div className="bg-[#f6f2ff] border border-[#d4bbff] px-4 py-3">
@@ -2121,15 +2121,15 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
               </div>
             )}
 
-            {/* VBP Disclaimer ΓÇö ALWAYS VISIBLE */}
+            {/* VBP Disclaimer — ALWAYS VISIBLE */}
             <div className="border-t border-[#d4bbff] bg-[#f6f2ff] px-4 py-2.5 flex items-start gap-2">
               <Icon name="ShieldCheckIcon" size={12} className="text-[#6929c4] flex-shrink-0 mt-0.5" />
               <p className="text-2xs text-[#6929c4] leading-relaxed">
-                <span className="font-semibold">VBP Disclaimer:</span> Incentives per 2026 VBP contract with Humana MA-PD. Subject to CMS AKS VBE safe harbor and Stark VBE exception. Quality-based only ΓÇö not tied to referral volume or patient steering. Financial signals are for care coordination purposes only.
+                <span className="font-semibold">VBP Disclaimer:</span> Incentives per 2026 VBP contract with Humana MA-PD. Subject to CMS AKS VBE safe harbor and Stark VBE exception. Quality-based only — not tied to referral volume or patient steering. Financial signals are for care coordination purposes only.
               </p>
             </div>
 
-            {/* CMS-0057-F Note ΓÇö ALWAYS VISIBLE */}
+            {/* CMS-0057-F Note — ALWAYS VISIBLE */}
             <div className="border-t border-carbon-gray-20 bg-[#f4f4f4] px-4 py-2 flex items-start gap-2">
               <Icon name="InformationCircleIcon" size={11} className="text-carbon-gray-40 flex-shrink-0 mt-0.5" />
               <p className="text-2xs text-carbon-gray-50 leading-relaxed">
@@ -2141,7 +2141,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
         </div>
       </div>
 
-      {/* ΓöÇΓöÇ MODALS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+      {/* ── MODALS ─────────────────────────────────────────────────────────── */}
       {closeGapTarget && (
         <CloseGapModal gap={closeGapTarget} onClose={() => setCloseGapTarget(null)} onComplete={handleGapClose} />
       )}

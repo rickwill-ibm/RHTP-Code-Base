@@ -17,52 +17,47 @@ import { usePatientContext } from '@/lib/patientContext';
 
 // ─── AI Copilot Tab Content ───────────────────────────────────────────────────
 function AICopilotTab() {
-  const { patient, closeGap } = usePatientContext();
+  const { patient } = usePatientContext();
   const [talkTrackOpen, setTalkTrackOpen] = useState(false);
   const openGaps = patient.careGaps.filter((g) => g.status !== 'Closed' && g.status !== 'Waived');
+  const clinicalGaps = openGaps.filter(g => g.domain === 'Clinical');
+  const bhGaps = openGaps.filter(g => g.domain === 'BH');
+  const socialGaps = openGaps.filter(g => g.domain === 'Social');
 
+  // Build patient-specific suggestions from live data
   const suggestions = [
+    ...(socialGaps.length > 0 ? [{
+      id: 'sug-1', priority: 1, icon: 'TruckIcon', color: '#007d79', bg: '#d9fbfb',
+      title: `Address ${socialGaps.length} social barrier${socialGaps.length > 1 ? 's' : ''} — unblocks clinical care`,
+      detail: `${socialGaps.map(g => g.name).join(', ')}. Resolving social barriers unblocks ${clinicalGaps.length} clinical gap${clinicalGaps.length !== 1 ? 's' : ''}.`,
+      action: 'Address Social Needs',
+    }] : []),
+    ...(clinicalGaps.length > 0 ? [{
+      id: 'sug-2', priority: 2, icon: 'HeartIcon', color: '#da1e28', bg: '#fff1f1',
+      title: `${clinicalGaps.length} open clinical gap${clinicalGaps.length !== 1 ? 's' : ''} — ${clinicalGaps[0]?.daysOpen ?? 0}d overdue`,
+      detail: `Priority: ${clinicalGaps.map(g => `${g.name} (${g.daysOpen}d)`).join(', ')}.`,
+      action: 'Close Clinical Gap',
+    }] : []),
+    ...(bhGaps.length > 0 ? [{
+      id: 'sug-3', priority: 3, icon: 'SparklesIcon', color: '#6929c4', bg: '#f6f2ff',
+      title: `BH: ${bhGaps[0]?.name}`,
+      detail: `${patient.bhScoreLabel || patient.bhRisk} — ${patient.bhReferralStatus || 'BH follow-up recommended'}.`,
+      action: 'Follow Up BH',
+    }] : []),
     {
-      id: 'sug-1',
-      priority: 1,
-      icon: 'TruckIcon',
-      color: '#007d79',
-      bg: '#d9fbfb',
-      title: 'Lead with transport barrier',
-      detail: `Transport barrier is blocking HbA1c recheck (38d overdue). Resolving transport unblocks 3 of ${openGaps.length} open gaps. Unite Us referral #TU-48821 is active — confirm NEMT pickup schedule with patient.`,
-      action: 'Confirm Transport',
-    },
-    {
-      id: 'sug-2',
-      priority: 2,
-      icon: 'CurrencyDollarIcon',
-      color: '#6929c4',
-      bg: '#f6f2ff',
-      title: 'Childcare subsidy ($487/mo) unblocks HbA1c',
-      detail: `CCAP enrollment would resolve childcare barrier — Sophia (24mo) has no provider. Once childcare is secured, Maria can attend HbA1c recheck. CCAP task assigned to Bennett County Action CBO.`,
-      action: 'Enroll in CCAP',
-    },
-    {
-      id: 'sug-3',
-      priority: 3,
-      icon: 'HeartIcon',
-      color: '#9f1853',
-      bg: '#fff0f7',
-      title: 'Edinburgh PND 427 days — BH referral not accepted',
-      detail: `Edinburgh PND score elevated. BH referral open 427 days — not yet accepted. Postpartum depression unmanaged. Recommend BH check-in before next clinical discussion.`,
-      action: 'Follow Up BH Referral',
-    },
-    {
-      id: 'sug-4',
-      priority: 4,
-      icon: 'ClockIcon',
-      color: '#b45309',
-      bg: '#fdf6dd',
-      title: 'Best call time: Tue 10am (80% answer rate)',
-      detail: 'Historical outreach data shows Tuesday morning has the highest contact rate for Maria. Avoid scheduling labs May–Jun (planting season conflict). Schedule A1C recheck for July or later.',
+      id: 'sug-4', priority: bhGaps.length > 0 ? 4 : 3, icon: 'ClockIcon', color: '#b45309', bg: '#fdf6dd',
+      title: 'Best outreach window: Tue–Wed morning',
+      detail: `${patient.name} — ${openGaps.length} open gaps across ${[clinicalGaps.length > 0 && 'Clinical', bhGaps.length > 0 && 'BH', socialGaps.length > 0 && 'Social'].filter(Boolean).join(', ')}. Last contact: ${patient.lastContact || 'unknown'}.`,
       action: 'Schedule Outreach',
     },
   ];
+
+  // AI summary from registry field, falling back to a generated summary
+  const aiSummary = patient.aiCopilot ||
+    `${patient.name} has ${openGaps.length} open gaps — ${clinicalGaps.length} Clinical, ${bhGaps.length} BH, ${socialGaps.length} Social. ` +
+    `RAF ${patient.rafScore.toFixed(2)} · ${patient.riskLabel}. ` +
+    (patient.transportStatus ? `Transport: ${patient.transportStatus}. ` : '') +
+    (patient.bhScoreLabel ? `BH: ${patient.bhScoreLabel}.` : '');
 
   return (
     <div className="space-y-4">
@@ -77,9 +72,7 @@ function AICopilotTab() {
 
       {/* Summary insight */}
       <div className="bg-[#001d3d] border border-[#003a75] p-4">
-        <p className="text-sm text-[#c6e2ff] leading-relaxed">
-          Transport barrier blocks HbA1c recheck (38d overdue). Childcare subsidy ($487/mo) would resolve appointment barrier — CCAP enrollment unblocks A1C. Edinburgh PND 427 days — BH referral not yet accepted. Lead with transport + childcare: closing both unblocks 4 of {openGaps.length} open gaps.
-        </p>
+        <p className="text-sm text-[#c6e2ff] leading-relaxed">{aiSummary}</p>
         <button
           onClick={() => setTalkTrackOpen((v) => !v)}
           className="flex items-center gap-1.5 text-xs font-semibold text-[#42be65] hover:text-[#6fdc8c] mt-3 transition-colors"
@@ -90,7 +83,7 @@ function AICopilotTab() {
         {talkTrackOpen && (
           <div className="mt-2 border-l-2 border-[#42be65] pl-3">
             <p className="text-sm text-[#a8c8e8] italic leading-relaxed">
-              "Maria has 9 open gaps across 3 domains — but they're not independent. Transport blocks the HbA1c. Childcare blocks the transport solution. Edinburgh PND has been open 427 days with no BH acceptance. The AI copilot reads all three columns together and tells the care manager what to do first: close childcare subsidy, that unblocks HbA1c. That's the whole-person difference."
+              "{patient.name} has {openGaps.length} open gaps across {[clinicalGaps.length > 0 && 'Clinical', bhGaps.length > 0 && 'BH', socialGaps.length > 0 && 'Social'].filter(Boolean).join(', ')} domains. {aiSummary} The AI copilot reads all three columns together and surfaces the highest-priority action first."
             </p>
           </div>
         )}

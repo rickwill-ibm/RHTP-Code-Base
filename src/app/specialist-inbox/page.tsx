@@ -4,7 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import { effectiveMemberId } from '@/lib/careTeam/identity';
 import { getMemberName } from '@/lib/careTeam/members';
 import { useGapClosureStore } from '@/lib/patientContext';
@@ -172,37 +172,51 @@ export default function SpecialistInboxPage() {
       setFhirLoading(true);
       try {
         const client = getFhirClient();
-        // Fetch Tasks where performer = Jon (the specialist)
+        // Fetch Tasks where owner = current physician (jon = social, rick = clinical/BH)
         const bundle = await client.search('Task', {
           owner: `Practitioner/${activePhysician.fhirId}`,
-          _count: 50,
+          _count: 100,
         }) as any;
         const entries: any[] = bundle.entry ?? [];
         const tasks: SpecialistTask[] = entries
           .map((e: any) => e.resource)
           .filter((r: any) => r?.resourceType === 'Task')
-          .map((t: any) => ({
-            id: t.id,
-            patient: t.for?.display ?? 'Unknown Patient',
-            patientId: t.for?.reference?.split('/')[1] ?? '',
-            dob: '—',
-            requestedIntervention: t.description ?? t.code?.text ?? 'Referral Task',
-            referringProvider: t.requester?.display ?? 'Dr. Rick',
-            referringOrg: 'RHTP Network',
-            dueDate: t.executionPeriod?.end?.split('T')[0] ?? '—',
-            urgency: (t.priority === 'stat' ? 'STAT' : t.priority === 'urgent' ? 'Urgent' : 'Routine') as 'STAT' | 'Urgent' | 'Routine',
-            status: (t.status === 'completed' ? 'Completed' : t.status === 'in-progress' ? 'In Progress' : t.status === 'accepted' ? 'Accepted' : 'Pending') as SpecialistTask['status'],
-            specialty: t.code?.text ?? 'Specialist',
-            qualityMeasure: t.note?.[0]?.text ?? '—',
-            qualityProgram: 'HEDIS',
-            gainShareValue: '$0',
-            sharedSavingsAttribution: '$0',
-            networkIncentiveImpact: 'Medium',
-            icdCode: '—',
-            clinicalContext: t.note?.[0]?.text ?? '',
-            fhirTaskId: t.id,
-            serviceRequestRef: t.focus?.reference ?? '',
-          }));
+          .map((t: any) => {
+            // Resolve the FHIR patient id → platform id → registry data
+            const fhirPatientId: string = t.for?.reference?.split('/')[1] ?? '';
+            const platformId = Object.entries(PLATFORM_TO_FHIR_ID_MAP).find(
+              ([, fhirId]) => fhirId === fhirPatientId,
+            )?.[0] ?? '';
+            const reg = platformId ? getPatientById(platformId) : undefined;
+            const domain: string = t.extension?.find(
+              (ex: any) => ex.url === 'http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain',
+            )?.valueString ?? 'Clinical';
+            const domainSpecialty: Record<string, string> = {
+              Clinical: 'Primary Care', BH: 'Behavioral Health', Social: 'Social Work',
+            };
+            return {
+              id: t.id,
+              patient: reg?.name ?? t.for?.display ?? 'Unknown Patient',
+              patientId: platformId || fhirPatientId,
+              dob: reg?.dob ?? '—',
+              requestedIntervention: t.description ?? t.code?.text ?? 'Care Gap Task',
+              referringProvider: t.requester?.display ?? reg?.careManager ?? 'Care Team',
+              referringOrg: reg?.organization ?? 'RHTP Network',
+              dueDate: t.executionPeriod?.end?.split('T')[0] ?? '—',
+              urgency: (t.priority === 'stat' ? 'STAT' : t.priority === 'urgent' ? 'Urgent' : 'Routine') as SpecialistTask['urgency'],
+              status: (t.status === 'completed' ? 'Completed' : t.status === 'in-progress' ? 'In Progress' : t.status === 'accepted' ? 'Accepted' : 'Pending') as SpecialistTask['status'],
+              specialty: domainSpecialty[domain] ?? 'Specialist',
+              qualityMeasure: `HEDIS — ${domain} Care Gap`,
+              qualityProgram: 'HEDIS',
+              gainShareValue: domain === 'Clinical' ? '$185' : domain === 'BH' ? '$140' : '$95',
+              sharedSavingsAttribution: domain === 'Clinical' ? '$72' : domain === 'BH' ? '$55' : '$38',
+              networkIncentiveImpact: t.priority === 'urgent' ? 'High' : 'Medium',
+              icdCode: reg?.conditions?.[0]?.code ?? '—',
+              clinicalContext: t.note?.[0]?.text ?? reg?.aiCopilot?.slice(0, 120) ?? '',
+              fhirTaskId: t.id,
+              serviceRequestRef: t.focus?.reference ?? '',
+            };
+          });
         if (tasks.length > 0) setFhirTasks(tasks);
       } catch (err) {
         console.warn('[SpecialistInbox] FHIR task load failed, using mock:', err);
@@ -211,7 +225,7 @@ export default function SpecialistInboxPage() {
       }
     };
     load();
-  }, [activePhysician.fhirId]);
+  }, [activePhysician.fhirId, useMockData]);
 
   // Build the first task dynamically from the active patient (mock)
   const firstTask: SpecialistTask = {
@@ -239,28 +253,40 @@ export default function SpecialistInboxPage() {
   const [savedDiagnoses, setSavedDiagnoses] = useState<Record<string, DiagnosisEntry[]>>({});
   const [diagnosisSaving, setDiagnosisSaving] = useState(false);
 
-  // Auto-populate gap closure evidence for Maria Redhawk's task
+  // Auto-populate gap closure evidence for the active patient's HbA1c gap.
+  // fhirObservationId uses the canonical migration pattern so submitClosure
+  // issues a PUT against the existing Observation rather than POSTing a duplicate.
   const autoPopulateEvidence = useCallback((task: SpecialistTask): GapClosureEvidence => {
-    // Parse HbA1c value from clinical context if available
     const clinicalContext = task.clinicalContext || '';
     const hba1cMatch = clinicalContext.match(/(\d+\.?\d*)\s*%/);
     const defaultHbA1c = hba1cMatch ? parseFloat(hba1cMatch[1]) : 6.8;
-    
+
+    // Resolve the FHIR patient ID for the task's patient
+    const patientFhirId =
+      PLATFORM_TO_FHIR_ID_MAP[task.patientId] ??
+      PLATFORM_TO_FHIR_ID_MAP[activePatientId] ??
+      'patient-maria-001';
+
+    // The gap closure is for the first HbA1c-related clinical gap.
+    // The observation ID must match the migrated resource: patient-{fhirId}-gap-{gapId}
+    const gapId = 'mg-1'; // HbA1c Lab gap for Maria; adjust per task if needed
+    const fhirObservationId = `patient-${patientFhirId}-gap-${gapId}`;
+
     return {
-      gapId: 'CG_MARIA_001',
+      gapId,
       status: 'CLOSED',
       closedFrom: 'PATIENT_DETAIL',
-      dateOfService: new Date().toISOString().split('T')[0], // Today's date
+      dateOfService: new Date().toISOString().split('T')[0],
       performingProvider: task.referringProvider || 'Bennett County Health PCP',
       placeOfService: 'Lab',
       resultValue: defaultHbA1c,
       resultUnit: '%',
       hedisCompliance: defaultHbA1c < 8.0 ? 'MET' : 'NOT_MET',
       gainshare: 8100,
-      fhirObservationId: `obs-hba1c-${Date.now()}`,
+      fhirObservationId,
       closedAt: new Date().toISOString(),
     };
-  }, []);
+  }, [activePatientId]);
 
   // Handle gap closure attestation — Step 5: writes to FHIR when live
   const handleAttestAndClose = useCallback(async (task: SpecialistTask) => {
@@ -375,6 +401,18 @@ export default function SpecialistInboxPage() {
           {statCount > 0 && <span className="text-xs font-bold text-[#da1e28]">⚠ {statCount} STAT</span>}
           <span className="text-xs text-[#6929c4]">Potential Gain Share: ${totalGainShare}</span>
           <span className="ml-auto flex items-center gap-2">
+            {fhirLoading && (
+              <span className="flex items-center gap-1 text-xs text-carbon-gray-50">
+                <div className="w-3 h-3 border border-[#6929c4] border-t-transparent rounded-full animate-spin" />
+                Loading FHIR tasks…
+              </span>
+            )}
+            {!fhirLoading && !useMockData && fhirTasks.length > 0 && (
+              <span className="flex items-center gap-1 text-xs text-[#0e6027] font-medium">
+                <Icon name="CheckCircleIcon" size={12} style={{ color: '#24a148' }} />
+                {fhirTasks.length} FHIR tasks loaded
+              </span>
+            )}
             <span className="text-xs text-carbon-gray-50">Data as of May 29, 2026</span>
             <button
               onClick={() => { setPhysicianPersona('rick'); router.push('/md-smart-launch'); }}

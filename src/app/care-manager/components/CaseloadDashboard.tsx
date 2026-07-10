@@ -1,12 +1,12 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import { toast } from 'sonner';
 import { useAppContext } from '@/lib/appContext';
 import { useRouter } from 'next/navigation';
-import { getVisiblePatients, getPatientById } from '@/lib/patientRegistry';
-import { getFhirMockMode } from '@/lib/services/fhirClient';
+import { getVisiblePatients, getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 import { computeCaseloads } from '@/lib/careTeam/assignments';
 import { CARE_TEAM_MEMBERS, cohortOwnerPool, getMember } from '@/lib/careTeam/members';
 
@@ -77,6 +77,47 @@ export default function CaseloadDashboard() {
     setDraftMember(currentMember);
     setDraftReason('');
   };
+
+  const writeCareTeamToFhir = useCallback(async (patientId: string, newMemberId: string) => {
+    if (getFhirMockMode()) return;
+    const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[patientId];
+    if (!fhirPatientId) return;
+    const newMember = getMember(newMemberId);
+    const careTeamId = `${fhirPatientId}-careteam`;
+    try {
+      const client = getFhirClient();
+      // Read existing CareTeam first so we don't lose other participants
+      const existing = await client.read<Record<string, unknown>>('CareTeam', careTeamId).catch(() => null);
+      const BASE_EXT = 'http://tcoc.example.org/fhir/StructureDefinition';
+      const careManagerParticipant = {
+        role: [{ coding: [{ system: 'http://snomed.info/sct', code: '768820003', display: 'Care Coordinator' }] }],
+        member: { display: newMember?.name ?? newMemberId },
+        extension: [{ url: `${BASE_EXT}/careteam-role`, valueString: 'CareManager' }],
+      };
+      const participants = existing
+        ? [
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...((existing.participant as any[]) ?? []).filter(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (p: any) => !p.extension?.some((e: any) => e.valueString === 'CareManager'),
+            ),
+            careManagerParticipant,
+          ]
+        : [careManagerParticipant];
+      await client.update({
+        ...(existing ?? {}),
+        resourceType: 'CareTeam',
+        id: careTeamId,
+        status: 'active',
+        participant: participants,
+        subject: { reference: `Patient/${fhirPatientId}` },
+      } as Record<string, unknown> & { id: string });
+      console.log(`[CaseloadDashboard] CareTeam updated in FHIR: ${careTeamId}`);
+    } catch (err) {
+      console.warn('[CaseloadDashboard] FHIR CareTeam update failed (local state updated):', err);
+    }
+  }, []);
+
   const commitEdit = (patientId: string, fromMemberId: string) => {
     if (!draftMember || draftMember === fromMemberId) {
       if (!draftReason.trim()) {
@@ -85,8 +126,10 @@ export default function CaseloadDashboard() {
       }
     }
     reassignPatient(patientId, draftMember, draftReason.trim() || 'Manual reassignment', fromMemberId);
+    // Fire-and-forget FHIR write
+    writeCareTeamToFhir(patientId, draftMember);
     toast.success(`Reassigned to ${getMember(draftMember)?.name ?? draftMember}`, {
-      description: 'Reason logged to audit trail',
+      description: 'Reason logged to audit trail · FHIR CareTeam updated',
     });
     setEditing(null);
   };

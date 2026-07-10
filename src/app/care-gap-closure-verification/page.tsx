@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import type { TaskProgramType } from '@/lib/fhirCareTeamData';
 import { useAppContext } from '@/lib/appContext';
 import { getPatientSync } from '@/lib/services/patientService';
 import { useGapClosureStore } from '@/lib/patientContext';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 // ─── Program-specific evidence configurations ─────────────────────────────────
 
@@ -173,19 +174,70 @@ const PROGRAM_TABS = [
   { key: 'housing', label: 'Housing', programType: 'Housing' as TaskProgramType },
 ];
 
+// ─── FHIR Observation type for care gap reads ──────────────────────────────────
+interface FhirObsResult {
+  id: string;
+  status?: string;
+  code?: { text?: string };
+  valueInteger?: number;
+  valueString?: string;
+  effectiveDateTime?: string;
+  note?: { text?: string }[];
+  extension?: { url: string; valueString?: string; valueInteger?: number }[];
+}
+
 export default function CareGapClosureVerificationPage() {
   const router = useRouter();
   const { activePatientId } = useAppContext();
+<<<<<<< HEAD
   const patient = getPatientSync(activePatientId);
   // Always show Maria Redhawk for this screen (HbA1c gap closure context)
   const patientName = 'Maria Redhawk';
   const patientId = 'PAT-0006';
+=======
+  const patient = getPatientById(activePatientId);
+  // Use the active patient — falls back to Maria Redhawk for demo context
+  const patientName = patient?.name ?? 'Maria Redhawk';
+  const patientId = patient?.platformId ?? activePatientId ?? 'MARIA_SD_001';
+>>>>>>> a737059 (feat: FHIR integration, care-gap workflows, MD Smart Launch enhancements, CDS hooks API, patient service, and UI updates)
 
   const { getGapClosure } = useGapClosureStore();
   const hbA1cClosure = getGapClosure('CG_MARIA_001');
 
   const [activeSection, setActiveSection] = useState<'evidence' | 'provenance' | 'timeline'>('evidence');
   const [activeProgramTab, setActiveProgramTab] = useState<string>('clinical');
+
+  // Live FHIR: read closed care gap observations
+  const [fhirClosedGaps, setFhirClosedGaps] = useState<FhirObsResult[]>([]);
+  const [fhirSourceLabel, setFhirSourceLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (getFhirMockMode()) return;
+    const fhirPatientId =
+      PLATFORM_TO_FHIR_ID_MAP[activePatientId] ??
+      (activePatientId.startsWith('patient-') ? activePatientId : 'patient-maria-001');
+    const loadFhirObs = async () => {
+      try {
+        const client = getFhirClient();
+        // Search for final (closed) care gap observations for this patient
+        const bundle = await client.search('Observation', {
+          subject: `Patient/${fhirPatientId}`,
+          status: 'final',
+          _count: 50,
+        }) as { resourceType: string; entry?: { resource?: FhirObsResult }[] };
+        const obs = (bundle.entry ?? [])
+          .map((e) => e.resource)
+          .filter((r): r is FhirObsResult => r?.status === 'final');
+        if (obs.length > 0) {
+          setFhirClosedGaps(obs);
+          setFhirSourceLabel(`FHIR · ${obs.length} closed observations loaded`);
+        }
+      } catch {
+        // fall back to static data silently
+      }
+    };
+    loadFhirObs();
+  }, [activePatientId]);
 
   // Build clinical program data dynamically from store if available
   const clinicalProgramData: ProgramEvidenceConfig = {
@@ -209,8 +261,23 @@ export default function CareGapClosureVerificationPage() {
     ),
   };
 
+  // Overlay FHIR data into the provenance section if available
+  const fhirProvenance: ProgramEvidenceConfig['provenance'] = fhirClosedGaps.length > 0
+    ? [
+        { label: 'FHIR Source', value: `HAPI FHIR R4 · ${fhirClosedGaps.length} Observations loaded`, icon: 'CodeBracketIcon' },
+        { label: 'Patient FHIR ID', value: PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? activePatientId, icon: 'IdentificationIcon' },
+        { label: 'Status', value: 'Observations confirmed final on FHIR server', icon: 'CheckCircleIcon' },
+        ...buildHbA1cProvenance(hbA1cClosure?.dateOfService ?? '2026-06-10').slice(1),
+      ]
+    : buildHbA1cProvenance(hbA1cClosure?.dateOfService ?? '2026-06-10');
+
+  const clinicalProgramDataWithFhir: ProgramEvidenceConfig = {
+    ...clinicalProgramData,
+    provenance: activeProgramTab === 'clinical' ? fhirProvenance : clinicalProgramData.provenance,
+  };
+
   const PROGRAM_EVIDENCE: Record<string, ProgramEvidenceConfig> = {
-    clinical: clinicalProgramData,
+    clinical: clinicalProgramDataWithFhir,
     ...STATIC_PROGRAM_EVIDENCE,
   };
 
@@ -235,6 +302,12 @@ export default function CareGapClosureVerificationPage() {
           <span className="text-xs text-[#0e6027]">Program: {programData.programType}</span>
           {activeProgramTab === 'clinical' && (
             <span className="text-xs font-semibold text-[#0e6027]">HEDIS CDC · HbA1c Control</span>
+          )}
+          {fhirSourceLabel && (
+            <span className="flex items-center gap-1 text-xs text-[#0e6027] font-medium">
+              <Icon name="CheckCircleIcon" size={12} style={{ color: '#24a148' }} />
+              {fhirSourceLabel}
+            </span>
           )}
           <span className="ml-auto text-xs text-carbon-gray-50">Closed: {programData.closedDate}</span>
         </div>

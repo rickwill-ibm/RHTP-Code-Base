@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState } from 'react';
 import type { CdsCard, CdsCardType } from '@/lib/smartFhirTypes';
 import Icon from '@/components/ui/AppIcon';
@@ -85,7 +85,7 @@ function SingleCdsCard({
             </span>
             <span className="text-2xs text-carbon-gray-50 font-mono">{HOOK_LABELS[card.hookType]}</span>
             {card.cardType === 'critical' && (
-              <span className="text-2xs font-bold text-[#da1e28] animate-pulse">ΓÜá MUST ACKNOWLEDGE</span>
+              <span className="text-2xs font-bold text-[#da1e28] animate-pulse">⚠ MUST ACKNOWLEDGE</span>
             )}
           </div>
           <p className={`text-sm font-semibold ${cfg.iconColor} leading-snug`}>{card.summary}</p>
@@ -146,7 +146,7 @@ function SingleCdsCard({
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-2 border-t border-current/10 flex-wrap">
-            {/* Critical ΓÇö must acknowledge with reason */}
+            {/* Critical — must acknowledge with reason */}
             {card.cardType === 'critical' && card.overrideReasons && (
               <div className="flex-1">
                 {!showOverrideMenu ? (
@@ -177,7 +177,7 @@ function SingleCdsCard({
               </div>
             )}
 
-            {/* Warning ΓÇö snooze option */}
+            {/* Warning — snooze option */}
             {card.cardType === 'warning' && (
               <>
                 <button
@@ -196,7 +196,7 @@ function SingleCdsCard({
               </>
             )}
 
-            {/* Info / suggestion / smart-link ΓÇö dismissible */}
+            {/* Info / suggestion / smart-link — dismissible */}
             {(card.cardType === 'info' || card.cardType === 'suggestion' || card.cardType === 'smart-link') && (
               <button
                 onClick={() => onDismiss(card.id)}

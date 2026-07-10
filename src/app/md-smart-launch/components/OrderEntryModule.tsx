@@ -4,6 +4,7 @@ import type { MdOrder, OrderCategory, OrderPriority } from '@/lib/smartFhirTypes
 import type { FhirServiceRequest } from '@/lib/smartFhirTypes';
 import { mockOrderCatalog } from '@/lib/smartFhirMockData';
 import Icon from '@/components/ui/AppIcon';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 interface OrderEntryModuleProps {
   patientId: string;
@@ -82,16 +83,29 @@ export default function OrderEntryModule({ patientId, encounterId, practitionerI
 
   const handleSign = () => {
     setSignStep('signing');
-    setTimeout(() => {
-      const ts = new Date().toISOString();
-      const cid = `SR-${Date.now().toString(36).toUpperCase()}`;
-      setSignedAt(ts);
-      setConfirmId(cid);
-      setSignStep('signed');
-      const signedOrders = orders.map((o) => ({ ...o, status: 'signed' as const, signedAt: ts }));
-      const serviceRequests = signedOrders.map((o) => buildFhirServiceRequest(o, patientId, encounterId, practitionerId));
-      onOrderSigned(signedOrders, serviceRequests);
-    }, 1200);
+    const ts = new Date().toISOString();
+    const cid = `SR-${Date.now().toString(36).toUpperCase()}`;
+    const signedOrders = orders.map((o) => ({ ...o, status: 'signed' as const, signedAt: ts }));
+    const serviceRequests = signedOrders.map((o) =>
+      buildFhirServiceRequest(o, patientId, encounterId, practitionerId)
+    );
+
+    const writeToFhir = async () => {
+      if (!getFhirMockMode()) {
+        await Promise.allSettled(
+          serviceRequests.map((sr) => getFhirClient().create(sr as any))
+        );
+      }
+    };
+
+    writeToFhir()
+      .catch((err) => console.warn('[OrderEntryModule] FHIR ServiceRequest write failed:', err))
+      .finally(() => {
+        setSignedAt(ts);
+        setConfirmId(cid);
+        setSignStep('signed');
+        onOrderSigned(signedOrders, serviceRequests);
+      });
   };
 
   if (signStep === 'signing') {

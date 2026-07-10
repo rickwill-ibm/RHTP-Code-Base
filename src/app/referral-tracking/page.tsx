@@ -15,6 +15,7 @@ import { CARE_TEAM_INBOX_TASKS, PROGRAM_TYPE_CONFIG, TASK_STATUS_CONFIG } from '
 import type { TaskProgramType, TaskStatus } from '@/lib/fhirCareTeamData';
 import { useAppContext } from '@/lib/appContext';
 import { initiateReferral } from '@/lib/services/referralService';
+import { getFhirClient } from '@/lib/services/fhirClient';
 
 export type ReferralStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Awaiting EMR' | 'Completed' | 'Cancelled';
 export type ReferralUrgency = 'Routine' | 'Urgent' | 'STAT';
@@ -110,6 +111,25 @@ export default function ReferralTrackingPage() {
       toast.success(`Referral sent to Dr. Jon — ${specialty}`, {
         description: `ServiceRequest: ${result.serviceRequest.id} · Task: ${result.task.id}`,
       });
+      // AuditEvent: record the referral initiation in FHIR
+      try {
+        await getFhirClient().create({
+          resourceType: 'AuditEvent',
+          type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+          subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'create', display: 'create' }],
+          action: 'C',
+          recorded: new Date().toISOString(),
+          outcome: '0',
+          agent: [{ who: { reference: `Practitioner/${activePhysician.fhirId}`, display: activePhysician.displayName }, requestor: true }],
+          source: { observer: { display: 'TCOC Platform — Referral Tracking' } },
+          entity: [
+            { what: { reference: `ServiceRequest/${result.serviceRequest.id}` }, description: `Referral — ${specialty}` },
+            { what: { reference: `Task/${result.task.id}` }, description: `Referral task for patient ${patientFhirId}` },
+          ],
+        });
+      } catch {
+        // AuditEvent failure is non-fatal — referral already succeeded
+      }
     } catch (err) {
       toast.error('Referral failed', { description: String(err) });
     }

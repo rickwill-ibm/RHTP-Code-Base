@@ -19,6 +19,7 @@ import type {
   CdsCardEntry,
   PathwayStepEntry,
 } from '../patientRegistry';
+import { getPatientById } from '../patientRegistry';
 
 // ─── Raw FHIR R4 JSON types (minimal, only fields we use) ────────────────────
 
@@ -52,8 +53,55 @@ interface FhirObservation {
   resourceType: 'Observation';
   id: string;
   status: string;
-  code?: { text?: string };
+  code?: { text?: string; coding?: { system?: string; code?: string; display?: string }[] };
   valueInteger?: number;
+  valueQuantity?: { value?: number; unit?: string };
+  valueString?: string;
+  effectiveDateTime?: string;
+  extension?: FhirExtension[];
+}
+
+interface FhirEncounter {
+  resourceType: 'Encounter';
+  id: string;
+  status: string;
+  class?: { code?: string; display?: string };
+  type?: { text?: string; coding?: { code?: string; display?: string }[] }[];
+  period?: { start?: string; end?: string };
+  serviceProvider?: { display?: string };
+  participant?: { individual?: { display?: string }; type?: { coding?: { code?: string }[] }[] }[];
+  reasonCode?: { text?: string; coding?: { code?: string; display?: string }[] }[];
+}
+
+interface FhirGoal {
+  resourceType: 'Goal';
+  id: string;
+  lifecycleStatus: string;
+  description?: { text?: string };
+  subject?: { reference?: string };
+  target?: { dueDate?: string; measure?: { text?: string }; detailString?: string }[];
+  note?: { text?: string }[];
+  extension?: FhirExtension[];
+}
+
+interface FhirCondition {
+  resourceType: 'Condition';
+  id: string;
+  code?: { text?: string; coding?: { system?: string; code?: string; display?: string }[] };
+  clinicalStatus?: { coding?: { code?: string }[] };
+  category?: { coding?: { code?: string }[] }[];
+  onsetDateTime?: string;
+  subject?: { reference?: string };
+}
+
+interface FhirMedicationRequest {
+  resourceType: 'MedicationRequest';
+  id: string;
+  status?: string;
+  medicationCodeableConcept?: { text?: string; coding?: { system?: string; code?: string; display?: string }[] };
+  requester?: { display?: string };
+  dosageInstruction?: { text?: string }[];
+  note?: { text?: string }[];
   extension?: FhirExtension[];
 }
 
@@ -62,6 +110,23 @@ interface FhirFlag {
   id: string;
   status: string;
   code?: { text?: string; coding?: { code?: string; display?: string }[] };
+  extension?: FhirExtension[];
+}
+
+interface FhirCareTeamParticipant {
+  role?: { coding?: { system?: string; code?: string; display?: string }[] }[];
+  member?: { reference?: string; display?: string };
+  extension?: FhirExtension[];
+}
+
+interface FhirCareTeam {
+  resourceType: 'CareTeam';
+  id: string;
+  name?: string;
+  status?: string;
+  subject?: { reference?: string; display?: string };
+  managingOrganization?: { display?: string }[];
+  participant?: FhirCareTeamParticipant[];
   extension?: FhirExtension[];
 }
 
@@ -96,11 +161,21 @@ const BASE = 'http://tcoc.example.org/fhir/StructureDefinition';
 
 // ─── Patient mapper ───────────────────────────────────────────────────────────
 
+// LOINC codes for BH screening scores we read from the Observation bundle
+const BH_LOINC_PHQ9      = '44249-1';
+const BH_LOINC_EDINBURGH = '89204-2';
+const BH_LOINC_AUDITC    = '75624-7';
+
 export function mapFhirPatientToRegistryPatient(
   patient: FhirPatient,
   observations: FhirObservation[],
   flags: FhirFlag[],
   riskAssessment: FhirRiskAssessment | undefined,
+  fhirConditions: FhirCondition[] = [],
+  fhirMedications: FhirMedicationRequest[] = [],
+  fhirCareTeam?: FhirCareTeam,
+  fhirEncounters: FhirEncounter[] = [],
+  fhirGoals: FhirGoal[] = [],
 ): RegistryPatient {
   // Name
   const officialName = patient.name?.find((n) => n.use === 'official') ?? patient.name?.[0];
@@ -150,8 +225,89 @@ export function mapFhirPatientToRegistryPatient(
   const hccSuspects = extNum(riskExts, `${BASE}/hcc-suspects`);
   const hccValue = extNum(riskExts, `${BASE}/hcc-value`);
 
+  // ── CareTeam extraction ───────────────────────────────────────────────────
+  const CARETEAM_ROLE_EXT = `${BASE}/careteam-role`;
+  const ctParticipant = (role: string) =>
+    fhirCareTeam?.participant?.find(
+      (p) => p.extension?.some((e) => e.url === CARETEAM_ROLE_EXT && e.valueString === role),
+    );
+  const ctPcp        = ctParticipant('PCP')?.member?.display ?? '';
+  const ctCareManager = ctParticipant('CareManager')?.member?.display ?? '';
+  const ctBhProvider  = ctParticipant('BHProvider')?.member?.display ?? '';
+
+  // ── BH scores from FHIR Observations ──────────────────────────────────────
+  // Filter to just the known BH LOINC codes; split out from care-gap observations.
+  const isBhScore = (obs: FhirObservation) => {
+    const code = obs.code?.coding?.[0]?.code ?? '';
+    return code === BH_LOINC_PHQ9 || code === BH_LOINC_EDINBURGH || code === BH_LOINC_AUDITC;
+  };
+  const isSdoh = (obs: FhirObservation) =>
+    obs.code?.coding?.[0]?.system === 'http://loinc.org' &&
+    (obs.code?.coding?.[0]?.code ?? '').startsWith('93');
+
+  const bhObservations = observations.filter(isBhScore);
+  const sdohObservations = observations.filter(isSdoh);
+  const gapObservations = observations.filter((o) => !isBhScore(o) && !isSdoh(o));
+
+  // ── SDOH values from FHIR PRAPARE Observations ────────────────────────────
+  const SDOH_TRANSPORT_LOINC = '93034-7';
+  const SDOH_HOUSING_LOINC   = '93030-5';
+  const SDOH_FOOD_LOINC      = '93031-3';
+
+  const sdohValue = (loinc: string): string =>
+    sdohObservations.find((o) => o.code?.coding?.[0]?.code === loinc)?.valueString ?? '';
+
+  const fhirTransportStatus = sdohValue(SDOH_TRANSPORT_LOINC);
+  const fhirHousingStatus   = sdohValue(SDOH_HOUSING_LOINC);
+  const fhirFoodSecurity    = sdohValue(SDOH_FOOD_LOINC);
+
+  const phq9Obs      = bhObservations.find((o) => o.code?.coding?.[0]?.code === BH_LOINC_PHQ9);
+  const edinburghObs = bhObservations.find((o) => o.code?.coding?.[0]?.code === BH_LOINC_EDINBURGH);
+  const auditcObs    = bhObservations.find((o) => o.code?.coding?.[0]?.code === BH_LOINC_AUDITC);
+
+  // Prefer Edinburgh for bhScore when present (postpartum patients), otherwise PHQ-9
+  const primaryBhObs = edinburghObs ?? phq9Obs;
+  const bhScoreValue = primaryBhObs?.valueQuantity?.value ?? extNum(primaryBhObs?.extension, `${BASE}/tcoc-bh-score`) ?? null;
+  const auditCValue  = auditcObs?.valueQuantity?.value ?? 0;
+
+  // Derive bhRisk from score
+  const deriveBhRisk = (score: number | null): RegistryPatient['bhRisk'] => {
+    if (score === null) return 'Low';
+    if (score >= 20) return 'Crisis';
+    if (score >= 15) return 'High';
+    if (score >= 10) return 'Moderate';
+    return 'Low';
+  };
+  const fhirBhRisk = deriveBhRisk(bhScoreValue);
+  const fhirBhScoreLabel = primaryBhObs
+    ? `${primaryBhObs.code?.text ?? primaryBhObs.code?.coding?.[0]?.display ?? 'BH Score'} ${bhScoreValue}`
+    : '';
+
+  // ── Conditions from FHIR ──────────────────────────────────────────────────
+  const mappedConditions: import('../patientRegistry').ConditionEntry[] = fhirConditions.map((c) => ({
+    key: c.id,
+    code: c.code?.coding?.[0]?.code ?? c.id,
+    name: c.code?.text ?? c.code?.coding?.[0]?.display ?? 'Unknown Condition',
+    onset: c.onsetDateTime?.substring(0, 7) ?? '',
+    status: c.clinicalStatus?.coding?.[0]?.code ?? 'active',
+    source: 'FHIR',
+  }));
+
+  // ── MedicationRequests from FHIR ──────────────────────────────────────────
+  const mappedMedications: import('../patientRegistry').MedicationEntry[] = fhirMedications.map((m) => ({
+    key: m.id,
+    name: m.medicationCodeableConcept?.text ?? m.medicationCodeableConcept?.coding?.[0]?.display ?? 'Unknown Medication',
+    dose: m.dosageInstruction?.[0]?.text ?? '',
+    frequency: m.dosageInstruction?.[0]?.text ?? '',
+    prescriber: m.requester?.display ?? '',
+    lastFill: extStr(m.extension, `${BASE}/last-fill-date`) || m.note?.[0]?.text?.replace('Last fill: ', '') || '',
+    adherence: null,
+    ddi: false,
+  }));
+
+  // ── Care gaps from Observations ───────────────────────────────────────────
   // Care gaps from Observations
-  const careGaps: CareGapEntry[] = observations.map((obs) => {
+  const careGaps: CareGapEntry[] = gapObservations.map((obs) => {
     const oExts = obs.extension;
     const statusRaw = extStr(oExts, `${BASE}/care-gap-status`);
     const status = (['Open', 'In Progress', 'Closed', 'Waived'].includes(statusRaw)
@@ -183,12 +339,17 @@ export function mapFhirPatientToRegistryPatient(
     };
   });
 
-  // Pathway steps — not stored in FHIR, return empty array for now
-  const pathwaySteps: PathwayStepEntry[] = [];
+  // Pathway steps, BH, social, clinical — not stored in FHIR extensions.
+  // Overlay from local registry so the UI always has rich data even in
+  // live-FHIR mode (FHIR is the source of truth for demographics + care gaps;
+  // the registry is the source of truth for everything else).
+  const local = getPatientById(platformId);
 
-  return {
+  const pathwaySteps: PathwayStepEntry[] = local?.pathwaySteps ?? [];
+
+  const fhirPatient: RegistryPatient = {
     platformId,
-    fhirId: `patient/${patient.id}`,
+    fhirId: patient.id,
     ehrMrn,
     name: fullName,
     age,
@@ -196,15 +357,12 @@ export function mapFhirPatientToRegistryPatient(
     dob,
     location,
     phone,
-    pcp: patient.generalPractitioner?.[0]?.display ?? '',
-    careManager,
-    careManagerInitials: careManager
-      .split(' ')
-      .map((w) => w[0])
-      .join(''),
-    organization: patient.managingOrganization?.display ?? '',
+    pcp: ctPcp || patient.generalPractitioner?.[0]?.display || local?.pcp || '',
+    careManager: ctCareManager || careManager,
+    careManagerInitials: (ctCareManager || careManager).split(' ').map((w: string) => w[0]).join('') || local?.careManagerInitials || '',
+    organization: patient.managingOrganization?.display ?? local?.organization ?? '',
     contract,
-    attribution: 'Confirmed',
+    attribution: local?.attribution ?? 'Confirmed',
     rafScore,
     riskTier,
     riskLabel: `${riskTier} — ${erRiskPct}% ER risk`,
@@ -212,37 +370,66 @@ export function mapFhirPatientToRegistryPatient(
     hccSuspects,
     hccValue,
     openCareGaps: careGaps.filter((g) => g.status === 'Open' || g.status === 'In Progress').length,
-    episodeType,
-    episodeStatus: 'Active',
-    episodeDaysActive: 0,
+    episodeType: episodeType || local?.episodeType || '',
+    episodeStatus: local?.episodeStatus ?? 'Active',
+    episodeDaysActive: local?.episodeDaysActive ?? 0,
     pmpm,
     pmpmTarget,
-    lastContact: '',
-    // BH — not yet stored in FHIR extensions; defaults shown
-    bhScreeningLabel: '',
-    bhScore: null,
-    bhScoreLabel: '',
-    auditC: 0,
-    bhRisk: 'Low',
-    bhReferralStatus: '',
-    bhProvider: '',
-    burdenScore: '',
-    patientGoal: '',
-    // Social — not yet stored in FHIR extensions; defaults shown
-    transportStatus: '',
-    foodSecurity: '',
-    housingStatus: '',
+    lastContact: local?.lastContact ?? '',
+    // BH — prefer FHIR Observation values; fall back to registry overlay
+    bhScreeningLabel: primaryBhObs?.code?.text ?? local?.bhScreeningLabel ?? '',
+    bhScore: bhScoreValue !== null ? bhScoreValue : (local?.bhScore ?? null),
+    bhScoreLabel: fhirBhScoreLabel || local?.bhScoreLabel || '',
+    auditC: auditCValue || local?.auditC || 0,
+    bhRisk: bhScoreValue !== null ? fhirBhRisk : (local?.bhRisk ?? 'Low'),
+    bhReferralStatus: local?.bhReferralStatus ?? '',
+    bhProvider: ctBhProvider || local?.bhProvider || '',
+    burdenScore: local?.burdenScore ?? '',
+    patientGoal: local?.patientGoal ?? '',
+    // Social — prefer FHIR SDOH Observations; fall back to registry overlay
+    transportStatus: fhirTransportStatus || local?.transportStatus || '',
+    foodSecurity: fhirFoodSecurity || local?.foodSecurity || '',
+    housingStatus: fhirHousingStatus || local?.housingStatus || '',
     language,
-    ruralDistance: '',
-    disparityFlag: '',
-    cohortFlag: '',
-    snapStatus: '',
-    digitalAccess: '',
-    careGaps,
+    ruralDistance: local?.ruralDistance ?? '',
+    disparityFlag: local?.disparityFlag ?? '',
+    cohortFlag: local?.cohortFlag ?? '',
+    snapStatus: local?.snapStatus ?? '',
+    digitalAccess: local?.digitalAccess ?? '',
+    // Conditions and medications — prefer FHIR; fall back to registry
+    conditions: mappedConditions.length > 0 ? mappedConditions : local?.conditions,
+    medications: mappedMedications.length > 0 ? mappedMedications : local?.medications,
+    recentOrders: local?.recentOrders,
+    carePlanDomains: local?.carePlanDomains,
+    // Encounters from FHIR — used by episode detail / analytics screens
+    recentEncounters: fhirEncounters.length > 0 ? fhirEncounters.map((e) => ({
+      id: e.id,
+      date: e.period?.start?.split('T')[0] ?? '',
+      type: e.type?.[0]?.text ?? e.class?.display ?? 'Encounter',
+      setting: e.class?.code === 'PHN' ? 'Phone' : e.class?.code === 'AMB' ? 'Outpatient' : 'Other',
+      provider: e.participant?.[0]?.individual?.display ?? e.serviceProvider?.display ?? '',
+      reason: e.reasonCode?.[0]?.text ?? '',
+      status: e.status,
+    })) : local?.recentEncounters,
+    // Goals from FHIR
+    fhirGoals: fhirGoals.length > 0 ? fhirGoals.map((g) => ({
+      id: g.id,
+      description: g.description?.text ?? '',
+      status: g.lifecycleStatus,
+      dueDate: g.target?.[0]?.dueDate ?? '',
+      note: g.note?.[0]?.text ?? '',
+    })) : undefined,
+    // Care gaps from FHIR (authoritative); fall back to registry if FHIR returned none
+    careGaps: careGaps.length > 0 ? careGaps : (local?.careGaps ?? []),
     pathwaySteps,
-    aiCopilot: '',
-    cdsCards,
+    aiCopilot: local?.aiCopilot ?? '',
+    cdsCards: cdsCards.length > 0 ? cdsCards : (local?.cdsCards ?? []),
+    household: local?.household,
+    journey: local?.journey,
+    mockOnly: local?.mockOnly,
   };
+
+  return fhirPatient;
 }
 
 // ─── Bundle helper — extract entries of a given resourceType ─────────────────

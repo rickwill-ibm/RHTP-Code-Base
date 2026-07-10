@@ -1,13 +1,12 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
+import { usePatientContext } from '@/lib/patientContext';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import type { CarePlanDomain } from '@/lib/patientRegistry';
 
-const WHOLE_PERSON_RISK = {
-  clinical: { score: 2.34, label: 'Clinical RAF', color: '#da1e28', max: 5 },
-  social: { score: 3, label: 'Social Complexity', color: '#b45309', max: 5, note: '3 unmet social needs' },
-  bh: { score: 2, label: 'BH Acuity', color: '#6929c4', max: 5, note: 'PHQ-9: 14 (moderate)' },
-  composite: { score: 87, label: 'Whole Person Risk Index', color: '#da1e28', max: 100 },
-};
+
 
 const CARE_PLAN_DOMAINS = [
   {
@@ -63,7 +62,7 @@ const CARE_TEAM_NOTIFY = [
 
 type UpdateStep = 'select' | 'update' | 'notify' | 'confirm';
 
-function UpdatePlanModal({ onClose }: { onClose: () => void }) {
+function UpdatePlanModal({ onClose, patientId }: { onClose: () => void; patientId: string }) {
   const [step, setStep] = useState<UpdateStep>('select');
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedGoal, setSelectedGoal] = useState('');
@@ -72,7 +71,45 @@ function UpdatePlanModal({ onClose }: { onClose: () => void }) {
   const [goalModification, setGoalModification] = useState('');
   const [notifyMembers, setNotifyMembers] = useState<Set<string>>(new Set(['Sarah Johnson']));
   const [updateNote, setUpdateNote] = useState('');
-  const [fhirVersion] = useState(() => Math.floor(Math.random() * 3) + 3);
+  const [fhirVersion, setFhirVersion] = useState(() => Math.floor(Math.random() * 3) + 3);
+
+  const advanceToConfirm = useCallback(async () => {
+    setStep('confirm');
+    if (getFhirMockMode()) return; // skip real write in mock mode
+    // Use a deterministic CarePlan ID (patient-specific) so repeated saves
+    // PUT (update) the same resource rather than creating duplicates.
+    const safePlatformId = patientId.replace(/[^A-Za-z0-9\-.]/g, '-');
+    const carePlanId = `cp-${safePlatformId}`;
+    try {
+      await getFhirClient().update({
+        id: carePlanId,
+        resourceType: 'CarePlan',
+        status: 'active',
+        intent: 'plan',
+        subject: { reference: `Patient/${patientId}` },
+        created: new Date().toISOString(),
+        note: [
+          {
+            text: [
+              `Domain: ${selectedDomain}`,
+              `Goal: ${selectedGoal}`,
+              `New status: ${newStatus}`,
+              intervention ? `Intervention: ${intervention}` : null,
+              goalModification ? `Modification: ${goalModification}` : null,
+              updateNote ? `Notes: ${updateNote}` : null,
+              `Notified: ${Array.from(notifyMembers).join(', ')}`,
+              `Updated: ${new Date().toISOString()}`,
+            ]
+              .filter(Boolean)
+              .join(' | '),
+          },
+        ],
+      });
+      setFhirVersion((v) => v + 1);
+    } catch (err) {
+      console.warn('[WholePersonCarePlanTab] FHIR CarePlan write failed:', err);
+    }
+  }, [patientId, selectedDomain, selectedGoal, newStatus, intervention, goalModification, updateNote, notifyMembers]);
 
   const allGoals = CARE_PLAN_DOMAINS.flatMap((d) =>
     d.goals.map((g) => ({ ...g, domain: d.domain, color: d.color }))
@@ -337,7 +374,7 @@ function UpdatePlanModal({ onClose }: { onClose: () => void }) {
                 <Icon name="ChevronLeftIcon" size={14} /> Back
               </button>
               <button
-                onClick={() => setStep('confirm')}
+                onClick={advanceToConfirm}
                 className="px-4 py-2 text-sm bg-[#0043ce] text-white hover:bg-[#0035a8] font-medium flex items-center gap-1.5"
               >
                 Save & Notify <Icon name="ChevronRightIcon" size={14} />
@@ -397,8 +434,113 @@ function UpdatePlanModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+interface FhirGoal {
+  id: string;
+  description: string;
+  status: string;
+  dueDate?: string;
+  note?: string;
+}
+
 export default function WholePersonCarePlanTab() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const { patient } = usePatientContext();
+
+  // Live FHIR: read CarePlan on mount and after each save
+  const [fhirDomains, setFhirDomains] = useState<CarePlanDomain[] | null>(null);
+  const [fhirLastUpdated, setFhirLastUpdated] = useState<string | null>(null);
+  const [fhirLoading, setFhirLoading] = useState(false);
+  const loadedForRef = useRef<string | null>(null);
+
+  // Live FHIR: read Goal resources for this patient
+  const [fhirGoals, setFhirGoals] = useState<FhirGoal[] | null>(null);
+  const goalsLoadedForRef = useRef<string | null>(null);
+
+  const loadCarePlan = useCallback(async (platformId: string) => {
+    if (getFhirMockMode()) return;
+    const safePlatformId = platformId.replace(/[^A-Za-z0-9\-.]/g, '-');
+    const carePlanId = `cp-${safePlatformId}`;
+    setFhirLoading(true);
+    try {
+      const cp = await getFhirClient().read<{
+        resourceType: string;
+        meta?: { lastUpdated?: string };
+        note?: { text?: string }[];
+        extension?: { url: string; valueString?: string }[];
+      }>('CarePlan', carePlanId);
+      if (cp?.resourceType === 'CarePlan') {
+        // Try extension first (most reliable), fallback to note[0].text
+        const ext = cp.extension?.find(
+          (e) => e.url === 'http://tcoc.example.org/fhir/StructureDefinition/care-plan-domains',
+        );
+        const raw = ext?.valueString ?? cp.note?.[0]?.text ?? null;
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as CarePlanDomain[];
+            setFhirDomains(parsed);
+          } catch {
+            // ignore parse error; fall back to registry data
+          }
+        }
+        if (cp.meta?.lastUpdated) {
+          setFhirLastUpdated(
+            new Date(cp.meta.lastUpdated).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+            }),
+          );
+        }
+      }
+    } catch {
+      // CarePlan not found on server yet — silently fall back to registry data
+    } finally {
+      setFhirLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loadedForRef.current === patient.patientId) return;
+    loadedForRef.current = patient.patientId;
+    loadCarePlan(patient.patientId);
+  }, [patient.patientId, loadCarePlan]);
+
+  // Fetch Goal?patient={fhirId} in live mode
+  useEffect(() => {
+    if (getFhirMockMode()) { setFhirGoals(null); return; }
+    if (goalsLoadedForRef.current === patient.patientId) return;
+    goalsLoadedForRef.current = patient.patientId;
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[patient.patientId];
+    if (!fhirId) return;
+    getFhirClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .search('Goal', { patient: `Patient/${fhirId}`, _count: 50 } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((bundle: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const goals: FhirGoal[] = (bundle.entry ?? []).map((e: any) => {
+          const r = e.resource;
+          return {
+            id: r.id ?? '',
+            description: r.description?.text ?? r.description?.coding?.[0]?.display ?? 'Goal',
+            status: r.lifecycleStatus ?? 'proposed',
+            dueDate: r.target?.[0]?.dueDate ?? undefined,
+            note: r.note?.[0]?.text ?? undefined,
+          };
+        });
+        if (goals.length > 0) setFhirGoals(goals);
+      })
+      .catch(() => {/* silent */});
+  }, [patient.patientId]);
+
+  // Derive whole-person risk scores from live patient context
+  const unmetSocialNeeds = patient.careGaps.filter(g => g.domain === 'Social' && g.status !== 'Closed').length;
+  const bhAcuity = patient.bhScore != null ? Math.min(Math.round(patient.bhScore / 5), 5) : (patient.bhRisk === 'Crisis' ? 5 : patient.bhRisk === 'High' ? 4 : patient.bhRisk === 'Moderate' ? 2 : 1);
+  const composite = Math.round((patient.rafScore / 5) * 40 + (unmetSocialNeeds / 5) * 30 + (bhAcuity / 5) * 30 * 100);
+  const wholePersonRisk = [
+    { score: patient.rafScore, label: 'Clinical RAF', color: '#da1e28', max: 5, note: patient.riskLabel },
+    { score: unmetSocialNeeds, label: 'Social Complexity', color: '#b45309', max: 5, note: `${unmetSocialNeeds} unmet social need${unmetSocialNeeds !== 1 ? 's' : ''}` },
+    { score: bhAcuity, label: 'BH Acuity', color: '#6929c4', max: 5, note: patient.bhScoreLabel || patient.bhRisk },
+    { score: Math.min(composite, 100), label: 'Whole Person Risk Index', color: composite >= 70 ? '#da1e28' : composite >= 40 ? '#b45309' : '#198038', max: 100, note: undefined },
+  ];
 
   return (
     <div className="space-y-5">
@@ -409,15 +551,15 @@ export default function WholePersonCarePlanTab() {
           <p className="text-xs font-semibold text-[#31135e] uppercase tracking-wide">Whole Person Risk Score</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {Object.values(WHOLE_PERSON_RISK).map(r => (
+          {wholePersonRisk.map(r => (
             <div key={r.label} className="bg-white border border-[#d4bbff] p-3">
               <p className="font-mono text-2xl font-bold" style={{ color: r.color }}>
-                {r.label === 'Whole Person Risk Index' ? r.score : r.score.toFixed ? r.score.toFixed(2) : r.score}
+                {r.label === 'Whole Person Risk Index' ? r.score : typeof r.score === 'number' && r.score % 1 !== 0 ? r.score.toFixed(2) : r.score}
               </p>
               <p className="text-2xs font-semibold text-carbon-gray-100 mt-0.5">{r.label}</p>
-              {'note' in r && r.note && <p className="text-2xs text-carbon-gray-50 mt-0.5">{r.note}</p>}
+              {r.note && <p className="text-2xs text-carbon-gray-50 mt-0.5 truncate">{r.note}</p>}
               <div className="mt-1.5 h-1.5 bg-carbon-gray-10">
-                <div className="h-full" style={{ width: `${(Number(r.score) / r.max) * 100}%`, backgroundColor: r.color }} />
+                <div className="h-full" style={{ width: `${Math.min((Number(r.score) / r.max) * 100, 100)}%`, backgroundColor: r.color }} />
               </div>
             </div>
           ))}
@@ -428,8 +570,14 @@ export default function WholePersonCarePlanTab() {
       </div>
 
       {/* Care Plan Domains */}
+      {fhirLoading && (
+        <div className="flex items-center gap-2 text-2xs text-carbon-gray-50 py-1">
+          <div className="w-3 h-3 border border-carbon-gray-30 border-t-[#0043ce] rounded-full animate-spin" />
+          Loading care plan from FHIR…
+        </div>
+      )}
       <div className="space-y-4">
-        {CARE_PLAN_DOMAINS.map(domain => (
+        {(fhirDomains ?? getPatientById(patient.patientId)?.carePlanDomains ?? CARE_PLAN_DOMAINS as CarePlanDomain[]).map(domain => (
           <div key={domain.domain} className="bg-white border border-carbon-gray-20">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-carbon-gray-20" style={{ backgroundColor: domain.color + '10' }}>
               <Icon name={domain.icon as any} size={15} style={{ color: domain.color }} />
@@ -465,10 +613,52 @@ export default function WholePersonCarePlanTab() {
         ))}
       </div>
 
+      {/* FHIR Goals from server */}
+      {fhirGoals && fhirGoals.length > 0 && (
+        <div className="bg-white border border-carbon-gray-20">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-carbon-gray-20 bg-[#defbe610]">
+            <Icon name="FlagIcon" size={15} style={{ color: '#198038' }} />
+            <p className="text-xs font-semibold text-[#198038]">Goals — FHIR Server</p>
+            <span className="ml-auto text-2xs text-carbon-gray-50">{fhirGoals.length} goal{fhirGoals.length !== 1 ? 's' : ''} · live</span>
+          </div>
+          <div className="divide-y divide-carbon-gray-10">
+            {fhirGoals.map((g) => {
+              const statusKey = g.status === 'active' ? 'in-progress'
+                : g.status === 'completed' ? 'completed'
+                : g.status === 'on-hold' ? 'pending'
+                : g.status === 'cancelled' ? 'pending'
+                : 'open';
+              const sc = STATUS_CONFIG[statusKey] ?? STATUS_CONFIG['open'];
+              return (
+                <div key={g.id} className="p-4">
+                  <div className="flex items-start gap-3 flex-wrap mb-1">
+                    <p className="text-xs font-semibold text-carbon-gray-100 flex-1">{g.description}</p>
+                    <span className="px-2 py-0.5 text-2xs font-bold" style={{ backgroundColor: sc.bg, color: sc.text }}>{g.status}</span>
+                  </div>
+                  {(g.dueDate || g.note) && (
+                    <div className="flex items-center gap-4 text-2xs text-carbon-gray-50">
+                      {g.dueDate && <span className="flex items-center gap-1"><Icon name="CalendarIcon" size={11} />Due: {g.dueDate}</span>}
+                      {g.note && <span className="truncate max-w-xs">{g.note}</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Care Plan Footer */}
       <div className="flex items-center justify-between bg-white border border-carbon-gray-20 p-3">
-        <div className="text-2xs text-carbon-gray-50">
-          Last updated: Jun 2, 2026 · Owned by: Full CareTeam · FHIR CarePlan resource
+        <div className="text-2xs text-carbon-gray-50 flex items-center gap-1.5">
+          {fhirDomains ? (
+            <>
+              <Icon name="CheckCircleIcon" size={11} style={{ color: '#24a148' }} />
+              FHIR CarePlan · Last updated: {fhirLastUpdated ?? 'Unknown'} · Owned by: Full CareTeam
+            </>
+          ) : (
+            'Last updated: Jun 2, 2026 · Owned by: Full CareTeam · FHIR CarePlan resource'
+          )}
         </div>
         <div className="flex gap-2">
           <button
@@ -482,7 +672,17 @@ export default function WholePersonCarePlanTab() {
         </div>
       </div>
 
-      {showUpdateModal && <UpdatePlanModal onClose={() => setShowUpdateModal(false)} />}
+      {showUpdateModal && (
+        <UpdatePlanModal
+          onClose={() => {
+            setShowUpdateModal(false);
+            // Reload the FHIR CarePlan after modal closes (may have saved)
+            loadedForRef.current = null;
+            loadCarePlan(patient.patientId);
+          }}
+          patientId={patient.patientId}
+        />
+      )}
     </div>
   );
 }

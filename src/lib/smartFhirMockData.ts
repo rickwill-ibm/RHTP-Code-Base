@@ -1,8 +1,8 @@
-// SMART on FHIR mock data and service utilities
+﻿// SMART on FHIR mock data and service utilities
 
 import type { SmartLaunchContext, CdsCard, PatientJourneyPosition, MdOrder, CareTeamAssignment,  } from './smartFhirTypes';
 
-// ΓöÇΓöÇΓöÇ Mock SMART Launch Context ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Mock SMART Launch Context ────────────────────────────────────────────────
 export const mockSmartLaunchContext: SmartLaunchContext = {
   patientId: 'patient/maria-redhawk-001',
   encounterId: 'enc-20260615-001',
@@ -16,16 +16,16 @@ export const mockSmartLaunchContext: SmartLaunchContext = {
   cernerOrgId: 'cerner-org-bennett-county',
 };
 
-// ΓöÇΓöÇΓöÇ Mock CDS Cards ΓÇö Maria Redhawk Standardized ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Mock CDS Cards — Maria Redhawk Standardized ─────────────────────────────
 export const mockCdsCards: CdsCard[] = [
   // Critical: Edinburgh PND overdue
   {
     id: 'cds-maria-1',
     hookType: 'patient-view',
     cardType: 'critical',
-    summary: 'Edinburgh PND overdue 427 days ΓÇö postpartum depression untreated',
+    summary: 'Edinburgh PND overdue 427 days — postpartum depression untreated',
     detail:
-      'Postpartum depression screening shows Edinburgh PND score 11 (Moderate). Patient is 427 days postpartum with untreated moderate depression. BH referral sent May 1, 2026 to Postpartum Support Group ΓÇö patient not yet enrolled. Immediate follow-up required for maternal mental health.',
+      'Postpartum depression screening shows Edinburgh PND score 11 (Moderate). Patient is 427 days postpartum with untreated moderate depression. BH referral sent May 1, 2026 to Postpartum Support Group — patient not yet enrolled. Immediate follow-up required for maternal mental health.',
     source: 'CDS Hooks / BH Screening Engine',
     indicator: 'critical',
     suggestions: [
@@ -47,7 +47,7 @@ export const mockCdsCards: CdsCard[] = [
     id: 'cds-maria-2',
     hookType: 'patient-view',
     cardType: 'warning',
-    summary: 'HbA1c gap 38 days ΓÇö pre-diabetes monitoring critical',
+    summary: 'HbA1c gap 38 days — pre-diabetes monitoring critical',
     detail:
       'Pre-diabetic HbA1c recheck is 38 days overdue. Last HbA1c: 6.2% (Pre-diabetic range). Due date: June 22, 2026. Primary barrier: 47-mile distance to Winner Regional Healthcare with no reliable transport. Consider NEMT enrollment and bundle with Well-Child visit.',
     source: 'CDS Hooks / Care Gap Engine',
@@ -59,7 +59,7 @@ export const mockCdsCards: CdsCard[] = [
         actions: [
           {
             type: 'create',
-            description: 'Create ServiceRequest: HbA1c Lab ┬╖ LOINC 4548-4',
+            description: 'Create ServiceRequest: HbA1c Lab · LOINC 4548-4',
           },
         ],
       },
@@ -71,7 +71,7 @@ export const mockCdsCards: CdsCard[] = [
     id: 'cds-maria-3',
     hookType: 'patient-view',
     cardType: 'warning',
-    summary: 'Well-Child 24-month visit ΓÇö Sophia overdue 21 days',
+    summary: 'Well-Child 24-month visit — Sophia overdue 21 days',
     detail:
       'Daughter Sophia\'s 24-month well-child visit is 21 days overdue. Transportation barrier (47 miles) preventing appointment attendance. Bundle with Maria\'s HbA1c lab to reduce trips. Childcare coordination needed.',
     source: 'CDS Hooks / Pediatric Care Gap Engine',
@@ -83,7 +83,7 @@ export const mockCdsCards: CdsCard[] = [
     id: 'cds-maria-4',
     hookType: 'patient-view',
     cardType: 'info',
-    summary: 'Multiple eligible benefits not enrolled ΓÇö $807/month total',
+    summary: 'Multiple eligible benefits not enrolled — $807/month total',
     detail:
       'Maria is eligible for multiple benefits not currently enrolled: Childcare Subsidy ($487/mo), WIC Re-enrollment ($320/mo), LIHEAP (utility assistance), and Medicaid Non-Emergency Transport. Total monthly benefit value: $807. Enrollment would significantly improve care access and financial stability.',
     source: 'CDS Hooks / Social Needs Engine',
@@ -98,7 +98,7 @@ export const mockCdsCards: CdsCard[] = [
     id: 'cds-maria-5',
     hookType: 'patient-view',
     cardType: 'info',
-    summary: 'RAF opportunity ΓÇö 3 HCC suspects, $12,400 value',
+    summary: 'RAF opportunity — 3 HCC suspects, $12,400 value',
     detail:
       '3 HCC suspects identified for Maria Redhawk. Estimated RAF delta: +0.12 if all captured. Total revenue at risk: $12,400. Submission deadline: Dec 31, 2026.',
     source: 'CDS Hooks / RAF Engine',
@@ -107,7 +107,7 @@ export const mockCdsCards: CdsCard[] = [
   },
 ];
 
-// ΓöÇΓöÇΓöÇ Mock Patient Journey ΓÇö Maria Redhawk Standardized ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Mock Patient Journey — Maria Redhawk Standardized ───────────────────────
 export const mockPatientJourney: PatientJourneyPosition = {
   phase: 'high-risk-transition',
   phaseLabel: 'High-Risk Transition',
@@ -118,18 +118,18 @@ export const mockPatientJourney: PatientJourneyPosition = {
   nextMilestone: 'HbA1c lab due June 22, 2026 (38 days overdue)',
   urgencyScore: 82,
   signals: [
-    { source: 'EMR', label: 'Edinburgh PND', value: 'Score 11 (Moderate) ΓÇö 427d untreated', flagged: true },
+    { source: 'EMR', label: 'Edinburgh PND', value: 'Score 11 (Moderate) — 427d untreated', flagged: true },
     { source: 'EMR', label: 'Last HbA1c', value: '6.2% (Pre-diabetic)', flagged: true },
-    { source: 'HIE', label: 'Transportation', value: '47 miles ΓÇö no vehicle', flagged: true },
-    { source: 'HIE', label: 'Childcare', value: 'No support ΓÇö 2 children (24mo, infant)', flagged: true },
-    { source: 'HIE', label: 'WIC Status', value: 'Expired May 1, 2025 ΓÇö 5mo gap', flagged: true },
+    { source: 'HIE', label: 'Transportation', value: '47 miles — no vehicle', flagged: true },
+    { source: 'HIE', label: 'Childcare', value: 'No support — 2 children (24mo, infant)', flagged: true },
+    { source: 'HIE', label: 'WIC Status', value: 'Expired May 1, 2025 — 5mo gap', flagged: true },
     { source: 'Claims', label: 'PMPM Cost', value: '$1,240 vs $780 target (+59%)', flagged: true },
-    { source: 'EMR', label: 'Well-Child Visit', value: 'Sophia 24mo ΓÇö 21d overdue', flagged: true },
+    { source: 'EMR', label: 'Well-Child Visit', value: 'Sophia 24mo — 21d overdue', flagged: true },
     { source: 'HIE', label: 'Housing', value: 'Rental waitlist #47', flagged: false },
   ],
 };
 
-// ΓöÇΓöÇΓöÇ Mock Orders ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Mock Orders ──────────────────────────────────────────────────────────────
 export const mockOrderCatalog: Array<{ code: string; display: string; category: MdOrder['category'] }> = [
   // Labs
   { code: 'HBA1C', display: 'Hemoglobin A1c', category: 'lab' },
@@ -147,7 +147,7 @@ export const mockOrderCatalog: Array<{ code: string; display: string; category: 
   { code: 'REF-NEPH', display: 'Nephrology Referral', category: 'referral' },
   { code: 'REF-CARD', display: 'Cardiology Referral', category: 'referral' },
   { code: 'REF-ENDO', display: 'Endocrinology Referral', category: 'referral' },
-  { code: 'REF-OPTH', display: 'Ophthalmology ΓÇö Diabetic Eye Exam', category: 'referral' },
+  { code: 'REF-OPTH', display: 'Ophthalmology — Diabetic Eye Exam', category: 'referral' },
   // Procedures
   { code: 'AWV', display: 'Annual Wellness Visit', category: 'procedure' },
   { code: 'FOOT-EXAM', display: 'Diabetic Foot Exam', category: 'procedure' },
@@ -157,7 +157,7 @@ export const mockOrderCatalog: Array<{ code: string; display: string; category: 
   { code: 'RENAL-US', display: 'Renal Ultrasound', category: 'imaging' },
 ];
 
-// ΓöÇΓöÇΓöÇ Mock Care Team Candidates ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ─── Mock Care Team Candidates ────────────────────────────────────────────────
 export const mockCareTeamCandidates: CareTeamAssignment[] = [
   {
     id: 'cta-001',

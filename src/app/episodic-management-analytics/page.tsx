@@ -1,11 +1,12 @@
 'use client';
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend, BarChart, Bar } from 'recharts';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirClient } from '@/lib/services/fhirClient';
 import { toast } from 'sonner';
 import { buildProgramNBAs, type ProgramNBA } from '@/lib/careTeam/graph/programActions';
 
@@ -805,11 +806,53 @@ function ETGProviderAnalysisTab() {
 
 type TabKey = 'efficiency-scorecard' | 'outcomes-dashboard' | 'trend-analysis' | 'etg-provider-analysis' | 'bh-episodes' | 'social-program-outcomes';
 
+// ─── FHIR Encounter row shape ─────────────────────────────────────────────────
+interface FhirEncounterRow {
+  id: string; date: string; type: string; setting: string;
+  provider: string; reason: string; status: string;
+}
+
 function EpisodicManagementContent() {
   const router = useRouter();
-  const { activePatientId } = useAppContext();
+  const { activePatientId, useMockData } = useAppContext();
   const patient = getPatientById(activePatientId);
   const [activeTab, setActiveTab] = useState<TabKey>('efficiency-scorecard');
+
+  // ── FHIR Encounter fetch ─────────────────────────────────────────────────────
+  const [fhirEncounters, setFhirEncounters] = useState<FhirEncounterRow[]>([]);
+  const [encounterLoading, setEncounterLoading] = useState(false);
+
+  useEffect(() => {
+    if (useMockData) { setFhirEncounters([]); return; }
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId];
+    if (!fhirId) return;
+    setEncounterLoading(true);
+    getFhirClient()
+      .search('Encounter', { patient: fhirId, _count: 20, _sort: '-date' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((bundle: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const entries: any[] = bundle.entry ?? [];
+        const rows: FhirEncounterRow[] = entries
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((e: any) => e.resource)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((r: any) => r?.resourceType === 'Encounter')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((enc: any) => ({
+            id: enc.id ?? '',
+            date: enc.period?.start?.split('T')[0] ?? '',
+            type: enc.type?.[0]?.text ?? enc.class?.display ?? 'Encounter',
+            setting: enc.class?.code === 'PHN' ? 'Phone' : enc.class?.code === 'AMB' ? 'Outpatient' : 'Inpatient',
+            provider: enc.participant?.[0]?.individual?.display ?? enc.serviceProvider?.display ?? '—',
+            reason: enc.reasonCode?.[0]?.text ?? '',
+            status: enc.status ?? 'finished',
+          }));
+        if (rows.length > 0) setFhirEncounters(rows);
+      })
+      .catch(() => {/* fall through to static data */})
+      .finally(() => setEncounterLoading(false));
+  }, [activePatientId, useMockData]);
 
   const totalEpisodes = EPISODE_TYPES.reduce((a, e) => a + e.count, 0);
   const activeEpisodes = 1;
@@ -968,6 +1011,65 @@ function EpisodicManagementContent() {
                 </tbody>
               </table>
             </div>
+
+            {/* ── FHIR Encounters Panel — live mode only ─────────────────── */}
+            {!useMockData && (
+              <div className="bg-white border border-carbon-gray-20">
+                <div className="px-5 py-4 border-b border-carbon-gray-20 flex items-center gap-3">
+                  <Icon name="CalendarDaysIcon" size={15} className="text-[#0043ce]" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-carbon-gray-100">
+                      FHIR Encounters — {patient?.name ?? activePatientId}
+                    </h3>
+                    <p className="text-2xs text-carbon-gray-50 mt-0.5">Recent encounters read from HAPI FHIR R4</p>
+                  </div>
+                  {encounterLoading && (
+                    <span className="ml-auto flex items-center gap-1 text-xs text-[#0043ce]">
+                      <span className="w-2 h-2 rounded-full border border-[#0043ce] border-t-transparent animate-spin" />
+                      Loading…
+                    </span>
+                  )}
+                  {!encounterLoading && fhirEncounters.length > 0 && (
+                    <span className="ml-auto text-xs font-medium text-[#198038]">✓ {fhirEncounters.length} encounters from FHIR</span>
+                  )}
+                </div>
+                {fhirEncounters.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-carbon-gray-10 border-b border-carbon-gray-20">
+                      <tr>
+                        {['DATE', 'TYPE', 'SETTING', 'PROVIDER', 'REASON', 'STATUS'].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left text-2xs font-semibold text-carbon-gray-70 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-carbon-gray-20">
+                      {fhirEncounters.map((enc) => (
+                        <tr key={enc.id} className="hover:bg-carbon-gray-10 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs text-carbon-gray-70">{enc.date}</td>
+                          <td className="px-4 py-3 text-xs text-carbon-gray-100 font-medium">{enc.type}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-2xs font-semibold px-2 py-0.5 ${enc.setting === 'Phone' ? 'bg-[#d9fbfb] text-[#007d79]' : enc.setting === 'Outpatient' ? 'bg-[#d0e2ff] text-[#0043ce]' : 'bg-[#fff1f1] text-[#da1e28]'}`}>
+                              {enc.setting}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-carbon-gray-70">{enc.provider}</td>
+                          <td className="px-4 py-3 text-xs text-carbon-gray-70">{enc.reason}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-2xs font-semibold px-2 py-0.5 ${enc.status === 'finished' ? 'bg-[#defbe6] text-[#0e6027]' : 'bg-[#fdf6dd] text-[#b45309]'}`}>
+                              {enc.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : !encounterLoading ? (
+                  <div className="px-5 py-8 text-center text-carbon-gray-50 text-sm">
+                    No FHIR encounters found for this patient. Switch to Mock Data mode to see static episode data.
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             {/* Individual Member Risk Score Section */}
             <div className="bg-white border border-carbon-gray-20">

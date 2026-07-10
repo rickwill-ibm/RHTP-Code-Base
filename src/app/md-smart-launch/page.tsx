@@ -127,10 +127,10 @@ export default function MdSmartLaunchPage() {
         'smart-launch',
         'SMART on FHIR launch completed',
         {
-          launchToken: ctx.launchToken,
           fhirBaseUrl: ctx.fhirBaseUrl,
-          patientName: ctx.patientName,
-          encounterType: ctx.encounterType,
+          patientId: ctx.patientId,
+          encounterId: ctx.encounterId,
+          practitionerName: ctx.practitionerName,
           smartAppVersion: '1.0.0',
         },
         'success',

@@ -48,7 +48,7 @@ export default function CernerReturnFlow({
           {
             type: 'SMART_APP_COMPLETED',
             patientId: launchContext.patientId,
-            patientName: launchContext.patientName || 'Maria Reyes',
+            patientName: launchContext.practitionerName || 'Unknown',
             returnId: rid,
             payload,
           },

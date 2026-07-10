@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 
@@ -28,7 +28,7 @@ const MOCK_ID_TO_PLATFORM_ID: Record<string, string> = {
 
 function PatientDetailContent() {
   const searchParams = useSearchParams();
-  const { activePatientId } = useAppContext();
+  const { activePatientId, setActivePatientId } = useAppContext();
 
   // URL param takes precedence; otherwise fall back to global activePatientId (default: MARIA_SD_001)
   const urlId = searchParams?.get('id') ?? '';
@@ -36,6 +36,15 @@ function PatientDetailContent() {
 
   // Resolve mockData IDs or legacy IDs to registry platform IDs
   const resolvedId = MOCK_ID_TO_PLATFORM_ID[rawId] ?? rawId;
+
+  // Keep AppContext.activePatientId in sync when navigated here via URL param.
+  // This ensures care-team-inbox, specialist-inbox, etc. all show the same patient.
+  useEffect(() => {
+    if (resolvedId && resolvedId !== activePatientId) {
+      setActivePatientId(resolvedId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedId]);
 
   // Look up patient from registry — works for any patient, not just Maria
   const registryPatient = getPatientSync(resolvedId);

@@ -4,7 +4,8 @@ import Icon from '@/components/ui/AppIcon';
 import { useWorkflowMachine } from '@/lib/workflowMachine';
 import { useAppContext } from '@/lib/appContext';
 import { workflowDefinitions } from '@/lib/actionRegistry';
-import { useGapClosureStore } from '@/lib/patientContext';
+import { useGapClosureStore, usePatientContext } from '@/lib/patientContext';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import type { CareGap } from '@/lib/mockData';
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
@@ -693,7 +694,7 @@ function HbA1cClosurePanel({ gap, onClose, onDefer }: HbA1cClosurePanelProps) {
 // ─── Completed State ──────────────────────────────────────────────────────────
 function ClosureCompletedPanel({ gap, stepHistory }: { gap: CareGap; stepHistory: { label: string; completedBy: string; completedAt: string; notes?: string }[] }) {
   const { getGapClosure } = useGapClosureStore();
-  const closure = getGapClosure('CG_MARIA_001');
+  const closure = getGapClosure(gap.id);
 
   return (
     <div className="space-y-4">
@@ -804,6 +805,7 @@ interface CareGapClosureJourneyProps {
 
 export default function CareGapClosureJourney({ gap, onClose }: CareGapClosureJourneyProps) {
   const { user } = useAppContext();
+  const { patient } = usePatientContext();
   const { submitClosure, startClosing } = useGapClosureStore();
   const {
     getWorkflow,
@@ -827,10 +829,15 @@ export default function CareGapClosureJourney({ gap, onClose }: CareGapClosureJo
 
   const isHbA1cGap = gap.measureId?.includes('CDC') || gap.measureName?.toLowerCase().includes('hba1c') || gap.measureName?.toLowerCase().includes('a1c');
 
+  // Canonical FHIR Observation ID for this gap — matches migrate-patients.mjs pattern
+  const patientFhirId =
+    PLATFORM_TO_FHIR_ID_MAP[patient.patientId] ?? patient.patientId;
+  const canonicalObsId = `patient-${patientFhirId}-gap-${gap.id}`;
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = () => {
     startWorkflow('care-gap-closure', gap.id, userName, userRole);
-    if (isHbA1cGap) startClosing('CG_MARIA_001');
+    if (isHbA1cGap) startClosing(gap.id);
   };
 
   const handleAssign = (coordinator: string, notes: string) => {
@@ -853,10 +860,11 @@ export default function CareGapClosureJourney({ gap, onClose }: CareGapClosureJo
     const evidenceStr = evidenceSources.length > 0 ? ` | Evidence: ${evidenceSources.join('; ')}` : '';
     completeWorkflow('care-gap-closure', gap.id, userName, userRole, `${attestation}${evidenceStr} | ${notes}`);
 
-    // Write to shared gap closure store for HbA1c gaps
-    if (isHbA1cGap && hbA1cData) {
+    // Write to FHIR gap closure store — use actual gap.id and canonical Observation ID
+    // so submitClosure issues PUT against the pre-migrated Observation on HAPI FHIR.
+    if (hbA1cData) {
       submitClosure({
-        gapId: 'CG_MARIA_001',
+        gapId: gap.id,
         status: 'CLOSED',
         closedFrom: 'PATIENT_DETAIL',
         dateOfService: hbA1cData.dateOfService,
@@ -866,7 +874,15 @@ export default function CareGapClosureJourney({ gap, onClose }: CareGapClosureJo
         resultValue: hbA1cData.resultValue,
         resultUnit: '%',
         gainshare: 8100,
-        fhirObservationId: `OBS-HBAIC-${Date.now()}`,
+        fhirObservationId: canonicalObsId,
+      });
+    } else {
+      // Non-HbA1c gap — still write the closure with canonical ID
+      submitClosure({
+        gapId: gap.id,
+        status: 'CLOSED',
+        closedFrom: 'PATIENT_DETAIL',
+        fhirObservationId: canonicalObsId,
       });
     }
   };

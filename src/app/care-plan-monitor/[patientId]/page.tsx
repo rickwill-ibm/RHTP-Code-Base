@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCarePlanStore, type MonitoredCarePlan } from '@/lib/stores/carePlanStore';
 import { getAllPatients, getVisiblePatients } from '@/lib/patientRegistry';
-import { getFhirMockMode } from '@/lib/services/fhirClient';
 import { generateHolisticCarePlan } from '@/lib/services/carePlanGenerator';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import type { Patient, InterventionStatus } from '@/lib/mockData';
 
 export default function CarePlanMonitorPage() {

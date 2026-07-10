@@ -13,6 +13,36 @@ export interface CareGapEntry {
   assignedTo: string;
 }
 
+export interface ConditionEntry {
+  key: string;
+  code: string;
+  name: string;
+  onset: string;
+  status: string;
+  source: string;
+}
+
+export interface MedicationEntry {
+  key: string;
+  name: string;
+  dose: string;
+  frequency: string;
+  prescriber: string;
+  lastFill: string;
+  adherence: number | null;
+  ddi: boolean;
+}
+
+export interface OrderEntry {
+  key: string;
+  type: string;
+  name: string;
+  result: string;
+  date: string;
+  status: string;
+  flag: string | null;
+}
+
 export interface PathwayStepEntry {
   id: string;
   label: string;
@@ -120,11 +150,43 @@ export interface RegistryPatient {
   // Patient-specific CDS cards for SMART launch
   cdsCards: CdsCardEntry[];
 
+  // Per-patient clinical data (shown in ClinicalTab)
+  conditions?: ConditionEntry[];
+  medications?: MedicationEntry[];
+  recentOrders?: OrderEntry[];
+
+  // Per-patient care plan domains (shown in WholePersonCarePlanTab)
+  carePlanDomains?: CarePlanDomain[];
+
+  // Recent encounters from FHIR (Encounter resources)
+  recentEncounters?: {
+    id: string; date: string; type: string; setting: string;
+    provider: string; reason: string; status: string;
+  }[];
+
+  // Goals from FHIR (Goal resources)
+  fhirGoals?: { id: string; description: string; status: string; dueDate: string; note: string }[];
+
   // Household / whole-family scenario (mock; drives family-sofia + caregiver-elena)
   household?: Household;
 
   // Care-journey mapping (references a template in uhg/data/journeys.ts)
   journey?: { id: string; currentDay: number };
+}
+
+export interface CarePlanGoal {
+  goal: string;
+  status: string;
+  owner: string;
+  dueDate: string;
+  tasks: string[];
+}
+
+export interface CarePlanDomain {
+  domain: string;
+  color: string;
+  icon: string;
+  goals: CarePlanGoal[];
 }
 
 // ─── FHIR ID Mapping Table ────────────────────────────────────────────────────
@@ -147,6 +209,19 @@ export const FHIR_ID_MAP: Record<string, string> = {
   'patient-002': 'PAT-0087',
   'patient-003': 'PAT-0103',
   'patient-004': 'PAT-0156',
+};
+
+/**
+ * Platform ID → canonical FHIR patient ID.
+ * Used by PatientContextProvider to translate a platform ID (e.g. "MARIA_SD_001")
+ * into the FHIR resource ID needed for server queries.
+ */
+export const PLATFORM_TO_FHIR_ID_MAP: Record<string, string> = {
+  'MARIA_SD_001': 'patient-maria-001',
+  'PAT-0042': 'patient-dorothy-042',
+  'PAT-0087': 'patient-james-087',
+  'PAT-0103': 'patient-robert-103',
+  'PAT-0156': 'patient-lisa-156',
 };
 
 // ─── Patient Registry ─────────────────────────────────────────────────────────
@@ -257,6 +332,51 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
       { id: 'cds-maria-3', indicator: 'warning', summary: 'Well-Child 24-month visit — Sophia overdue 21 days', detail: 'Daughter Sophia\'s 24-month well-child visit is 21 days overdue. Transportation barrier (47 miles) preventing appointment attendance. Bundle with Maria\'s HbA1c lab to reduce trips. Childcare coordination needed.' },
       { id: 'cds-maria-4', indicator: 'info', summary: 'Multiple eligible benefits not enrolled — $807/month total', detail: 'Maria is eligible for multiple benefits not currently enrolled: Childcare Subsidy ($487/mo), WIC Re-enrollment ($320/mo), LIHEAP (utility assistance), and Medicaid Non-Emergency Transport. Total monthly benefit value: $807. Enrollment would significantly improve care access and financial stability.' },
     ],
+
+    conditions: [
+      { key: 'mar-c1', code: 'O90.6', name: 'Postpartum mood disturbance', onset: '2025-07', status: 'Active', source: 'EMR' },
+      { key: 'mar-c2', code: 'R73.09', name: 'Pre-diabetes (HbA1c 6.2%)', onset: '2024-11', status: 'Active', source: 'EMR' },
+      { key: 'mar-c3', code: 'Z62.89', name: 'Caregiver stress — mother + infant', onset: '2025-06', status: 'Active', source: 'EMR' },
+    ],
+    medications: [
+      { key: 'mar-m1', name: 'Prenatal Vitamin', dose: '1 tab', frequency: 'Daily', prescriber: 'Bennett County Health', lastFill: '2026-04-15', adherence: 0.88, ddi: false },
+      { key: 'mar-m2', name: 'Sertraline', dose: '25mg', frequency: 'Daily', prescriber: 'Bennett County Health', lastFill: '2026-05-01', adherence: 0.72, ddi: false },
+    ],
+    recentOrders: [
+      { key: 'mar-o1', type: 'Lab', name: 'HbA1c', result: '6.2% (Pre-diabetic)', date: '2025-12-10', status: 'Resulted', flag: 'High' },
+      { key: 'mar-o2', type: 'Screening', name: 'Edinburgh PND', result: 'Score 11 (Moderate)', date: '2026-05-01', status: 'Resulted', flag: 'High' },
+      { key: 'mar-o3', type: 'Referral', name: 'Postpartum Support Group', result: 'Awaiting enrollment', date: '2026-05-01', status: 'Pending', flag: null },
+      { key: 'mar-o4', type: 'Well-Child', name: 'Sophia 24-Month Visit', result: 'Overdue 21 days', date: '2026-04-10', status: 'Ordered', flag: 'High' },
+    ],
+    carePlanDomains: [
+      {
+        domain: 'Clinical',
+        color: '#0043ce',
+        icon: 'HeartIcon',
+        goals: [
+          { goal: 'HbA1c recheck by June 22, 2026', status: 'open', owner: 'Bennett County Health', dueDate: '2026-06-22', tasks: ['NEMT enrollment for lab visit', 'Bundle with Sophia well-child', 'HbA1c result review with PCP'] },
+        ],
+      },
+      {
+        domain: 'Behavioral Health',
+        color: '#6929c4',
+        icon: 'SparklesIcon',
+        goals: [
+          { goal: 'Edinburgh PND score < 7 by Q4 2026', status: 'in-progress', owner: 'Postpartum Support Group', dueDate: '2026-10-31', tasks: ['Enroll in Postpartum Support Group', 'Weekly BH check-in', 'Sertraline titration review'] },
+          { goal: 'Caregiver burden assessment completed', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-06-30', tasks: ['Schedule PAM assessment', 'Refer to respite care resources'] },
+        ],
+      },
+      {
+        domain: 'Social Needs',
+        color: '#b45309',
+        icon: 'HomeIcon',
+        goals: [
+          { goal: 'Transportation barrier resolved by Q3 2026', status: 'in-progress', owner: 'Sarah Johnson', dueDate: '2026-09-30', tasks: ['Medicaid NEMT benefit activated', 'Rideshare coordination for appointments'] },
+          { goal: 'Childcare subsidy enrolled by Jun 2026', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-06-30', tasks: ['Complete DHS childcare application', 'Submit income verification'] },
+          { goal: 'WIC re-enrollment by Jul 2026', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-07-31', tasks: ['Schedule WIC office appointment', 'Gather household income documents'] },
+        ],
+      },
+    ],
   },
 
   // ── Dorothy Simmons — Preserved exactly ──────────────────────────────────
@@ -359,6 +479,62 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
       { id: 'cds-dorothy-3', indicator: 'info', summary: 'RAF 3.42 — 4 HCC suspects, $24,800 revenue at risk', detail: '4 HCC suspects identified: T2DM with CKD Stage 3, COPD, Major Depression, Cardiac. Documentation deadline Dec 31, 2026. Estimated RAF delta: +0.42 if all captured.' },
       { id: 'cds-dorothy-4', indicator: 'warning', summary: 'A1C 9.2% — diabetes poorly controlled', detail: 'Last A1C 9.2% (Feb 10). Target <7.0%. Retinal exam and nephropathy screening both overdue. Consider endocrinology referral given CKD Stage 3b (eGFR 42).' },
     ],
+
+    conditions: [
+      { key: 'dot-c1', code: 'I50.32', name: 'Chronic diastolic heart failure', onset: '2019-03', status: 'Active', source: 'EMR' },
+      { key: 'dot-c2', code: 'E11.65', name: 'Type 2 diabetes mellitus with hyperglycemia', onset: '2014-07', status: 'Active', source: 'EMR' },
+      { key: 'dot-c3', code: 'J44.1', name: 'COPD with acute exacerbation', onset: '2021-11', status: 'Active', source: 'HIE' },
+      { key: 'dot-c4', code: 'I10', name: 'Essential (primary) hypertension', onset: '2012-03', status: 'Active', source: 'EMR' },
+      { key: 'dot-c5', code: 'E66.01', name: 'Morbid obesity due to excess calories', onset: '2016-05', status: 'Active', source: 'EMR' },
+      { key: 'dot-c6', code: 'N18.3', name: 'Chronic kidney disease, stage 3', onset: '2022-09', status: 'Active', source: 'Claims' },
+      { key: 'dot-c7', code: 'F32.1', name: 'Major depressive disorder, single episode', onset: '2023-02', status: 'Active', source: 'EMR' },
+    ],
+    medications: [
+      { key: 'dot-m1', name: 'Furosemide', dose: '40mg', frequency: 'Daily', prescriber: 'Dr. Whitfield', lastFill: '2026-04-01', adherence: 0.92, ddi: false },
+      { key: 'dot-m2', name: 'Metformin HCl', dose: '1000mg', frequency: 'BID', prescriber: 'Dr. Whitfield', lastFill: '2026-03-28', adherence: 0.71, ddi: false },
+      { key: 'dot-m3', name: 'Warfarin Sodium', dose: '5mg', frequency: 'Daily', prescriber: 'Dr. Whitfield', lastFill: '2026-04-08', adherence: 0.95, ddi: true },
+      { key: 'dot-m4', name: 'Tiotropium bromide', dose: '18mcg', frequency: 'Daily inhaled', prescriber: 'Dr. Nakamura', lastFill: '2026-03-15', adherence: 0.68, ddi: false },
+      { key: 'dot-m5', name: 'Lisinopril', dose: '20mg', frequency: 'Daily', prescriber: 'Dr. Whitfield', lastFill: '2026-04-01', adherence: 0.89, ddi: false },
+      { key: 'dot-m6', name: 'Atorvastatin', dose: '40mg', frequency: 'Nightly', prescriber: 'Dr. Whitfield', lastFill: '2026-03-20', adherence: 0.84, ddi: false },
+      { key: 'dot-m7', name: 'Ibuprofen OTC', dose: '400mg', frequency: 'PRN', prescriber: 'OTC', lastFill: '2026-04-10', adherence: null, ddi: true },
+    ],
+    recentOrders: [
+      { key: 'dot-o1', type: 'Lab', name: 'HbA1c', result: '9.2%', date: '2026-03-15', status: 'Resulted', flag: 'High' },
+      { key: 'dot-o2', type: 'Lab', name: 'BNP', result: '842 pg/mL', date: '2026-03-28', status: 'Resulted', flag: 'Critical' },
+      { key: 'dot-o3', type: 'Imaging', name: 'Cardiac MRI', result: 'Pending', date: '2026-04-14', status: 'Ordered', flag: null },
+      { key: 'dot-o4', type: 'Referral', name: 'Ophthalmology', result: 'Awaiting scheduling', date: '2026-02-14', status: 'Pending', flag: null },
+      { key: 'dot-o5', type: 'Lab', name: 'eGFR / BMP', result: '38 mL/min', date: '2026-03-15', status: 'Resulted', flag: 'Low' },
+      { key: 'dot-o6', type: 'Procedure', name: 'Echocardiogram', result: 'EF 35%', date: '2026-03-12', status: 'Resulted', flag: 'Low' },
+    ],
+    carePlanDomains: [
+      {
+        domain: 'Clinical',
+        color: '#0043ce',
+        icon: 'HeartIcon',
+        goals: [
+          { goal: 'A1C < 8.0 by Q3 2026', status: 'in-progress', owner: 'Dr. Whitfield', dueDate: '2026-09-30', tasks: ['Metformin titration', 'Diabetes education referral', 'A1C recheck in 90 days'] },
+          { goal: 'BP < 130/80 by Q2 2026', status: 'open', owner: 'Dr. Whitfield', dueDate: '2026-06-30', tasks: ['Lisinopril 20mg titration', 'Home BP monitoring kit ordered'] },
+          { goal: 'Spirometry completed by May 2026', status: 'open', owner: 'Dr. Whitfield', dueDate: '2026-05-31', tasks: ['Schedule spirometry at Ozark FQHC', 'COPD action plan update'] },
+        ],
+      },
+      {
+        domain: 'Behavioral Health',
+        color: '#6929c4',
+        icon: 'SparklesIcon',
+        goals: [
+          { goal: 'PHQ-9 score < 10 by Q3 2026', status: 'in-progress', owner: 'Cascade Valley BH', dueDate: '2026-09-30', tasks: ['Weekly BH counseling sessions', 'Antidepressant medication review', 'Safety plan documented'] },
+        ],
+      },
+      {
+        domain: 'Social Needs',
+        color: '#b45309',
+        icon: 'HomeIcon',
+        goals: [
+          { goal: 'Transport referral active by May 2026', status: 'completed', owner: 'Maria Gonzalez', dueDate: '2026-05-31', tasks: ['Unite Us TU-48821 activated', 'Transport coordinator assigned'] },
+          { goal: 'SNAP re-certification by Jun 2026', status: 'open', owner: 'Maria Gonzalez', dueDate: '2026-06-30', tasks: ['Recertification paperwork submitted', 'DHS appointment confirmed'] },
+        ],
+      },
+    ],
   },
 
   // ── James Wilson ──────────────────────────────────────────────────────────
@@ -455,6 +631,54 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
       { id: 'cds-james-1', indicator: 'warning', summary: 'A1C overdue 45 days — diabetes management gap', detail: 'Diabetic A1C recheck is 45 days overdue. Last value not on record. Retinal exam and nephropathy screening also overdue. Bundle labs to reduce patient travel burden.' },
       { id: 'cds-james-2', indicator: 'warning', summary: 'BNP panel overdue 22 days — CHF monitoring gap', detail: 'CHF monitoring BNP panel is 22 days overdue. Patient has active CHF episode (89 days). Daily weight log active but no recent lab confirmation of fluid status.' },
       { id: 'cds-james-3', indicator: 'info', summary: 'PHQ-9 8 — mild depression, consider BH referral', detail: 'PHQ-9 score 8 indicates mild depression. Chronic disease burden (Diabetes + CHF) increases BH risk. Consider BH referral to address depression and improve medication adherence.' },
+    ],
+
+    conditions: [
+      { key: 'jw-c1', code: 'I50.32', name: 'Chronic systolic heart failure', onset: '2022-01', status: 'Active', source: 'EMR' },
+      { key: 'jw-c2', code: 'E11.9', name: 'Type 2 diabetes mellitus', onset: '2015-04', status: 'Active', source: 'EMR' },
+      { key: 'jw-c3', code: 'I10', name: 'Essential (primary) hypertension', onset: '2013-08', status: 'Active', source: 'Claims' },
+      { key: 'jw-c4', code: 'F32.0', name: 'Major depressive disorder, mild', onset: '2024-02', status: 'Active', source: 'EMR' },
+    ],
+    medications: [
+      { key: 'jw-m1', name: 'Metformin HCl', dose: '1000mg', frequency: 'BID', prescriber: 'Dr. Okonkwo', lastFill: '2026-04-10', adherence: 0.74, ddi: false },
+      { key: 'jw-m2', name: 'Carvedilol', dose: '12.5mg', frequency: 'BID', prescriber: 'Dr. Okonkwo', lastFill: '2026-04-01', adherence: 0.85, ddi: false },
+      { key: 'jw-m3', name: 'Lisinopril', dose: '10mg', frequency: 'Daily', prescriber: 'Dr. Okonkwo', lastFill: '2026-04-01', adherence: 0.90, ddi: false },
+      { key: 'jw-m4', name: 'Furosemide', dose: '20mg', frequency: 'Daily', prescriber: 'Dr. Okonkwo', lastFill: '2026-03-18', adherence: 0.78, ddi: false },
+      { key: 'jw-m5', name: 'Atorvastatin', dose: '20mg', frequency: 'Nightly', prescriber: 'Dr. Okonkwo', lastFill: '2026-03-18', adherence: 0.82, ddi: false },
+    ],
+    recentOrders: [
+      { key: 'jw-o1', type: 'Lab', name: 'HbA1c', result: 'Overdue 45 days', date: '2026-02-28', status: 'Ordered', flag: 'High' },
+      { key: 'jw-o2', type: 'Lab', name: 'BNP Panel', result: 'Overdue 22 days', date: '2026-03-21', status: 'Ordered', flag: 'High' },
+      { key: 'jw-o3', type: 'Lab', name: 'Retinal Exam', result: 'Overdue 120 days', date: '2025-12-01', status: 'Ordered', flag: 'High' },
+      { key: 'jw-o4', type: 'Referral', name: 'Cardiology Consultation', result: 'Pending scheduling', date: '2026-04-01', status: 'Pending', flag: null },
+    ],
+    carePlanDomains: [
+      {
+        domain: 'Clinical',
+        color: '#0043ce',
+        icon: 'HeartIcon',
+        goals: [
+          { goal: 'A1C < 7.5% by Q3 2026', status: 'in-progress', owner: 'Dr. Okonkwo', dueDate: '2026-09-30', tasks: ['Metformin 1000mg BID compliance review', 'A1C lab recheck', 'Diabetes education reinforcement'] },
+          { goal: 'CHF BNP panel current', status: 'open', owner: 'Dr. Okonkwo', dueDate: '2026-05-15', tasks: ['BNP + CBC lab order', 'Daily weight log review', 'Carvedilol dose assessment'] },
+        ],
+      },
+      {
+        domain: 'Behavioral Health',
+        color: '#6929c4',
+        icon: 'SparklesIcon',
+        goals: [
+          { goal: 'PHQ-9 follow-up completed', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-06-30', tasks: ['PHQ-9 re-assessment', 'BH referral if score > 10', 'Medication adherence counseling'] },
+        ],
+      },
+      {
+        domain: 'Social Needs',
+        color: '#b45309',
+        icon: 'HomeIcon',
+        goals: [
+          { goal: 'Transportation barrier addressed for specialist visits', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-07-31', tasks: ['Medicaid NEMT enrollment', 'Coordinate cardiology transport'] },
+          { goal: 'Medication adherence support enrolled', status: 'in-progress', owner: 'Sarah Johnson', dueDate: '2026-05-31', tasks: ['Pill organizer provided', 'Weekly check-in calls scheduled'] },
+        ],
+      },
     ],
   },
 
@@ -557,6 +781,50 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
       { id: 'cds-robert-2', indicator: 'warning', summary: 'eGFR overdue 42 days — CKD monitoring gap', detail: 'CKD monitoring labs (eGFR, creatinine, UACR) are overdue. Last eGFR 42 (Stage 3b). Nephrology referral recommended if eGFR continues to decline.' },
       { id: 'cds-robert-3', indicator: 'info', summary: 'AUDIT-C 4 — low-moderate alcohol risk, counseling recommended', detail: 'AUDIT-C score 4 indicates low-moderate alcohol use risk. Brief counseling recommended. Alcohol use can worsen hypertension and accelerate CKD progression.' },
     ],
+
+    conditions: [
+      { key: 'rc-c1', code: 'I10', name: 'Essential (primary) hypertension', onset: '2014-06', status: 'Active', source: 'EMR' },
+      { key: 'rc-c2', code: 'N18.3', name: 'Chronic kidney disease, stage 3b', onset: '2020-10', status: 'Active', source: 'EMR' },
+      { key: 'rc-c3', code: 'F10.10', name: 'Alcohol use disorder, mild', onset: '2023-05', status: 'Active', source: 'EMR' },
+    ],
+    medications: [
+      { key: 'rc-m1', name: 'Amlodipine', dose: '10mg', frequency: 'Daily', prescriber: 'Dr. Castillo', lastFill: '2026-04-05', adherence: 0.87, ddi: false },
+      { key: 'rc-m2', name: 'Losartan', dose: '100mg', frequency: 'Daily', prescriber: 'Dr. Castillo', lastFill: '2026-04-05', adherence: 0.81, ddi: false },
+      { key: 'rc-m3', name: 'Atorvastatin', dose: '40mg', frequency: 'Nightly', prescriber: 'Dr. Castillo', lastFill: '2026-03-22', adherence: 0.79, ddi: false },
+    ],
+    recentOrders: [
+      { key: 'rc-o1', type: 'Lab', name: 'BP Check', result: '158/96 mmHg', date: '2026-03-15', status: 'Resulted', flag: 'High' },
+      { key: 'rc-o2', type: 'Lab', name: 'eGFR / Creatinine', result: 'eGFR 42 (Stage 3b)', date: '2026-02-28', status: 'Resulted', flag: 'Low' },
+      { key: 'rc-o3', type: 'Lab', name: 'Urine UACR', result: 'Overdue 60 days', date: '2026-02-15', status: 'Ordered', flag: 'High' },
+      { key: 'rc-o4', type: 'Referral', name: 'Nephrology', result: 'Pending referral', date: '2026-04-10', status: 'Pending', flag: null },
+    ],
+    carePlanDomains: [
+      {
+        domain: 'Clinical',
+        color: '#0043ce',
+        icon: 'HeartIcon',
+        goals: [
+          { goal: 'BP < 130/80 by Q3 2026', status: 'in-progress', owner: 'Dr. Castillo', dueDate: '2026-09-30', tasks: ['Amlodipine 10mg + Losartan 100mg continued', 'Home BP log weekly', 'Sodium-restricted diet counseling'] },
+          { goal: 'eGFR stabilized ≥ 40 by Q4 2026', status: 'in-progress', owner: 'Dr. Castillo', dueDate: '2026-12-31', tasks: ['Quarterly eGFR monitoring', 'UACR lab ordered', 'Nephrology referral if eGFR < 35'] },
+        ],
+      },
+      {
+        domain: 'Behavioral Health',
+        color: '#6929c4',
+        icon: 'SparklesIcon',
+        goals: [
+          { goal: 'AUDIT-C counseling completed', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-06-30', tasks: ['Brief alcohol intervention session', 'Follow-up AUDIT-C in 3 months'] },
+        ],
+      },
+      {
+        domain: 'Social Needs',
+        color: '#b45309',
+        icon: 'HomeIcon',
+        goals: [
+          { goal: 'Medication cost assistance enrolled', status: 'in-progress', owner: 'Sarah Johnson', dueDate: '2026-05-31', tasks: ['Patient Assistance Program application submitted', 'Pharmacy discount card provided'] },
+        ],
+      },
+    ],
   },
 
   // ── Lisa Thompson ─────────────────────────────────────────────────────────
@@ -651,6 +919,49 @@ const PATIENT_REGISTRY: RegistryPatient[] = [
       { id: 'cds-lisa-1', indicator: 'info', summary: 'Asthma action plan update overdue 35 days', detail: 'Annual asthma action plan review is 35 days overdue. Inhaler technique corrected Feb 5. Consider spirometry to assess current lung function and update rescue medication plan.' },
       { id: 'cds-lisa-2', indicator: 'info', summary: 'Weight management referral in progress — BMI elevated', detail: 'BMI elevated — weight management referral active. Patient goal: -15 lbs. SNAP-Ed nutrition counseling eligible. Consider structured weight management program enrollment.' },
       { id: 'cds-lisa-3', indicator: 'info', summary: 'PHQ-9 annual screening due', detail: 'Annual PHQ-9 depression screening is due. Last score 6 (minimal). Chronic disease burden (asthma + obesity) increases BH risk. Complete during next encounter.' },
+    ],
+
+    conditions: [
+      { key: 'lt-c1', code: 'J45.50', name: 'Severe persistent asthma, uncomplicated', onset: '2012-03', status: 'Active', source: 'EMR' },
+      { key: 'lt-c2', code: 'E66.9', name: 'Obesity, unspecified (BMI 38)', onset: '2018-09', status: 'Active', source: 'EMR' },
+    ],
+    medications: [
+      { key: 'lt-m1', name: 'Fluticasone / Salmeterol', dose: '250/50mcg', frequency: 'BID inhaled', prescriber: 'Dr. Torres', lastFill: '2026-04-08', adherence: 0.76, ddi: false },
+      { key: 'lt-m2', name: 'Albuterol HFA', dose: '90mcg', frequency: 'PRN', prescriber: 'Dr. Torres', lastFill: '2026-04-12', adherence: null, ddi: false },
+      { key: 'lt-m3', name: 'Montelukast', dose: '10mg', frequency: 'Daily', prescriber: 'Dr. Torres', lastFill: '2026-03-30', adherence: 0.88, ddi: false },
+    ],
+    recentOrders: [
+      { key: 'lt-o1', type: 'Lab', name: 'Spirometry', result: 'Overdue 35 days', date: '2026-03-28', status: 'Ordered', flag: 'High' },
+      { key: 'lt-o2', type: 'Referral', name: 'Weight Management Program', result: 'In progress — -4 lbs since referral', date: '2026-02-20', status: 'Pending', flag: null },
+      { key: 'lt-o3', type: 'Screening', name: 'PHQ-9 Annual', result: 'Due', date: '2026-04-15', status: 'Ordered', flag: null },
+      { key: 'lt-o4', type: 'Referral', name: 'Nutrition Counseling (SNAP-Ed)', result: 'Pending enrollment', date: '2026-04-01', status: 'Pending', flag: null },
+    ],
+    carePlanDomains: [
+      {
+        domain: 'Clinical',
+        color: '#0043ce',
+        icon: 'HeartIcon',
+        goals: [
+          { goal: 'Asthma action plan updated by Jun 2026', status: 'open', owner: 'Dr. Torres', dueDate: '2026-06-30', tasks: ['Spirometry scheduled', 'Inhaler technique re-evaluation', 'Rescue medication plan updated'] },
+          { goal: 'BMI reduction -15 lbs by Q4 2026', status: 'in-progress', owner: 'Dr. Torres', dueDate: '2026-12-31', tasks: ['Weight management program enrolled', 'Weekly weigh-in log', 'SNAP-Ed nutrition counseling'] },
+        ],
+      },
+      {
+        domain: 'Behavioral Health',
+        color: '#6929c4',
+        icon: 'SparklesIcon',
+        goals: [
+          { goal: 'PHQ-9 annual screening completed', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-06-30', tasks: ['PHQ-9 assessment scheduled', 'Review results with PCP'] },
+        ],
+      },
+      {
+        domain: 'Social Needs',
+        color: '#b45309',
+        icon: 'HomeIcon',
+        goals: [
+          { goal: 'Nutrition counseling enrollment by Jul 2026', status: 'open', owner: 'Sarah Johnson', dueDate: '2026-07-31', tasks: ['SNAP-Ed program referral sent', 'Confirm enrollment with community partner'] },
+        ],
+      },
     ],
   },
 ];

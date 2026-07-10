@@ -8,6 +8,32 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? '';
 
 const CERNER_FHIR_BASE = 'https://fhir-ehr-code.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d';
 
+// The local HAPI FHIR server base URL (from env, defaults to localhost).
+const LOCAL_FHIR_BASE =
+  process.env.NEXT_PUBLIC_FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
+
+// ─── Real FHIR fetch helper ───────────────────────────────────────────────────
+
+async function realFhirRequest(
+  method: 'GET' | 'POST' | 'PUT',
+  path: string,
+  body?: object,
+): Promise<{ statusCode: number; body: string; latencyMs: number }> {
+  const url = `${LOCAL_FHIR_BASE}/${path.replace(/^\//, '')}`;
+  const start = Date.now();
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Accept: 'application/fhir+json',
+      'Content-Type': 'application/fhir+json',
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const latencyMs = Date.now() - start;
+  const text = await res.text();
+  return { statusCode: res.status, body: text, latencyMs };
+}
+
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type TestStatus = 'idle' | 'running' | 'success' | 'error';
@@ -22,7 +48,7 @@ interface TestResult {
   timestamp?: string;
 }
 
-type ActiveTab = 'patient' | 'order' | 'cds';
+type ActiveTab = 'patient' | 'order' | 'cds' | 'gaps';
 
 // ─── Mock Cerner sandbox responses ────────────────────────────────────────────
 
@@ -75,13 +101,6 @@ const MOCK_CDS_RESPONSE = {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function simulateRequest(delayMs: number, mockResponse: object, statusCode = 200): Promise<{ statusCode: number; body: string; latencyMs: number }> {
-  return new Promise((resolve) =>
-    setTimeout(() => {
-      resolve({ statusCode, body: JSON.stringify(mockResponse, null, 2), latencyMs: delayMs });
-    }, delayMs)
-  );
-}
 
 function StatusPill({ status }: { status: TestStatus }) {
   if (status === 'idle') return <span className="text-xs text-carbon-gray-50">—</span>;
@@ -177,17 +196,29 @@ function PatientLookupTab() {
     if (includeConditions) params.set('_revinclude', 'Condition:patient');
     if (includeMeds) params.set('_revinclude:iterate', 'MedicationRequest:patient');
     if (includeObs) params.set('_revinclude:iterate', 'Observation:patient');
-    const url = `${CERNER_FHIR_BASE}/Patient/${patientId.trim()}?${params.toString()}`;
-    const delay = 280 + Math.floor(Math.random() * 180);
-    const res = await simulateRequest(delay, MOCK_PATIENT_RESPONSE, 200);
-    setResult({
-      status: 'success',
-      statusCode: res.statusCode,
-      latencyMs: res.latencyMs,
-      requestPayload: `GET ${url}\nAccept: application/fhir+json\nAuthorization: Bearer mock-access-token-xyz`,
-      responseBody: res.body,
-      timestamp: new Date().toLocaleTimeString(),
-    });
+    const path = `Patient/${patientId.trim()}?${params.toString()}`;
+    try {
+      const res = await realFhirRequest('GET', path);
+      const succeeded = res.statusCode >= 200 && res.statusCode < 300;
+      // Pretty-print JSON if parseable
+      let body = res.body;
+      try { body = JSON.stringify(JSON.parse(res.body), null, 2); } catch { /* leave as-is */ }
+      setResult({
+        status: succeeded ? 'success' : 'error',
+        statusCode: res.statusCode,
+        latencyMs: res.latencyMs,
+        requestPayload: `GET ${LOCAL_FHIR_BASE}/${path}\nAccept: application/fhir+json`,
+        responseBody: succeeded ? body : undefined,
+        errorMessage: succeeded ? undefined : body,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setResult({
+        status: 'error',
+        errorMessage: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }
   }, [patientId, includeConditions, includeMeds, includeObs]);
 
   const tests = [
@@ -303,16 +334,27 @@ function OrderSubmissionTab() {
   const run = useCallback(async () => {
     setResult({ status: 'running' });
     const payload = buildPayload();
-    const delay = 320 + Math.floor(Math.random() * 200);
-    const res = await simulateRequest(delay, MOCK_ORDER_RESPONSE, 201);
-    setResult({
-      status: 'success',
-      statusCode: res.statusCode,
-      latencyMs: res.latencyMs,
-      requestPayload: `POST ${CERNER_FHIR_BASE}/ServiceRequest\nContent-Type: application/fhir+json\nAuthorization: Bearer mock-access-token-xyz\n\n${JSON.stringify(payload, null, 2)}`,
-      responseBody: res.body,
-      timestamp: new Date().toLocaleTimeString(),
-    });
+    try {
+      const res = await realFhirRequest('POST', 'ServiceRequest', payload);
+      const succeeded = res.statusCode >= 200 && res.statusCode < 300;
+      let body = res.body;
+      try { body = JSON.stringify(JSON.parse(res.body), null, 2); } catch { /* leave as-is */ }
+      setResult({
+        status: succeeded ? 'success' : 'error',
+        statusCode: res.statusCode,
+        latencyMs: res.latencyMs,
+        requestPayload: `POST ${LOCAL_FHIR_BASE}/ServiceRequest\nContent-Type: application/fhir+json\n\n${JSON.stringify(payload, null, 2)}`,
+        responseBody: succeeded ? body : undefined,
+        errorMessage: succeeded ? undefined : body,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setResult({
+        status: 'error',
+        errorMessage: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }
   }, [selectedTemplate, patientId, encounterId, note]);
 
   return (
@@ -445,17 +487,35 @@ function CdsHooksTab() {
   const run = useCallback(async () => {
     setResult({ status: 'running' });
     const payload = buildRequest();
-    const delay = 350 + Math.floor(Math.random() * 250);
-    const res = await simulateRequest(delay, MOCK_CDS_RESPONSE, 200);
-    setResult({
-      status: 'success',
-      statusCode: res.statusCode,
-      latencyMs: res.latencyMs,
-      requestPayload: `POST ${hook.serviceUrl}\nContent-Type: application/json\n\n${JSON.stringify(payload, null, 2)}`,
-      responseBody: res.body,
-      timestamp: new Date().toLocaleTimeString(),
-    });
-  }, [selectedHook, patientId, encounterId]);
+    try {
+      const start = Date.now();
+      const res = await fetch(hook.serviceUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const latencyMs = Date.now() - start;
+      const text = await res.text();
+      const succeeded = res.status >= 200 && res.status < 300;
+      let body = text;
+      try { body = JSON.stringify(JSON.parse(text), null, 2); } catch { /* leave as-is */ }
+      setResult({
+        status: succeeded ? 'success' : 'error',
+        statusCode: res.status,
+        latencyMs,
+        requestPayload: `POST ${hook.serviceUrl}\nContent-Type: application/json\n\n${JSON.stringify(payload, null, 2)}`,
+        responseBody: succeeded ? body : undefined,
+        errorMessage: succeeded ? undefined : body,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setResult({
+        status: 'error',
+        errorMessage: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }
+  }, [selectedHook, patientId, encounterId, hook.serviceUrl]);
 
   return (
     <div className="space-y-5">
@@ -540,6 +600,449 @@ function CdsHooksTab() {
   );
 }
 
+// ─── Force-POST subcomponent ──────────────────────────────────────────────────
+
+const GAP_IDS = [
+  { label: 'gap-1 — Spirometry (COPD)', value: 'gap-1' },
+  { label: 'gap-2 — Flu Vaccine', value: 'gap-2' },
+  { label: 'gap-4 — A1C Recheck', value: 'gap-4' },
+  { label: 'jw-1 — A1C Recheck (Diabetes)', value: 'jw-1' },
+  { label: 'jw-2 — BNP Lab Panel (CHF)', value: 'jw-2' },
+  { label: 'rc-1 — BP Control Check', value: 'rc-1' },
+  { label: 'lt-1 — Asthma Action Plan', value: 'lt-1' },
+];
+
+function ForcePostGapPanel({ patientFhirId, onObsCreated }: { patientFhirId: string; onObsCreated: (id: string) => void }) {
+  const [gapId, setGapId] = useState(GAP_IDS[0].value);
+  const [hedis, setHedis] = useState<'MET' | 'NOT_MET' | 'PENDING'>('MET');
+  const [result, setResult] = useState<TestResult>({ status: 'idle' });
+
+  const run = useCallback(async () => {
+    setResult({ status: 'running' });
+    const now = new Date().toISOString();
+    const payload = {
+      resourceType: 'Observation',
+      status: 'final',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'survey', display: 'Survey' }] }],
+      code: { coding: [{ system: 'http://loinc.org', code: '83036', display: gapId }], text: gapId },
+      subject: { reference: `Patient/${patientFhirId}` },
+      effectiveDateTime: now,
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id', valueString: gapId },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/care-gap-status', valueString: 'Closed' },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/hedis-compliance', valueString: hedis },
+      ],
+      note: [{ text: `Force-closed via FHIR tester at ${now}` }],
+    };
+    try {
+      const res = await realFhirRequest('POST', 'Observation', payload);
+      const succeeded = res.statusCode >= 200 && res.statusCode < 300;
+      let body = res.body;
+      try { body = JSON.stringify(JSON.parse(res.body), null, 2); } catch { /* leave as-is */ }
+      if (succeeded) {
+        try {
+          const created = JSON.parse(res.body);
+          if (created.id) onObsCreated(created.id);
+        } catch { /* ignore */ }
+      }
+      setResult({
+        status: succeeded ? 'success' : 'error',
+        statusCode: res.statusCode,
+        latencyMs: res.latencyMs,
+        requestPayload: `POST ${LOCAL_FHIR_BASE}/Observation\nContent-Type: application/fhir+json\n\n${JSON.stringify(payload, null, 2)}`,
+        responseBody: succeeded ? body : undefined,
+        errorMessage: succeeded ? undefined : body,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setResult({ status: 'error', errorMessage: err instanceof Error ? err.message : String(err), timestamp: new Date().toLocaleTimeString() });
+    }
+  }, [gapId, hedis, patientFhirId, onObsCreated]);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Gap ID</label>
+          <select
+            value={gapId}
+            onChange={(e) => setGapId(e.target.value)}
+            className="w-full border border-carbon-gray-20 px-3 py-2 text-xs text-carbon-gray-100 focus:outline-none focus:border-[#b45309] bg-carbon-gray-10"
+          >
+            {GAP_IDS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">HEDIS Compliance</label>
+          <select
+            value={hedis}
+            onChange={(e) => setHedis(e.target.value as typeof hedis)}
+            className="w-full border border-carbon-gray-20 px-3 py-2 text-xs text-carbon-gray-100 focus:outline-none focus:border-[#b45309] bg-carbon-gray-10"
+          >
+            <option value="MET">MET</option>
+            <option value="NOT_MET">NOT_MET</option>
+            <option value="PENDING">PENDING</option>
+          </select>
+        </div>
+      </div>
+      <button
+        onClick={run}
+        disabled={result.status === 'running'}
+        className="flex items-center gap-2 px-4 py-2 bg-[#b45309] text-white text-xs font-semibold hover:bg-[#92400e] transition-colors disabled:opacity-50"
+      >
+        <Icon name="BoltIcon" size={14} />
+        {result.status === 'running' ? 'Writing…' : 'Force POST Observation'}
+      </button>
+      {result.status === 'success' && (
+        <div className="px-4 py-2.5 bg-[#defbe6] border border-[#a7f0ba] text-xs text-[#0e6027] flex items-center gap-2">
+          <Icon name="CheckCircleIcon" size={14} />
+          <span>Observation created — ID auto-filled in PUT test below. Run the PUT now.</span>
+        </div>
+      )}
+      <ResponsePanel result={result} />
+    </div>
+  );
+}
+
+// ─── Gap & Write Verification Tab ─────────────────────────────────────────────
+
+// Known TCOC FHIR patient IDs (from PLATFORM_TO_FHIR_ID_MAP)
+const TCOC_PATIENTS = [
+  { label: 'Dorothy Simmons (PAT-0042)', fhirId: 'patient-dorothy-042' },
+  { label: 'James Wilson (PAT-0087)', fhirId: 'patient-james-087' },
+  { label: 'Robert Chen (PAT-0103)', fhirId: 'patient-robert-103' },
+  { label: 'Lisa Thompson (PAT-0156)', fhirId: 'patient-lisa-156' },
+  { label: 'Maria Redhawk (MARIA_SD_001)', fhirId: 'patient-maria-001' },
+];
+
+const GAP_BASE_URL = 'http://tcoc.example.org/fhir/StructureDefinition';
+
+function GapVerificationTab() {
+  const [patientFhirId, setPatientFhirId] = useState(TCOC_PATIENTS[0].fhirId);
+  const [searchResult, setSearchResult] = useState<TestResult>({ status: 'idle' });
+  const [putObsId, setPutObsId] = useState('');
+  const [putStatus, setPutStatus] = useState<'final' | 'amended' | 'cancelled'>('amended');
+  const [putNote, setPutNote] = useState('Status updated via FHIR tester PUT verification');
+  const [putResult, setPutResult] = useState<TestResult>({ status: 'idle' });
+  const [parsedObs, setParsedObs] = useState<{ id: string; gapId: string; gapStatus: string; closedAt: string }[]>([]);
+
+  // ── Search closed-gap Observations for a patient ──────────────────────────
+  const runSearch = useCallback(async () => {
+    setSearchResult({ status: 'running' });
+    setParsedObs([]);
+    const path = `Observation?subject=Patient/${patientFhirId}&_count=50`;
+    try {
+      const res = await realFhirRequest('GET', path);
+      const succeeded = res.statusCode >= 200 && res.statusCode < 300;
+      let body = res.body;
+      try { body = JSON.stringify(JSON.parse(res.body), null, 2); } catch { /* leave as-is */ }
+
+      if (succeeded) {
+        try {
+          const bundle = JSON.parse(res.body);
+          const entries: { id: string; gapId: string; gapStatus: string; closedAt: string }[] = [];
+          for (const entry of (bundle.entry ?? [])) {
+            const obs = entry.resource;
+            if (!obs || obs.resourceType !== 'Observation') continue;
+            const exts: { url: string; valueString?: string }[] = obs.extension ?? [];
+            const gapId = exts.find((e: { url: string }) => e.url === `${GAP_BASE_URL}/tcoc-gap-id`)?.valueString ?? obs.code?.text ?? '—';
+            const gapStatus = exts.find((e: { url: string }) => e.url === `${GAP_BASE_URL}/care-gap-status`)?.valueString ?? obs.status ?? '—';
+            const closedAt = obs.effectiveDateTime ?? obs.meta?.lastUpdated ?? '—';
+            entries.push({ id: obs.id, gapId, gapStatus, closedAt });
+          }
+          setParsedObs(entries);
+        } catch { /* parse error, show raw */ }
+      }
+
+      setSearchResult({
+        status: succeeded ? 'success' : 'error',
+        statusCode: res.statusCode,
+        latencyMs: res.latencyMs,
+        requestPayload: `GET ${LOCAL_FHIR_BASE}/${path}`,
+        responseBody: succeeded ? body : undefined,
+        errorMessage: succeeded ? undefined : body,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setSearchResult({ status: 'error', errorMessage: err instanceof Error ? err.message : String(err), timestamp: new Date().toLocaleTimeString() });
+    }
+  }, [patientFhirId]);
+
+  // ── PUT an existing Observation to verify round-trip update ───────────────
+  const runPut = useCallback(async () => {
+    if (!putObsId.trim()) return;
+    setPutResult({ status: 'running' });
+
+    // First GET the existing resource so we have the full body + meta for the PUT
+    let existingObs: Record<string, unknown> = {};
+    try {
+      const getRes = await realFhirRequest('GET', `Observation/${putObsId.trim()}`);
+      existingObs = JSON.parse(getRes.body);
+    } catch {
+      setPutResult({ status: 'error', errorMessage: 'Could not fetch existing Observation before PUT. Check the Observation ID.', timestamp: new Date().toLocaleTimeString() });
+      return;
+    }
+
+    const updatedObs = {
+      ...existingObs,
+      id: putObsId.trim(),
+      status: putStatus,
+      note: [
+        ...((existingObs.note as object[]) ?? []),
+        { text: `${putNote} — verified at ${new Date().toISOString()}` },
+      ],
+    };
+
+    const path = `Observation/${putObsId.trim()}`;
+    try {
+      const res = await realFhirRequest('PUT', path, updatedObs);
+      const succeeded = res.statusCode >= 200 && res.statusCode < 300;
+      let body = res.body;
+      try { body = JSON.stringify(JSON.parse(res.body), null, 2); } catch { /* leave as-is */ }
+      setPutResult({
+        status: succeeded ? 'success' : 'error',
+        statusCode: res.statusCode,
+        latencyMs: res.latencyMs,
+        requestPayload: `PUT ${LOCAL_FHIR_BASE}/${path}\nContent-Type: application/fhir+json\n\n${JSON.stringify(updatedObs, null, 2)}`,
+        responseBody: succeeded ? body : undefined,
+        errorMessage: succeeded ? undefined : body,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setPutResult({ status: 'error', errorMessage: err instanceof Error ? err.message : String(err), timestamp: new Date().toLocaleTimeString() });
+    }
+  }, [putObsId, putStatus, putNote]);
+
+  return (
+    <div className="space-y-6">
+
+      {/* ── How it works explainer ── */}
+      <div className="bg-[#edf5ff] border border-[#0043ce]/30 px-5 py-4 flex gap-3">
+        <Icon name="InformationCircleIcon" size={18} className="text-[#0043ce] flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-carbon-gray-100 space-y-1 leading-relaxed">
+          <p className="font-semibold text-[#0043ce]">How gap closures appear in FHIR</p>
+          <p>When you close a care gap in the app (Live FHIR mode), a <code className="font-mono bg-white px-1">POST Observation</code> is written to HAPI FHIR. Each Observation carries:</p>
+          <ul className="list-disc list-inside space-y-0.5 ml-1 text-carbon-gray-70">
+            <li><code className="font-mono">extension[tcoc-gap-id]</code> — the gap ID (e.g. <code className="font-mono">gap-1</code>)</li>
+            <li><code className="font-mono">extension[care-gap-status]</code> — <code className="font-mono">Closed</code></li>
+            <li><code className="font-mono">extension[hedis-compliance]</code> — <code className="font-mono">MET</code> / <code className="font-mono">NOT_MET</code></li>
+            <li><code className="font-mono">subject.reference</code> → <code className="font-mono">Patient/{'{fhirId}'}</code></li>
+            <li><code className="font-mono">effectiveDateTime</code> — date of service entered during closure</li>
+          </ul>
+          <p className="text-carbon-gray-50 text-2xs mt-1">Use the <strong>Search</strong> panel below to confirm a closure landed. Copy the returned Observation ID into the <strong>PUT Test</strong> to verify round-trip update (status → amended).</p>
+        </div>
+      </div>
+
+      {/* ── Step 1: Search Observations for a patient ── */}
+      <div className="bg-white border border-carbon-gray-20 p-5">
+        <h3 className="text-sm font-semibold text-carbon-gray-100 mb-4 flex items-center gap-2">
+          <Icon name="MagnifyingGlassIcon" size={16} className="text-[#198038]" />
+          Step 1 — Search: Did the gap closure reach the FHIR server?
+        </h3>
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Patient</label>
+          <select
+            value={patientFhirId}
+            onChange={(e) => setPatientFhirId(e.target.value)}
+            className="w-full border border-carbon-gray-20 px-3 py-2 text-xs text-carbon-gray-100 focus:outline-none focus:border-[#198038] bg-carbon-gray-10"
+          >
+            {TCOC_PATIENTS.map((p) => (
+              <option key={p.fhirId} value={p.fhirId}>{p.label}</option>
+            ))}
+          </select>
+          <p className="text-2xs text-carbon-gray-50 mt-1 font-mono">
+            → GET {LOCAL_FHIR_BASE}/Observation?subject=Patient/{patientFhirId}&_count=50
+          </p>
+        </div>
+        <button
+          onClick={runSearch}
+          disabled={searchResult.status === 'running'}
+          className="flex items-center gap-2 px-4 py-2 bg-[#198038] text-white text-xs font-semibold hover:bg-[#0e6027] transition-colors disabled:opacity-50 mb-5"
+        >
+          <Icon name="MagnifyingGlassIcon" size={14} />
+          {searchResult.status === 'running' ? 'Searching…' : 'Search Observations'}
+        </button>
+
+        {/* Parsed gap table */}
+        {parsedObs.length > 0 && (
+          <div className="mb-4">
+            <p className="text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest mb-2">
+              Found {parsedObs.length} Observation{parsedObs.length !== 1 ? 's' : ''} — click an ID to pre-fill the PUT test below
+            </p>
+            <div className="border border-carbon-gray-20 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-carbon-gray-10 border-b border-carbon-gray-20">
+                  <tr>
+                    {['Observation ID', 'Gap ID', 'Status', 'Effective Date'].map((h) => (
+                      <th key={h} className="px-3 py-2 text-left text-2xs font-semibold text-carbon-gray-70 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-carbon-gray-10">
+                  {parsedObs.map((obs) => (
+                    <tr
+                      key={obs.id}
+                      className="hover:bg-[#edf5ff] cursor-pointer"
+                      onClick={() => setPutObsId(obs.id)}
+                      title="Click to pre-fill PUT test"
+                    >
+                      <td className="px-3 py-2 font-mono text-[#0043ce] hover:underline">{obs.id}</td>
+                      <td className="px-3 py-2 font-mono text-carbon-gray-70">{obs.gapId}</td>
+                      <td className="px-3 py-2">
+                        <span className={`px-1.5 py-0.5 text-2xs font-semibold ${
+                          obs.gapStatus === 'Closed' ? 'bg-[#defbe6] text-[#0e6027]' :
+                          obs.gapStatus === 'Open' ? 'bg-[#fff1f1] text-[#da1e28]' :
+                          'bg-carbon-gray-10 text-carbon-gray-70'
+                        }`}>{obs.gapStatus}</span>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-carbon-gray-50">{obs.closedAt.slice(0, 10)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {parsedObs.length === 0 && searchResult.status === 'success' && (
+          <div className="mb-4 px-4 py-3 bg-[#fdf6dd] border border-[#f1c21b] text-xs text-[#b45309]">
+            No Observations found for this patient. Close a care gap in Live FHIR mode first, then re-run this search.
+          </div>
+        )}
+
+        <ResponsePanel result={searchResult} />
+      </div>
+
+      {/* ── Step 1b: Force-write a gap closure directly ── */}
+      <div className="bg-white border border-carbon-gray-20 p-5">
+        <h3 className="text-sm font-semibold text-carbon-gray-100 mb-1 flex items-center gap-2">
+          <Icon name="BoltIcon" size={16} className="text-[#b45309]" />
+          Step 1b — Force POST: Write a gap closure directly without the UI
+        </h3>
+        <p className="text-xs text-carbon-gray-50 mb-4">
+          Creates a real <code className="font-mono">Observation</code> on HAPI FHIR right now. After it succeeds, the returned ID auto-fills the PUT test below.
+        </p>
+        <ForcePostGapPanel patientFhirId={patientFhirId} onObsCreated={setPutObsId} />
+      </div>
+
+      {/* ── Step 2: PUT an Observation to verify update works ── */}
+      <div className="bg-white border border-carbon-gray-20 p-5">
+        <h3 className="text-sm font-semibold text-carbon-gray-100 mb-1 flex items-center gap-2">
+          <Icon name="ArrowPathIcon" size={16} className="text-[#6929c4]" />
+          Step 2 — PUT: Update an existing Observation (the real write test)
+        </h3>
+        <p className="text-xs text-carbon-gray-50 mb-4">
+          Paste an Observation ID from Step 1 search or Step 1b above. Clicking <strong>Run PUT</strong> GETs the resource, sets <code className="font-mono">status → amended</code>, appends a timestamped note, then PUTs it back. <strong>HTTP 200</strong> with an incremented <code className="font-mono">meta.versionId</code> confirms the FHIR server accepted the write.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Observation ID</label>
+            <input
+              type="text"
+              value={putObsId}
+              onChange={(e) => setPutObsId(e.target.value)}
+              placeholder="e.g.  12345  (from search results above)"
+              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-[#6929c4] bg-carbon-gray-10"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">New Status</label>
+            <select
+              value={putStatus}
+              onChange={(e) => setPutStatus(e.target.value as typeof putStatus)}
+              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs text-carbon-gray-100 focus:outline-none focus:border-[#6929c4] bg-carbon-gray-10"
+            >
+              <option value="amended">amended</option>
+              <option value="final">final</option>
+              <option value="cancelled">cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Verification Note (appended to Observation)</label>
+          <input
+            type="text"
+            value={putNote}
+            onChange={(e) => setPutNote(e.target.value)}
+            className="w-full border border-carbon-gray-20 px-3 py-2 text-xs text-carbon-gray-100 focus:outline-none focus:border-[#6929c4] bg-carbon-gray-10"
+          />
+        </div>
+        <div className="mb-4 p-3 bg-carbon-gray-10 border-l-2 border-[#6929c4]">
+          <p className="text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest mb-1">What this test does</p>
+          <ol className="text-2xs text-carbon-gray-70 space-y-0.5 list-decimal list-inside">
+            <li>GET <code className="font-mono">/Observation/{putObsId || '{id}'}</code> — fetch current state</li>
+            <li>Merge <code className="font-mono">status: {putStatus}</code> + append note</li>
+            <li>PUT <code className="font-mono">/Observation/{putObsId || '{id}'}</code> — write back</li>
+            <li>Confirm response is <code className="font-mono">200 OK</code> with incremented <code className="font-mono">meta.versionId</code></li>
+          </ol>
+        </div>
+        <button
+          onClick={runPut}
+          disabled={putResult.status === 'running' || !putObsId.trim()}
+          className="flex items-center gap-2 px-4 py-2 bg-[#6929c4] text-white text-xs font-semibold hover:bg-[#491d8b] transition-colors disabled:opacity-50"
+        >
+          <Icon name="ArrowUpTrayIcon" size={14} />
+          {putResult.status === 'running' ? 'Sending PUT…' : 'Run PUT Verification'}
+        </button>
+
+        {putResult.status === 'success' && (
+          <div className="mt-4 px-4 py-3 bg-[#defbe6] border border-[#a7f0ba] flex items-start gap-2">
+            <Icon name="CheckCircleIcon" size={16} className="text-[#0e6027] flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-[#0e6027]">
+              <p className="font-semibold">PUT succeeded — FHIR server accepted the update</p>
+              <p className="text-2xs mt-0.5 opacity-80">
+                Check <code className="font-mono">meta.versionId</code> in the response below — it should be incremented from the original. The gap closure write path is confirmed working.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <ResponsePanel result={putResult} />
+        </div>
+      </div>
+
+      {/* ── Step 3: Direct HAPI console link ── */}
+      <div className="bg-white border border-carbon-gray-20 p-5">
+        <h3 className="text-sm font-semibold text-carbon-gray-100 mb-3 flex items-center gap-2">
+          <Icon name="ServerIcon" size={16} className="text-carbon-gray-70" />
+          Step 3 — Browse directly in HAPI FHIR UI
+        </h3>
+        <p className="text-xs text-carbon-gray-70 mb-3">
+          The HAPI FHIR server ships with a built-in web UI. Open these URLs in a browser to browse and inspect resources without writing any code:
+        </p>
+        <div className="space-y-2">
+          {[
+            { label: 'All Patients', url: `${LOCAL_FHIR_BASE}/Patient?_pretty=true`, desc: 'Browse every patient loaded by the migration script' },
+            { label: 'All Observations', url: `${LOCAL_FHIR_BASE}/Observation?_count=50&_pretty=true`, desc: 'All gap closures + clinical observations written by the app' },
+            { label: `Observations for ${patientFhirId}`, url: `${LOCAL_FHIR_BASE}/Observation?subject=Patient/${patientFhirId}&_count=50&_pretty=true`, desc: 'Filter to the currently selected patient' },
+            { label: 'All ServiceRequests', url: `${LOCAL_FHIR_BASE}/ServiceRequest?_count=50&_pretty=true`, desc: 'Orders signed via the MD Smart Launch order entry screen' },
+            { label: 'All CarePlans', url: `${LOCAL_FHIR_BASE}/CarePlan?_count=50&_pretty=true`, desc: 'Care plan updates from "Update Plan" in the Whole Person tab' },
+            { label: 'HAPI Root UI', url: 'http://localhost:8080', desc: 'HAPI FHIR server web console — browse any resource type' },
+          ].map(({ label, url, desc }) => (
+            <div key={label} className="flex items-center gap-3 py-2.5 border-b border-carbon-gray-10 last:border-0">
+              <Icon name="LinkIcon" size={13} className="text-carbon-gray-30 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-carbon-gray-100">{label}</p>
+                <p className="text-2xs text-carbon-gray-50 truncate">{desc}</p>
+              </div>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2.5 py-1 text-2xs font-semibold bg-carbon-gray-10 border border-carbon-gray-20 text-carbon-gray-70 hover:bg-[#d0e2ff] hover:text-[#0043ce] hover:border-[#0043ce] transition-colors flex-shrink-0"
+              >
+                Open <Icon name="ArrowTopRightOnSquareIcon" size={11} />
+              </a>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function FhirTesterPage() {
@@ -549,6 +1052,7 @@ export default function FhirTesterPage() {
     { key: 'patient', label: 'Patient Lookup', icon: 'UserIcon' },
     { key: 'order', label: 'Order Submission', icon: 'ClipboardDocumentListIcon' },
     { key: 'cds', label: 'CDS Hook Calls', icon: 'CpuChipIcon' },
+    { key: 'gaps', label: 'Gap & Write Verification', icon: 'CheckCircleIcon' },
   ];
 
   return (
@@ -615,6 +1119,7 @@ export default function FhirTesterPage() {
         {activeTab === 'patient' && <PatientLookupTab />}
         {activeTab === 'order' && <OrderSubmissionTab />}
         {activeTab === 'cds' && <CdsHooksTab />}
+        {activeTab === 'gaps' && <GapVerificationTab />}
       </div>
     </AppLayout>
   );

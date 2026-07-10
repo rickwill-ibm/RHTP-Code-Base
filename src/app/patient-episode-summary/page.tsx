@@ -1,11 +1,12 @@
 'use client';
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ function formatDate(d: string) {
 function PatientEpisodeSummaryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { activePatientId } = useAppContext();
+  const { activePatientId, useMockData } = useAppContext();
   const activePatient = getPatientById(activePatientId);
 
   // URL params take priority; fall back to active patient from registry
@@ -139,7 +140,54 @@ function PatientEpisodeSummaryContent() {
   const mrn = searchParams.get('mrn') || activePatient?.ehrMrn || '';
   const fromPanel = searchParams.get('from') === 'panel';
 
-  const episodes = EPISODES_BY_PATIENT[patientId] || DEFAULT_EPISODES;
+  // Live FHIR: fetch EpisodeOfCare for the active patient
+  const [fhirEpisodes, setFhirEpisodes] = useState<Episode[] | null>(null);
+
+  useEffect(() => {
+    if (getFhirMockMode() || useMockData) { setFhirEpisodes(null); return; }
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId];
+    if (!fhirId) return;
+    getFhirClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .search('EpisodeOfCare', { patient: `Patient/${fhirId}`, _count: 10 } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((bundle: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mapped: Episode[] = (bundle.entry ?? []).map((e: any, i: number) => {
+          const r = e.resource;
+          const rawStatus: string = r.status ?? 'active';
+          const status: 'Active' | 'Closed' =
+            rawStatus === 'active' || rawStatus === 'waitlist' ? 'Active' : 'Closed';
+          const typeDisplay: string =
+            r.type?.[0]?.coding?.[0]?.display ?? r.type?.[0]?.text ?? 'Episode of Care';
+          const start: string = r.period?.start ?? new Date().toISOString().slice(0, 10);
+          const end: string | null = r.period?.end ?? null;
+          const durationDays = end
+            ? Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000)
+            : Math.round((Date.now() - new Date(start).getTime()) / 86400000);
+          return {
+            id: r.id ?? `fhir-ep-${i}`,
+            type: typeDisplay,
+            anchorEvent: typeDisplay,
+            anchorDate: start,
+            startDate: start,
+            endDate: end,
+            status,
+            totalCost: 0,
+            targetCost: 0,
+            variancePct: 0,
+            careSettings: [],
+            duration: durationDays,
+            careManager: r.careManager?.display ?? 'Care Manager',
+          };
+        });
+        if (mapped.length > 0) setFhirEpisodes(mapped);
+      })
+      .catch(() => {/* silent — fall back to static data */});
+  }, [activePatientId, useMockData]);
+
+  // Active data source: FHIR episodes in live mode (if fetched), else static lookup
+  const episodes = fhirEpisodes ?? (EPISODES_BY_PATIENT[patientId] || DEFAULT_EPISODES);
   const activeEps = episodes.filter((e) => e.status === 'Active');
   const closedEps = episodes.filter((e) => e.status === 'Closed');
   const totalCost = episodes.reduce((a, e) => a + e.totalCost, 0);

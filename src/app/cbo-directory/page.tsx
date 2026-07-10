@@ -1,9 +1,10 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import Link from 'next/link';
 import { useAppContext } from '@/lib/appContext';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 type Provider = 'findhelp' | 'uniteus';
 type Capacity = 'Accepting' | 'Waitlist' | 'Full';
@@ -570,9 +571,68 @@ function BennettCountyActionPanel() {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
+/** Map a FHIR Organization resource to the MoCBO shape used by card rendering. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fhirOrgToMoCBO(org: any, index: number): MoCBO {
+  const phone = org.telecom?.find((t: any) => t.system === 'phone')?.value ?? '';
+  const email = org.telecom?.find((t: any) => t.system === 'email')?.value ?? '';
+  const addr = org.address?.[0] ?? {};
+  const domainExt = org.extension?.find((e: any) => e.url?.endsWith('domain'))?.valueString ?? 'Other';
+  const capacityRaw = org.extension?.find((e: any) => e.url?.endsWith('capacity'))?.valueString ?? 'Accepting';
+  const capacity: Capacity = (['Accepting', 'Waitlist', 'Full'] as Capacity[]).includes(capacityRaw as Capacity)
+    ? (capacityRaw as Capacity)
+    : 'Accepting';
+  return {
+    id: org.id ?? `fhir-org-${index}`,
+    number: index + 1,
+    name: org.name ?? 'Unknown CBO',
+    org: org.name ?? 'Unknown',
+    domain: domainExt,
+    email,
+    phone,
+    address: (addr.line ?? []).join(', '),
+    city: addr.city ?? '',
+    county: addr.district ?? addr.city ?? '',
+    zip: addr.postalCode ?? '',
+    capacity,
+    connected: true,
+    provider: 'uniteus' as Provider,
+    lat: 0,
+    lng: 0,
+  };
+}
+
 export default function CBODirectoryPage() {
-  const { activePatientId } = useAppContext();
+  const { activePatientId, useMockData } = useAppContext();
   const isMaria = activePatientId === 'MARIA_SD_001' || activePatientId === 'patient-maria';
+
+  // In live mode: fetch full Organization list and use as CBO data source.
+  // In mock mode: fall back to static MO_CBOS.
+  const [fhirCBOs, setFhirCBOs] = useState<MoCBO[] | null>(null);
+  const [fhirOrgCount, setFhirOrgCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (useMockData) { setFhirCBOs(null); setFhirOrgCount(null); return; }
+    getFhirClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .search('Organization', { _count: 50 } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((bundle: any) => {
+        const entries: any[] = bundle.entry?.map((e: any) => e.resource).filter(Boolean) ?? [];
+        if (entries.length > 0) {
+          const mapped = entries.map(fhirOrgToMoCBO);
+          setFhirCBOs(mapped);
+          setFhirOrgCount(bundle.total ?? entries.length);
+        } else if (bundle.total !== undefined) {
+          setFhirOrgCount(bundle.total);
+        }
+      })
+      .catch(() => {/* silent — fall back to mock data */});
+  }, [useMockData]);
+
+  // Active data source: FHIR orgs in live mode (if fetched), else static mock array
+  const activeCBOs = fhirCBOs ?? MO_CBOS;
 
   const [provider, setProvider] = useState<Provider>('findhelp');
   const [domainFilter, setDomainFilter] = useState(isMaria ? 'Transportation' : 'All');
@@ -586,11 +646,12 @@ export default function CBODirectoryPage() {
   const [activeTab, setActiveTab] = useState<'directory' | 'bennett-tasks'>('directory');
   const itemsPerPage = 9;
 
-  const domains = ['All', ...Array.from(new Set(MO_CBOS.map(c => c.domain)))];
-  const counties = ['All', ...Array.from(new Set(MO_CBOS.map(c => c.county)))];
+  // In live mode FHIR orgs all come back as provider-agnostic; show them all regardless of provider toggle
+  const domains = ['All', ...Array.from(new Set(activeCBOs.map(c => c.domain)))];
+  const counties = ['All', ...Array.from(new Set(activeCBOs.map(c => c.county)))];
 
-  const filtered = MO_CBOS.filter(c =>
-    c.provider === provider &&
+  const filtered = activeCBOs.filter(c =>
+    (fhirCBOs ? true : c.provider === provider) &&
     (domainFilter === 'All' || c.domain === domainFilter) &&
     (connectedFilter === 'All' || (connectedFilter === 'Connected' ? c.connected : !c.connected)) &&
     (countyFilter === 'All' || c.county === countyFilter) &&
@@ -602,9 +663,9 @@ export default function CBODirectoryPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginated = filtered.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  const providerCBOs = MO_CBOS.filter(c => c.provider === provider);
+  const providerCBOs = fhirCBOs ?? MO_CBOS.filter(c => c.provider === provider);
   const kpis = [
-    { label: 'Active CBOs', value: String(providerCBOs.length), sub: 'South Dakota network', color: '#0043ce' },
+    { label: 'Active CBOs', value: fhirOrgCount !== null ? String(fhirOrgCount) : String(providerCBOs.length), sub: fhirOrgCount !== null ? 'FHIR Organization resources' : 'South Dakota network', color: '#0043ce' },
     { label: 'Connected', value: String(providerCBOs.filter(c => c.connected).length), sub: 'Registered with platform', color: '#198038' },
     { label: 'Accepting Referrals', value: String(providerCBOs.filter(c => c.capacity === 'Accepting').length), sub: 'Available now', color: '#007d79' },
     { label: 'Counties Covered', value: String(new Set(providerCBOs.map(c => c.county)).size), sub: 'South Dakota counties', color: '#6929c4' },

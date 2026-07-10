@@ -1,8 +1,8 @@
 'use client';
 import React, { useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
-import { usePatientContext } from '@/lib/patientContext';
-import type { CareGap, GapDomain, GapStatus } from '@/lib/patientContext';
+import { usePatientContext, useGapClosureStore } from '@/lib/patientContext';
+import type { CareGap, GapDomain, GapStatus, GapClosureEvidence } from '@/lib/patientContext';
 
 // ─── Domain badge colors ──────────────────────────────────────────────────────
 const DOMAIN_COLORS: Record<GapDomain, { bg: string; text: string; border: string }> = {
@@ -55,7 +55,7 @@ function EvidenceDrawer({
 }: {
   gap: CareGap;
   onClose: () => void;
-  onSubmit: (evidence: string) => void;
+  onSubmit: (evidence: GapClosureEvidence) => void;
 }) {
   const [step, setStep] = useState<DrawerStep>('capture');
   const dc = DOMAIN_COLORS[gap.domain];
@@ -66,7 +66,7 @@ function EvidenceDrawer({
     dateOfService: '',
     renderingProvider: gap.assignedTo,
     hedisResult: '',
-    fhirResourceId: `FHIR-OBS-${Math.floor(Math.random() * 90000) + 10000}`,
+    fhirResourceId: '',   // populated from canonical obs ID at submit time
     notes: '',
   });
 
@@ -487,7 +487,25 @@ function EvidenceDrawer({
             <div className="flex gap-2 justify-end pt-2">
               <button
                 onClick={() => {
-                  onSubmit(buildEvidenceSummary());
+                  // Build a rich GapClosureEvidence object so submitClosure can
+                  // write structured fields to FHIR (not just a flat string).
+                  const fhirEvidence: GapClosureEvidence = {
+                    gapId: gap.id,
+                    status: 'CLOSED',
+                    closedFrom: 'PATIENT_DETAIL',
+                    dateOfService:
+                      gap.domain === 'Clinical' ? clinical.dateOfService :
+                      gap.domain === 'BH'       ? bh.sessionDate :
+                                                  social.enrollmentDate,
+                    performingProvider:
+                      gap.domain === 'Clinical' ? clinical.renderingProvider :
+                      gap.domain === 'BH'       ? bh.bhCounselor :
+                                                  social.cboWorker,
+                    procedureCode: gap.domain === 'Clinical' ? clinical.procedureCode : undefined,
+                    resultValue: gap.domain === 'BH' && bh.score ? parseFloat(bh.score) : undefined,
+                    resultUnit: gap.domain === 'BH' ? 'score' : undefined,
+                  };
+                  onSubmit(fhirEvidence);
                 }}
                 className="px-5 py-2 text-sm bg-[#24a148] text-white hover:bg-[#198038] font-medium flex items-center gap-1.5"
               >
@@ -505,6 +523,7 @@ function EvidenceDrawer({
 // ─── Unified Gap Closure Panel ────────────────────────────────────────────────
 function UnifiedGapPanel() {
   const { patient, closeGap } = usePatientContext();
+  const { submitClosure } = useGapClosureStore();
   const [drawerGap, setDrawerGap] = useState<CareGap | null>(null);
   const [selectedGaps, setSelectedGaps] = useState<Set<string>>(new Set());
   const [filterDomain, setFilterDomain] = useState<GapDomain | 'All'>('All');
@@ -525,7 +544,10 @@ function UnifiedGapPanel() {
   };
 
   const handleBulkClose = () => {
-    selectedGaps.forEach((id) => closeGap(id, 'Bulk closed by care manager'));
+    selectedGaps.forEach((id) => {
+      closeGap(id, 'Bulk closed by care manager');
+      submitClosure({ gapId: id, status: 'CLOSED', closedFrom: 'PATIENT_DETAIL' });
+    });
     setSelectedGaps(new Set());
   };
 
@@ -630,8 +652,16 @@ function UnifiedGapPanel() {
         <EvidenceDrawer
           gap={drawerGap}
           onClose={() => setDrawerGap(null)}
-          onSubmit={(evidence) => {
-            closeGap(drawerGap.id, evidence);
+          onSubmit={(fhirEvidence) => {
+            // Update local patient state (UI)
+            const evidenceStr = [
+              fhirEvidence.procedureCode && `CPT: ${fhirEvidence.procedureCode}`,
+              fhirEvidence.dateOfService && `DOS: ${fhirEvidence.dateOfService}`,
+              fhirEvidence.performingProvider && `By: ${fhirEvidence.performingProvider}`,
+            ].filter(Boolean).join(' | ') || 'Closed by care manager';
+            closeGap(drawerGap.id, evidenceStr);
+            // Write / update the Observation on the FHIR server with full evidence
+            submitClosure(fhirEvidence);
             setDrawerGap(null);
           }}
         />
@@ -700,25 +730,25 @@ function ThreeColumnPanel() {
   ];
 
   const bhRows = [
-    { label: 'PHQ-9', value: `${patient.phq9Score} — Moderate depression`, highlight: true, color: '#8a3ffc' },
-    { label: 'PHQ-9 trend', value: patient.phq9Trend, highlight: true, color: '#8a3ffc' },
-    { label: 'AUDIT-C', value: `${patient.auditC} — Low risk`, highlight: false },
-    { label: 'Trauma flag', value: patient.traumaFlag ? 'Screened positive' : 'Not screened — rec. ACE', highlight: true, color: '#8a3ffc' },
-    { label: 'BH referral', value: `${patient.bhReferralStatus} · Referred ${patient.bhReferralDate}`, highlight: true, color: '#8a3ffc' },
-    { label: 'BH provider', value: patient.bhProvider, highlight: false },
-    { label: 'PAM score', value: `${patient.pamScore} — ${patient.pamLabel}`, highlight: true, color: '#8a3ffc' },
-    { label: 'Patient goal', value: patient.patientGoal, highlight: false },
+    { label: 'PHQ-9', value: patient.bhScoreLabel || (patient.phq9Score ? `${patient.phq9Score} — ${patient.bhRisk}` : '—'), highlight: true, color: '#8a3ffc' },
+    { label: 'PHQ-9 trend', value: (patient as any).phq9Trend || patient.bhRisk || '—', highlight: true, color: '#8a3ffc' },
+    { label: 'AUDIT-C', value: patient.auditC != null ? `${patient.auditC} — ${patient.auditC >= 4 ? 'Moderate risk' : 'Low risk'}` : '—', highlight: false },
+    { label: 'Trauma flag', value: patient.traumaFlag ? 'Screened positive' : 'Not screened — rec. ACE', highlight: patient.traumaFlag, color: '#8a3ffc' },
+    { label: 'BH referral', value: [patient.bhReferralStatus, patient.bhReferralDate].filter(Boolean).join(' · ') || '—', highlight: !!patient.bhReferralStatus, color: '#8a3ffc' },
+    { label: 'BH provider', value: patient.bhProvider || '—', highlight: false },
+    { label: 'PAM score', value: patient.pamScore ? `${patient.pamScore} — ${patient.pamLabel}` : '—', highlight: true, color: '#8a3ffc' },
+    { label: 'Patient goal', value: patient.patientGoal || '—', highlight: false },
   ];
 
   const socialRows = [
-    { label: 'Transport', value: `${patient.transportStatus} · ${patient.transportReferralId}`, highlight: true, color: '#007d79' },
-    { label: 'Referral status', value: `${patient.referralStatus} · ${patient.referralDaysOpen} days open`, highlight: true, color: '#007d79' },
-    { label: 'Food security', value: patient.foodSecurity, highlight: false },
-    { label: 'Housing', value: patient.housingStatus, highlight: false },
-    { label: 'Language', value: `${patient.language} · Literacy: ${patient.literacy}`, highlight: false },
-    { label: 'Cohort', value: patient.cohortFlag, highlight: true, color: '#007d79' },
-    { label: 'Rural distance', value: patient.ruralDistance, highlight: false },
-    { label: 'Disparity flag', value: patient.disparityFlag, highlight: false },
+    { label: 'Transport', value: [patient.transportStatus, patient.transportReferralId].filter(Boolean).join(' · ') || '—', highlight: !!patient.transportStatus, color: '#007d79' },
+    { label: 'Referral status', value: patient.referralStatus ? `${patient.referralStatus}${patient.referralDaysOpen ? ` · ${patient.referralDaysOpen} days open` : ''}` : 'Active · 0 days open', highlight: true, color: '#007d79' },
+    { label: 'Food security', value: patient.foodSecurity || '—', highlight: false },
+    { label: 'Housing', value: patient.housingStatus || '—', highlight: false },
+    { label: 'Language', value: [patient.language, patient.literacy ? `Literacy: ${patient.literacy}` : ''].filter(Boolean).join(' · ') || '—', highlight: false },
+    { label: 'Cohort', value: patient.cohortFlag || '—', highlight: !!patient.cohortFlag, color: '#007d79' },
+    { label: 'Rural distance', value: patient.ruralDistance || '—', highlight: false },
+    { label: 'Disparity flag', value: patient.disparityFlag || '—', highlight: false },
   ];
 
   const renderColumn = (

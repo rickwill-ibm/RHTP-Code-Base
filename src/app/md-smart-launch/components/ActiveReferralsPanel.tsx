@@ -164,7 +164,7 @@ export default function ActiveReferralsPanel({ launchContext, completedOrders, c
               Active Referrals
             </h2>
             <p className="text-xs text-carbon-gray-50 mt-0.5">
-              {launchContext.patientName} · Enc: <span className="font-mono">{launchContext.encounterId}</span>
+              {launchContext.patientId} · Enc: <span className="font-mono">{launchContext.encounterId}</span>
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">

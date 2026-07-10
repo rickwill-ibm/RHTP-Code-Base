@@ -137,18 +137,33 @@ export class FhirClient {
     try {
       const { mapFhirPatientToRegistryPatient, bundleEntries } = await import('./fhirResourceMappers');
 
-      const [patient, obsBundle, flagBundle, riskBundle] = await Promise.all([
+      const [patient, obsBundle, flagBundle, riskBundle, condBundle, medBundle, careTeam, encounterBundle, goalBundle] = await Promise.all([
         fhirFetch<{ resourceType: string; id: string }>(`Patient/${fhirPatientId}`).catch(
           () => undefined,
         ),
         fhirFetch<{ resourceType: string; entry?: unknown[] }>(
-          `Observation?subject=Patient/${fhirPatientId}&_count=100`,
+          `Observation?subject=Patient/${fhirPatientId}&_count=200`,
         ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
         fhirFetch<{ resourceType: string; entry?: unknown[] }>(
           `Flag?subject=Patient/${fhirPatientId}&_count=100`,
         ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
         fhirFetch<{ resourceType: string; entry?: unknown[] }>(
           `RiskAssessment?subject=Patient/${fhirPatientId}&_count=5`,
+        ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
+        fhirFetch<{ resourceType: string; entry?: unknown[] }>(
+          `Condition?patient=${fhirPatientId}&_count=50`,
+        ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
+        fhirFetch<{ resourceType: string; entry?: unknown[] }>(
+          `MedicationRequest?patient=${fhirPatientId}&status=active&_count=50`,
+        ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
+        fhirFetch<{ resourceType: string; id: string }>(
+          `CareTeam/${fhirPatientId}-careteam`,
+        ).catch(() => undefined),
+        fhirFetch<{ resourceType: string; entry?: unknown[] }>(
+          `Encounter?patient=${fhirPatientId}&_count=20&_sort=-date`,
+        ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
+        fhirFetch<{ resourceType: string; entry?: unknown[] }>(
+          `Goal?patient=${fhirPatientId}&_count=50`,
         ).catch(() => ({ resourceType: 'Bundle', entry: [] })),
       ]);
 
@@ -160,6 +175,15 @@ export class FhirClient {
       const flags = bundleEntries(flagBundle as any, 'Flag') as any[];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const risks = bundleEntries(riskBundle as any, 'RiskAssessment') as any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const conditions = bundleEntries(condBundle as any, 'Condition') as any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const medications = bundleEntries(medBundle as any, 'MedicationRequest') as any[];
+      const fhirCareTeam = careTeam?.resourceType === 'CareTeam' ? careTeam : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const encounters = bundleEntries(encounterBundle as any, 'Encounter') as any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const goals = bundleEntries(goalBundle as any, 'Goal') as any[];
 
       return mapFhirPatientToRegistryPatient(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -167,6 +191,12 @@ export class FhirClient {
         observations,
         flags,
         risks[0],
+        conditions,
+        medications,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fhirCareTeam as any,
+        encounters,
+        goals,
       );
     } catch (err) {
       console.error(`[FhirClient] getRegistryPatient(${fhirPatientId}) failed:`, err);

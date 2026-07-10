@@ -24,7 +24,7 @@ timeout /t 5 /nobreak >nul
 
 REM Open the application in default browser
 echo Opening application in browser...
-start http://localhost:4028
+start http://localhost:4029
 
 echo.
 echo TCOC Application is now running!

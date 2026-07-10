@@ -11,7 +11,7 @@ import { useAppContext } from '@/lib/appContext';
 import { SD_RECOMMENDATIONS } from '@/lib/sdResourceData';
 import { getPatientSync } from '@/lib/services/patientService';
 import { getVisiblePatients } from '@/lib/patientRegistry';
-import { getFhirMockMode } from '@/lib/services/fhirClient';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 import { citizenNeeds, nbaForCategory, type ResourceCategory } from '@/lib/careTeam/graph/resources';
 import { toast } from 'sonner';
 
@@ -354,7 +354,27 @@ export default function SocialNeedsScreeningPage() {
   };
   const isMaria = activePatientId === 'MARIA_SD_001' || activePatientId === 'patient-maria';
 
-  // Find Maria in SOCIAL_PATIENTS
+  // Build patient list from registry (all visible patients) — overlaid onto SOCIAL_PATIENTS shape
+  const registryPatients = getVisiblePatients(getFhirMockMode());
+  // Merge registry into SOCIAL_PATIENTS shape so existing table columns work
+  const allPatientRows = registryPatients.length > 0
+    ? registryPatients.map(rp => {
+        const sp = SOCIAL_PATIENTS.find(p => p.patientId === rp.platformId || p.name === rp.name);
+        return {
+          id: rp.platformId,
+          name: rp.name,
+          mrn: rp.ehrMrn,
+          patientId: rp.platformId,
+          pcp: rp.pcp,
+          lastScreened: sp?.lastScreened ?? undefined,
+          riskLevel: rp.riskTier === 'Critical' ? 'High' : rp.riskTier === 'High' ? 'High' : rp.riskTier === 'Moderate' ? 'Medium' : 'Low',
+          unmetNeeds: sp?.unmetNeeds ?? rp.openCareGaps ?? 0,
+          dob: rp.dob,
+        };
+      })
+    : SOCIAL_PATIENTS;
+
+  // For the screening form we still use SOCIAL_PATIENTS shape (has questions/domains)
   const mariaPatient = SOCIAL_PATIENTS.find(p => p.patientId === 'PAT-0006' || p.name === 'Maria Redhawk') ?? SOCIAL_PATIENTS[0];
 
   const [view, setView] = useState<ScreeningView>(isMaria ? 'screen' : 'list');
@@ -368,7 +388,8 @@ export default function SocialNeedsScreeningPage() {
   const [sendNeedsModal, setSendNeedsModal] = useState<{ orgName: string; domain: string } | null>(null);
   const [recPage, setRecPage] = useState<Record<string, number>>({});
 
-  const filteredPatients = SOCIAL_PATIENTS.filter(p =>
+  // Use registry patients for the queue; filter by search term
+  const filteredPatients = allPatientRows.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.mrn.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -408,7 +429,93 @@ export default function SocialNeedsScreeningPage() {
     if (currentStep > 0) setCurrentStep(s => s - 1);
   };
 
-  const handleSubmit = () => setSubmitted(true);
+  // PRAPARE LOINC codes — all 13 domains
+  const DOMAIN_LOINC: Record<string, string> = {
+    housing:          '93030-5',
+    food:             '93031-3',
+    transportation:   '93034-7',
+    safety:           '93039-7',
+    financial:        '93033-9',
+    employment:       '93032-1',
+    support:          '93027-1',
+    substance_use:    '93038-9',
+    mental_health:    '93029-7',
+    utility:          '93038-8',
+    education:        '93039-6',
+    physical_activity:'89555-7',
+    disabilities:     '69858-9',
+  };
+
+  const postPrapareObservations = async (patientFhirId: string) => {
+    const client = getFhirClient();
+    const date = new Date().toISOString().split('T')[0];
+    const postPromises = unmetDomains
+      .filter((d) => DOMAIN_LOINC[d.id])
+      .map((d) => {
+        const loinc = DOMAIN_LOINC[d.id];
+        const obs = {
+          resourceType: 'Observation',
+          status: 'final' as const,
+          category: [
+            {
+              coding: [
+                {
+                  system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+                  code: 'social-history',
+                  display: 'Social History',
+                },
+              ],
+            },
+          ],
+          code: {
+            coding: [{ system: 'http://loinc.org', code: loinc, display: d.label }],
+            text: d.label,
+          },
+          subject: { reference: `Patient/${patientFhirId}` },
+          effectiveDateTime: date,
+          valueString: `${d.label} — unmet need identified via PRAPARE screening on ${date}`,
+          note: [{ text: `PRAPARE screening. Domain: ${d.label}. Identified as unmet.` }],
+        };
+        return client.create(obs as Record<string, unknown>).catch((err: unknown) => {
+          console.warn(`[SocialScreening] Failed to post PRAPARE obs for ${d.label}:`, err);
+        });
+      });
+    await Promise.allSettled(postPromises);
+  };
+
+  const handleSubmit = async () => {
+    setSubmitted(true);
+    if (!getFhirMockMode()) {
+      const fhirId =
+        PLATFORM_TO_FHIR_ID_MAP[activePatientId] ??
+        (activePatientId.startsWith('patient-') ? activePatientId : null);
+      if (fhirId) {
+        try {
+          await postPrapareObservations(fhirId);
+          console.log('[SocialScreening] PRAPARE observations posted to FHIR');
+          // POST AuditEvent for the screening save
+          const client = getFhirClient();
+          client.create({
+            resourceType: 'AuditEvent',
+            type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+            subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'create', display: 'create' }],
+            action: 'C',
+            recorded: new Date().toISOString(),
+            outcome: '0',
+            agent: [{ who: { display: 'TCOC Social Screening' }, requestor: true }],
+            source: { observer: { display: 'TCOC-Platform' } },
+            entity: [
+              { what: { reference: `Patient/${fhirId}` }, type: { code: '1', display: 'Person' } },
+              { what: { display: 'PRAPARE Social Screening' }, type: { code: '4', display: 'Other' },
+                detail: [{ type: 'domains-screened', valueBase64Binary: btoa(unmetDomains.map(d => d.label).join(', ')) }] },
+            ],
+          } as Record<string, unknown>).catch(() => {/* ignore */});
+        } catch (err) {
+          console.warn('[SocialScreening] FHIR PRAPARE post failed (local only):', err);
+        }
+      }
+    }
+  };
 
   const riskColor = (level: string) =>
     level === 'High' ? '#da1e28' : level === 'Medium' ? '#b45309' : '#198038';
@@ -509,7 +616,14 @@ export default function SocialNeedsScreeningPage() {
                     {p.unmetNeeds > 0 ? <span className="font-mono font-bold text-[#da1e28]">{p.unmetNeeds}</span> : <span className="text-carbon-gray-50">—</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => { setSelectedPatient(p); setView('screen'); setResponses({}); setSubmitted(false); setCurrentStep(0); }}
+                    <button onClick={() => {
+                      // Switch the active patient in AppContext so FHIR writes go to the right patient
+                      setActivePatientId(p.patientId);
+                      // For the screening form, use SOCIAL_PATIENTS shape (has legacy fields)
+                      const sp = SOCIAL_PATIENTS.find(s => s.patientId === p.patientId || s.name === p.name);
+                      setSelectedPatient(sp ?? null);
+                      setView('screen'); setResponses({}); setSubmitted(false); setCurrentStep(0);
+                    }}
                       className="px-3 py-1 bg-[#0043ce] text-white text-2xs font-semibold hover:bg-[#0035a8] transition-colors">
                       Screen Now
                     </button>

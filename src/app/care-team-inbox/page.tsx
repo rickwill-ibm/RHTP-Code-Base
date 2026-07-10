@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import Link from 'next/link';
@@ -12,9 +12,10 @@ import {
 } from '@/lib/fhirCareTeamData';
 import type { CareTeamInboxTask, TaskProgramType, TaskStatus, TaskPriority } from '@/lib/fhirCareTeamData';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import { effectiveMemberId } from '@/lib/careTeam/identity';
 import { getMemberName } from '@/lib/careTeam/members';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 // ─── Role filter config ───────────────────────────────────────────────────────
 
@@ -163,7 +164,21 @@ function EvidenceModal({ task, onClose }: { task: CareTeamInboxTask; onClose: ()
             Evidence will be attached to FHIR Task output and submitted to EDW provenance chain.
           </div>
           <div className="flex gap-2 pt-2">
-            <button onClick={() => evidenceType && setSubmitted(true)} disabled={!evidenceType} className="flex-1 px-4 py-2.5 bg-[#24a148] text-white text-sm font-medium hover:bg-[#1a7a38] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            <button
+              onClick={() => {
+                if (!evidenceType) return;
+                // PUT Task status → completed in live mode
+                if (!getFhirMockMode()) {
+                  getFhirClient().update({
+                    id: task.id, resourceType: 'Task', status: 'completed', intent: 'order',
+                    lastModified: new Date().toISOString(),
+                    output: [{ type: { text: evidenceType }, valueString: notes }],
+                  }).catch(() => {/* silent */});
+                }
+                setSubmitted(true);
+              }}
+              disabled={!evidenceType}
+              className="flex-1 px-4 py-2.5 bg-[#24a148] text-white text-sm font-medium hover:bg-[#1a7a38] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               Complete Task & Submit Evidence
             </button>
             <button onClick={onClose} className="px-4 py-2.5 border border-carbon-gray-20 text-sm text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">Cancel</button>
@@ -846,15 +861,83 @@ function TaskCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CareTeamInboxPage() {
-  const { activePatientId, assignments } = useAppContext();
+  const { activePatientId, assignments, useMockData } = useAppContext();
   const activePatient = getPatientById(activePatientId);
 
-  const CARE_TEAM_INBOX_TASKS = useMemo(() => buildCareTeamInboxTasks(
-    activePatient?.name ?? 'Unknown Patient',
-    activePatient?.platformId ?? activePatientId,
-    activePatient?.dob ?? '—',
-    activePatient?.riskTier ?? 'Moderate'
-  ), [activePatientId, activePatient]);
+  // ── FHIR Task fetch ──────────────────────────────────────────────────────────
+  const [fhirTasks, setFhirTasks] = useState<CareTeamInboxTask[]>([]);
+  const [fhirTaskLoading, setFhirTaskLoading] = useState(false);
+
+  useEffect(() => {
+    if (useMockData) { setFhirTasks([]); return; }
+    setFhirTaskLoading(true);
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId];
+    if (!fhirId) { setFhirTaskLoading(false); return; }
+    getFhirClient()
+      .search('Task', { 'patient': `Patient/${fhirId}`, _count: 100 })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((bundle: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const entries: any[] = bundle.entry ?? [];
+        const tasks: CareTeamInboxTask[] = entries
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((e: any) => e.resource)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((r: any) => r?.resourceType === 'Task')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((t: any) => {
+            const reg = activePatient;
+            const domainExt = t.extension?.find(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (ex: any) => ex.url === 'http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain',
+            )?.valueString ?? 'Clinical';
+            const progTypeMap: Record<string, TaskProgramType> = {
+              Clinical: 'Clinical', BH: 'Behavioral Health', Social: 'Social Isolation',
+            };
+            return {
+              id: t.id,
+              resourceType: 'Task' as const,
+              status: (t.status ?? 'requested') as TaskStatus,
+              intent: 'order' as const,
+              priority: (t.priority ?? 'routine') as TaskPriority,
+              programType: progTypeMap[domainExt] ?? 'Clinical',
+              code: t.code?.text ?? domainExt,
+              description: t.description ?? t.code?.text ?? 'Care Gap Task',
+              for: { reference: `Patient/${fhirId}`, display: reg?.name ?? fhirId },
+              patientName: reg?.name ?? fhirId,
+              patientId: activePatientId,
+              patientDob: reg?.dob ?? '—',
+              riskTier: reg?.riskTier ?? 'Moderate',
+              requester: { reference: 'Practitioner/practitioner-rick', display: reg?.pcp ?? 'Dr. Rick', role: 'PCP' },
+              owner: { reference: `Practitioner/${t.owner?.reference?.split('/')[1] ?? 'practitioner-rick'}`,
+                display: t.owner?.display ?? reg?.careManager ?? 'Care Manager',
+                role: domainExt === 'Social' ? 'CHW' : 'Care Manager',
+                organization: reg?.organization ?? 'RHTP Network' },
+              authoredOn: t.authoredOn ?? new Date().toISOString(),
+              lastModified: t.lastModified ?? new Date().toISOString(),
+              dueDate: t.executionPeriod?.end?.split('T')[0] ?? '—',
+              gainShareValue: domainExt === 'Clinical' ? '$185' : domainExt === 'BH' ? '$140' : '$95',
+              qualityMeasureImpact: `HEDIS — ${domainExt} Care Gap`,
+              note: t.note?.[0]?.text,
+              reasonCode: t.reasonCode?.text,
+              reasonDisplay: t.reasonReference?.display,
+            } as unknown as CareTeamInboxTask;
+          });
+        if (tasks.length > 0) setFhirTasks(tasks);
+      })
+      .catch(() => setFhirTasks([]))
+      .finally(() => setFhirTaskLoading(false));
+  }, [activePatientId, useMockData, activePatient]);
+
+  const CARE_TEAM_INBOX_TASKS = useMemo(() => {
+    if (!useMockData && fhirTasks.length > 0) return fhirTasks;
+    return buildCareTeamInboxTasks(
+      activePatient?.name ?? 'Unknown Patient',
+      activePatient?.platformId ?? activePatientId,
+      activePatient?.dob ?? '—',
+      activePatient?.riskTier ?? 'Moderate',
+    );
+  }, [activePatientId, activePatient, useMockData, fhirTasks]);
 
   const [roleView, setRoleView] = useState('all');
   const [programFilter, setProgramFilter] = useState<TaskProgramType | 'All'>('All');
@@ -905,10 +988,16 @@ export default function CareTeamInboxPage() {
     return counts;
   }, [CARE_TEAM_INBOX_TASKS]);
 
-  const handleReassigned = (taskId: string, newOwner: { display: string; role: string; organization: string }) => {
-    // In a real app this would patch the FHIR Task resource
-    // Here we just close the modal — the TaskCard manages its own local owner state
-  };
+  const handleReassigned = useCallback((taskId: string, newOwner: { display: string; role: string; organization: string }) => {
+    if (!getFhirMockMode()) {
+      // PUT Task with updated owner (fire-and-forget)
+      getFhirClient().update({
+        id: taskId, resourceType: 'Task', status: 'in-progress', intent: 'order',
+        owner: { display: newOwner.display },
+        lastModified: new Date().toISOString(),
+      }).catch(() => {/* silent */});
+    }
+  }, []);
 
   return (
     <AppLayout
@@ -923,6 +1012,8 @@ export default function CareTeamInboxPage() {
           <span className="text-xs text-[#0043ce]">{kpis.open} Open Tasks</span>
           <span className="text-xs text-[#0043ce]">{kpis.inProgress} In Progress</span>
           {kpis.stat > 0 && <span className="text-xs font-bold text-[#da1e28]">⚠ {kpis.stat} STAT/ASAP</span>}
+          {fhirTaskLoading && <span className="text-xs text-[#0043ce] flex items-center gap-1"><span className="w-2 h-2 rounded-full border border-[#0043ce] border-t-transparent animate-spin inline-block" />Loading FHIR tasks…</span>}
+          {!useMockData && fhirTasks.length > 0 && <span className="text-xs font-medium text-[#198038]">✓ {fhirTasks.length} FHIR tasks</span>}
           <span className="text-xs text-[#0043ce] font-medium">
             {activePatient?.name ?? 'Active Patient'} · {activePatient?.platformId ?? activePatientId}
           </span>
