@@ -14,7 +14,7 @@
  */
 
 import type { RegistryPatient } from '../patientRegistry';
-import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '../patientRegistry';
+import { getPatientById, getAllPatients as registryGetAll, PLATFORM_TO_FHIR_ID_MAP } from '../patientRegistry';
 import { getFhirClient, getFhirMockMode } from './fhirClient';
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
@@ -42,6 +42,21 @@ export async function getAllPatients(): Promise<RegistryPatient[]> {
     return getAll();
   }
   return getFhirClient().getAllRegistryPatients();
+}
+
+/**
+ * Synchronous registry lookup — always returns registry data regardless of
+ * FHIR mode.  Used by components that cannot be async (e.g. PatientSwitcherDropdown).
+ */
+export function getAllRegistryPatients(): RegistryPatient[] {
+  return registryGetAll();
+}
+
+/**
+ * Synchronous single-patient lookup — always reads from registry.
+ */
+export function getPatientSync(platformId: string): RegistryPatient | undefined {
+  return getPatientById(platformId) ?? undefined;
 }
 
 // ─── Write — gap closure ──────────────────────────────────────────────────────
