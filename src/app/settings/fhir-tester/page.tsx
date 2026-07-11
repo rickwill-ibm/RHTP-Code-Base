@@ -48,7 +48,7 @@ interface TestResult {
   timestamp?: string;
 }
 
-type ActiveTab = 'patient' | 'order' | 'cds' | 'gaps';
+type ActiveTab = 'patient' | 'order' | 'cds' | 'gaps' | 'put';
 
 // ─── Mock Cerner sandbox responses ────────────────────────────────────────────
 
@@ -717,6 +717,226 @@ const TCOC_PATIENTS = [
 
 const GAP_BASE_URL = 'http://tcoc.example.org/fhir/StructureDefinition';
 
+// ─── PUT Resource Tab ─────────────────────────────────────────────────────────
+
+const PUT_RESOURCE_TEMPLATES: { label: string; resourceType: string; body: object }[] = [
+  {
+    label: 'Patient — update name',
+    resourceType: 'Patient',
+    body: {
+      resourceType: 'Patient',
+      id: 'REPLACE_WITH_FHIR_ID',
+      name: [{ use: 'official', family: 'Redhawk', given: ['Maria'] }],
+      gender: 'female',
+      birthDate: '1978-04-12',
+    },
+  },
+  {
+    label: 'Observation — amend HbA1c',
+    resourceType: 'Observation',
+    body: {
+      resourceType: 'Observation',
+      id: 'REPLACE_WITH_OBS_ID',
+      status: 'amended',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'laboratory' }] }],
+      code: { coding: [{ system: 'http://loinc.org', code: '4548-4', display: 'Hemoglobin A1c/Hemoglobin.total in Blood' }] },
+      subject: { reference: 'Patient/REPLACE_WITH_FHIR_ID' },
+      effectiveDateTime: new Date().toISOString().slice(0, 10),
+      valueQuantity: { value: 7.1, unit: '%', system: 'http://unitsofmeasure.org', code: '%' },
+    },
+  },
+  {
+    label: 'Task — mark completed',
+    resourceType: 'Task',
+    body: {
+      resourceType: 'Task',
+      id: 'REPLACE_WITH_TASK_ID',
+      status: 'completed',
+      intent: 'order',
+      lastModified: new Date().toISOString(),
+    },
+  },
+  {
+    label: 'Blank (free-form)',
+    resourceType: '',
+    body: { resourceType: '', id: '' },
+  },
+];
+
+function PutResourceTab() {
+  const [selectedTemplate, setSelectedTemplate] = useState(0);
+  const [resourceType, setResourceType] = useState(PUT_RESOURCE_TEMPLATES[0].resourceType);
+  const [resourceId, setResourceId] = useState('');
+  const [bodyText, setBodyText] = useState(
+    JSON.stringify(PUT_RESOURCE_TEMPLATES[0].body, null, 2),
+  );
+  const [result, setResult] = useState<TestResult>({ status: 'idle' });
+  const [parseError, setParseError] = useState('');
+
+  function applyTemplate(idx: number) {
+    const t = PUT_RESOURCE_TEMPLATES[idx];
+    setSelectedTemplate(idx);
+    setResourceType(t.resourceType);
+    setBodyText(JSON.stringify(t.body, null, 2));
+    setParseError('');
+    setResult({ status: 'idle' });
+  }
+
+  function handleBodyChange(val: string) {
+    setBodyText(val);
+    try {
+      const parsed = JSON.parse(val);
+      // keep resourceType / id fields in sync if they're in the body
+      if (parsed.resourceType) setResourceType(parsed.resourceType);
+      if (parsed.id && !resourceId) setResourceId(parsed.id);
+      setParseError('');
+    } catch {
+      setParseError('Invalid JSON');
+    }
+  }
+
+  const run = useCallback(async () => {
+    setParseError('');
+    let body: object;
+    try {
+      body = JSON.parse(bodyText);
+    } catch {
+      setParseError('Invalid JSON — fix the body before sending.');
+      return;
+    }
+    const rt = resourceType.trim();
+    const id = resourceId.trim();
+    if (!rt || !id) {
+      setParseError('Resource Type and Resource ID are both required for PUT.');
+      return;
+    }
+    setResult({ status: 'running' });
+    try {
+      const path = `${rt}/${id}`;
+      const res = await realFhirRequest('PUT', path, body);
+      const ok = res.statusCode >= 200 && res.statusCode < 300;
+      let pretty = res.body;
+      try { pretty = JSON.stringify(JSON.parse(res.body), null, 2); } catch { /* keep raw */ }
+      setResult({
+        status: ok ? 'success' : 'error',
+        statusCode: res.statusCode,
+        latencyMs: res.latencyMs,
+        requestPayload: `PUT ${LOCAL_FHIR_BASE}/${path}\nContent-Type: application/fhir+json\n\n${JSON.stringify(body, null, 2)}`,
+        responseBody: ok ? pretty : undefined,
+        errorMessage: ok ? undefined : pretty,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (err) {
+      setResult({
+        status: 'error',
+        errorMessage: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }
+  }, [resourceType, resourceId, bodyText]);
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white border border-carbon-gray-20 p-5">
+        <h3 className="text-sm font-semibold text-carbon-gray-100 mb-1 flex items-center gap-2">
+          <Icon name="PencilSquareIcon" size={16} className="text-carbon-blue" />
+          PUT Resource
+        </h3>
+        <p className="text-xs text-carbon-gray-50 mb-4">
+          Updates an existing FHIR resource by ID.&nbsp;
+          <code className="font-mono bg-carbon-gray-10 px-1">PUT {LOCAL_FHIR_BASE}/{'<ResourceType>/<id>'}</code>
+        </p>
+
+        {/* Template picker */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Start from template</label>
+          <div className="flex flex-wrap gap-2">
+            {PUT_RESOURCE_TEMPLATES.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => applyTemplate(i)}
+                className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
+                  selectedTemplate === i
+                    ? 'bg-carbon-blue text-white border-carbon-blue'
+                    : 'bg-white text-carbon-gray-70 border-carbon-gray-20 hover:border-carbon-blue hover:text-carbon-blue'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Resource type + ID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">
+              Resource Type <span className="text-carbon-red">*</span>
+            </label>
+            <input
+              type="text"
+              value={resourceType}
+              onChange={(e) => setResourceType(e.target.value)}
+              placeholder="e.g. Patient"
+              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">
+              Resource ID <span className="text-carbon-red">*</span>
+            </label>
+            <input
+              type="text"
+              value={resourceId}
+              onChange={(e) => setResourceId(e.target.value)}
+              placeholder="e.g. patient-maria-001"
+              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
+            />
+          </div>
+        </div>
+
+        {/* URL preview */}
+        <div className="mb-4 px-3 py-2 bg-carbon-gray-10 border-l-2 border-carbon-blue flex items-center gap-2">
+          <span className="text-2xs font-bold text-carbon-blue bg-[#d0e2ff] px-1.5 py-0.5">PUT</span>
+          <code className="text-xs font-mono text-carbon-gray-70 break-all">
+            {LOCAL_FHIR_BASE}/{resourceType || '<ResourceType>'}/{resourceId || '<id>'}
+          </code>
+        </div>
+
+        {/* Body editor */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-medium text-carbon-gray-70">Request Body (FHIR JSON)</label>
+            {parseError && (
+              <span className="text-xs text-carbon-red font-medium">{parseError}</span>
+            )}
+          </div>
+          <textarea
+            value={bodyText}
+            onChange={(e) => handleBodyChange(e.target.value)}
+            rows={16}
+            spellCheck={false}
+            className={`w-full border px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none bg-carbon-gray-10 resize-y ${
+              parseError ? 'border-carbon-red' : 'border-carbon-gray-20 focus:border-carbon-blue'
+            }`}
+          />
+        </div>
+
+        <button
+          onClick={run}
+          disabled={result.status === 'running' || !!parseError}
+          className="flex items-center gap-2 px-4 py-2 bg-carbon-blue text-white text-xs font-semibold hover:bg-[#0043ce] transition-colors disabled:opacity-50"
+        >
+          <Icon name="PencilSquareIcon" size={14} />
+          {result.status === 'running' ? 'Sending…' : 'Send PUT Request'}
+        </button>
+      </div>
+
+      <ResponsePanel result={result} />
+    </div>
+  );
+}
+
 function GapVerificationTab() {
   const [patientFhirId, setPatientFhirId] = useState(TCOC_PATIENTS[0].fhirId);
   const [searchResult, setSearchResult] = useState<TestResult>({ status: 'idle' });
@@ -1050,7 +1270,8 @@ export default function FhirTesterPage() {
 
   const tabs: { key: ActiveTab; label: string; icon: string; badge?: string }[] = [
     { key: 'patient', label: 'Patient Lookup', icon: 'UserIcon' },
-    { key: 'order', label: 'Order Submission', icon: 'ClipboardDocumentListIcon' },
+    { key: 'order', label: 'Order Submission (POST)', icon: 'ClipboardDocumentListIcon' },
+    { key: 'put', label: 'PUT Resource', icon: 'PencilSquareIcon' },
     { key: 'cds', label: 'CDS Hook Calls', icon: 'CpuChipIcon' },
     { key: 'gaps', label: 'Gap & Write Verification', icon: 'CheckCircleIcon' },
   ];
@@ -1118,6 +1339,7 @@ export default function FhirTesterPage() {
         {/* Tab content */}
         {activeTab === 'patient' && <PatientLookupTab />}
         {activeTab === 'order' && <OrderSubmissionTab />}
+        {activeTab === 'put' && <PutResourceTab />}
         {activeTab === 'cds' && <CdsHooksTab />}
         {activeTab === 'gaps' && <GapVerificationTab />}
       </div>
