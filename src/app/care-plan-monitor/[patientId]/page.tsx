@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCarePlanStore, type MonitoredCarePlan } from '@/lib/stores/carePlanStore';
-import { getAllPatients, getVisiblePatients } from '@/lib/patientRegistry';
+import { getVisiblePatients, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import { generateHolisticCarePlan } from '@/lib/services/carePlanGenerator';
-import { getFhirMockMode } from '@/lib/services/fhirClient';
-import type { Patient, InterventionStatus } from '@/lib/mockData';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+import type { InterventionStatus } from '@/lib/mockData';
 
 export default function CarePlanMonitorPage() {
   const params = useParams();
@@ -17,9 +17,14 @@ export default function CarePlanMonitorPage() {
   const [plan, setPlan] = useState<MonitoredCarePlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedTiers, setExpandedTiers] = useState<Set<number>>(new Set([1, 2, 4]));
+  const [fhirSource, setFhirSource] = useState<string | null>(null);
+  const loadedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Find patient
+    if (loadedRef.current === patientId) return;
+    loadedRef.current = patientId;
+
+    // Find patient in registry
     const allPatients = getVisiblePatients(getFhirMockMode());
     const patient = allPatients.find((p: any) => p.platformId === patientId || p.id === patientId);
     if (!patient) {
@@ -27,22 +32,45 @@ export default function CarePlanMonitorPage() {
       return;
     }
 
-    // Check if we have a care plan in store
+    // Check if we already have a care plan in Zustand store
     let carePlan = getCarePlan(patientId);
-    
-    // If not, generate one (for Maria)
-    if (!carePlan && patient.name.toLowerCase().includes('maria')) {
+
+    // Generate a care plan if none exists (fallback for all patients)
+    if (!carePlan) {
       const generated = generateHolisticCarePlan({
         patient: patient as any,
         hccSuspects: [],
         careGaps: (patient.careGaps || []) as any,
         alerts: []
       });
-      
       setCarePlan(patientId, generated as any);
       carePlan = getCarePlan(patientId);
     }
-    
+
+    // In live FHIR mode: try to read the persisted CarePlan from HAPI and
+    // stamp the last-updated time from the server resource's meta.
+    if (!getFhirMockMode()) {
+      const safePlatformId = patientId.replace(/[^A-Za-z0-9\-.]/g, '-');
+      const carePlanId = `cp-${safePlatformId}`;
+      getFhirClient()
+        .read<{ resourceType: string; meta?: { lastUpdated?: string } }>(
+          'CarePlan', carePlanId
+        )
+        .then((cp) => {
+          if (cp?.resourceType === 'CarePlan') {
+            const updated = cp.meta?.lastUpdated
+              ? new Date(cp.meta.lastUpdated).toLocaleDateString('en-US', {
+                  month: 'short', day: 'numeric', year: 'numeric',
+                })
+              : null;
+            setFhirSource(updated ?? 'FHIR CarePlan · Live');
+          }
+        })
+        .catch(() => {
+          // CarePlan not yet on server — silently ignore, keep generated plan
+        });
+    }
+
     setPlan(carePlan);
     setLoading(false);
   }, [patientId, getCarePlan, setCarePlan]);
@@ -64,10 +92,33 @@ export default function CarePlanMonitorPage() {
       'In Progress': 'Active',
       'Completed': 'Scheduled' // Using Scheduled as proxy for completed
     };
-    
+
     updateActionStatus(patientId, actionId, statusMap[newStatus]);
-    // Refresh plan from store
-    setPlan(getCarePlan(patientId));
+    const updated = getCarePlan(patientId);
+    setPlan(updated);
+
+    // In live FHIR mode: PUT the updated CarePlan back to HAPI (fire-and-forget)
+    if (!getFhirMockMode() && updated) {
+      const safePlatformId = patientId.replace(/[^A-Za-z0-9\-.]/g, '-');
+      const fhirId = PLATFORM_TO_FHIR_ID_MAP[patientId] ?? patientId;
+      getFhirClient()
+        .update({
+          id: `cp-${safePlatformId}`,
+          resourceType: 'CarePlan',
+          status: 'active',
+          intent: 'plan',
+          subject: { reference: `Patient/${fhirId}` },
+          note: [{
+            text: JSON.stringify({
+              overallProgress: updated.overallProgress,
+              tierProgress: updated.tierProgress,
+              lastUpdated: updated.lastUpdated,
+            }),
+          }],
+        })
+        .then(() => setFhirSource(`FHIR CarePlan · Updated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`))
+        .catch((err) => console.warn('[CarePlanMonitor] FHIR CarePlan PUT failed:', err));
+    }
   };
 
   if (loading) {
@@ -160,11 +211,18 @@ export default function CarePlanMonitorPage() {
                 ← Back
               </button>
               <h1 className="text-2xl font-semibold text-carbon-gray-100">
-                Care Plan Monitor - {patientId}
+                Care Plan Monitor — {patientId}
               </h1>
-              <p className="text-sm text-carbon-gray-70 mt-1">
-                Generated {new Date(plan.generatedDate).toLocaleDateString()}
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-sm text-carbon-gray-70">
+                  Generated {new Date(plan.generatedDate).toLocaleDateString()}
+                </p>
+                {fhirSource && (
+                  <span className="text-xs font-semibold px-2 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                    FHIR R4 · {fhirSource}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-4">
               <div className="text-center">

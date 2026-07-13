@@ -5,6 +5,7 @@ import Icon from '@/components/ui/AppIcon';
 import FreshnessIndicator from '@/components/ui/FreshnessIndicator';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { usePatientContext } from '@/lib/patientContext';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
 import type { ConditionEntry, MedicationEntry, OrderEntry } from '@/lib/patientRegistry';
 
 // ── Fallback data (Dorothy Simmons) shown when registry has no clinical data ──
@@ -39,10 +40,16 @@ const FALLBACK_ORDERS: OrderEntry[] = [
 
 export default function ClinicalTab() {
   const { patient } = usePatientContext();
+  const isLiveFhir = !getFhirMockMode();
 
   const conditions: ConditionEntry[] = patient?.conditions ?? FALLBACK_CONDITIONS;
   const medications: MedicationEntry[] = patient?.medications ?? FALLBACK_MEDICATIONS;
   const recentOrders: OrderEntry[] = patient?.recentOrders ?? FALLBACK_ORDERS;
+
+  // True when the data came from FHIR (fields are defined on the patient context)
+  const conditionsFromFhir = isLiveFhir && !!patient?.conditions?.length;
+  const medicationsFromFhir = isLiveFhir && !!patient?.medications?.length;
+  const ordersFromFhir = isLiveFhir && !!patient?.recentOrders?.length;
 
   const ddiCount = medications.filter((m) => m.ddi).length;
 
@@ -54,8 +61,13 @@ export default function ClinicalTab() {
           <h3 className="text-base font-semibold text-carbon-gray-100 flex items-center gap-2">
             <Icon name="HeartIcon" size={16} className="text-[#da1e28]" />
             Active Conditions ({conditions.length})
+            {conditionsFromFhir && (
+              <span className="text-2xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                FHIR R4
+              </span>
+            )}
           </h3>
-          <FreshnessIndicator source="EMR" date="2026-04-15" />
+          <FreshnessIndicator source={conditionsFromFhir ? 'FHIR' : 'EMR'} date="2026-04-15" />
         </div>
         <div className="border border-carbon-gray-20 overflow-hidden">
           <table className="w-full text-sm">
@@ -96,8 +108,13 @@ export default function ClinicalTab() {
                 {ddiCount} DDI flag{ddiCount !== 1 ? 's' : ''}
               </span>
             )}
+            {medicationsFromFhir && (
+              <span className="text-2xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                FHIR R4
+              </span>
+            )}
           </h3>
-          <FreshnessIndicator source="Claims" date="2026-04-10" />
+          <FreshnessIndicator source={medicationsFromFhir ? 'FHIR' : 'Claims'} date="2026-04-10" />
         </div>
         <div className="border border-carbon-gray-20 overflow-hidden">
           <table className="w-full text-sm">
@@ -154,7 +171,12 @@ export default function ClinicalTab() {
       <section>
         <h3 className="text-base font-semibold text-carbon-gray-100 flex items-center gap-2 mb-3">
           <Icon name="ClipboardDocumentListIcon" size={16} className="text-carbon-gray-70" />
-          Recent Orders & Results
+          Recent Orders &amp; Results
+          {ordersFromFhir && (
+            <span className="text-2xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+              FHIR R4
+            </span>
+          )}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {recentOrders.map((o) => (

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { PROGRAM_TYPE_CONFIG } from '@/lib/fhirCareTeamData';
 import type { TaskProgramType } from '@/lib/fhirCareTeamData';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientSync } from '@/lib/services/patientService';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import { useGapClosureStore } from '@/lib/patientContext';
 import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
@@ -189,17 +189,10 @@ interface FhirObsResult {
 export default function CareGapClosureVerificationPage() {
   const router = useRouter();
   const { activePatientId } = useAppContext();
-<<<<<<< HEAD
-  const patient = getPatientSync(activePatientId);
-  // Always show Maria Redhawk for this screen (HbA1c gap closure context)
-  const patientName = 'Maria Redhawk';
-  const patientId = 'PAT-0006';
-=======
   const patient = getPatientById(activePatientId);
   // Use the active patient — falls back to Maria Redhawk for demo context
   const patientName = patient?.name ?? 'Maria Redhawk';
   const patientId = patient?.platformId ?? activePatientId ?? 'MARIA_SD_001';
->>>>>>> a737059 (feat: FHIR integration, care-gap workflows, MD Smart Launch enhancements, CDS hooks API, patient service, and UI updates)
 
   const { getGapClosure } = useGapClosureStore();
   const hbA1cClosure = getGapClosure('CG_MARIA_001');
