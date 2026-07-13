@@ -1,19 +1,20 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { CHW_VISITS, OUTREACH_LOG, CBOS, PROGRAM_DOMAIN_COLORS } from '@/lib/socialMockData';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/lib/appContext';
-import { getPatientById } from '@/lib/patientRegistry';
+import { getPatientById, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import { effectiveMemberId } from '@/lib/careTeam/identity';
 import { getMemberName } from '@/lib/careTeam/members';
 import { visitPlanFor } from '@/lib/careTeam/visitPlan';
 import ActionQueue from '@/app/care-manager/components/ActionQueue';
 import { buildTriageQueue, type TaskInput } from '@/lib/careTeam/triage';
 import { recommendResources, citizenNBAs, citizenNeeds, type CitizenNeed } from '@/lib/careTeam/graph/resources';
-import { getAllPatients, getVisiblePatients } from '@/lib/patientRegistry';
-import { getFhirMockMode } from '@/lib/services/fhirClient';
+import { getVisiblePatients } from '@/lib/patientRegistry';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+import { initiateReferral } from '@/lib/services/referralService';
 import { toast } from 'sonner';
 
 type CBORecord = (typeof CBOS)[number];
@@ -261,7 +262,24 @@ function StartVisitModal({ visit, onClose }: { visit: VisitData; onClose: () => 
             Cancel
           </button>
           <button
-            onClick={() => setSubmitted(true)}
+            onClick={() => {
+              setSubmitted(true);
+              // Live FHIR: PUT Task for this visit → completed (fire-and-forget)
+              if (!getFhirMockMode()) {
+                const fhirId = PLATFORM_TO_FHIR_ID_MAP[visit.patientId] ?? visit.patientId;
+                getFhirClient().create({
+                  resourceType: 'Task',
+                  status: 'completed',
+                  intent: 'order',
+                  priority: 'routine',
+                  description: `CHW home visit — ${visit.purpose}`,
+                  for: { reference: `Patient/${fhirId}`, display: visit.patient },
+                  owner: { reference: 'Practitioner/practitioner-jon', display: 'CHW — Social' },
+                  note: checked.size > 0 ? [{ text: `${checked.size}/${planItems.length} NBAs completed. ${notes}`.trim() }] : undefined,
+                  executionPeriod: { end: new Date().toISOString() },
+                }).catch((err) => console.warn('[CHWWorkflow] Task create failed:', err));
+              }
+            }}
             className="px-5 py-2 text-xs font-semibold bg-[#198038] text-white hover:bg-[#0e6027] transition-colors flex items-center gap-2"
           >
             <Icon name="CheckCircleIcon" size={13} />
@@ -505,9 +523,48 @@ const CHW_SOCIAL_TASKS: TaskInput[] = [
   { id: 'cs5', patient: 'Lisa Thompson', task: 'Food box delivery + SNAP-Ed nutrition referral', due: '2026-06-08', priority: 'Low' },
 ];
 
-function ReferralApprovalModal({ cbo, need, citizenName, onClose }: { cbo: CBORecord; need?: CitizenNeed; citizenName: string; onClose: () => void }) {
+function ReferralApprovalModal({ cbo, need, citizenName, patientId, onClose }: { cbo: CBORecord; need?: CitizenNeed; citizenName: string; patientId: string; onClose: () => void }) {
   const [confirmed, setConfirmed] = useState(false);
   const consentOk = cbo.capacity !== 'Full';
+
+  const handleConfirm = async () => {
+    setConfirmed(true);
+    toast.success('Referral approved', { description: `${citizenName} → ${cbo.name}` });
+    // Live FHIR: POST ServiceRequest + Task + AuditEvent (fire-and-forget)
+    if (!getFhirMockMode()) {
+      const fhirId = PLATFORM_TO_FHIR_ID_MAP[patientId] ?? patientId;
+      try {
+        const result = await initiateReferral({
+          patientId: fhirId,
+          requesterId: 'practitioner-jon',   // CHW submitting the referral
+          performerId: `org-${cbo.id}`,
+          serviceCode: `${cbo.domain.toLowerCase().replace(/\s+/g, '-')}-referral`,
+          serviceDisplay: `${cbo.name} — ${cbo.domain}`,
+          reasonCode: `${cbo.domain.toLowerCase().replace(/\s+/g, '-')}-referral`,
+          reasonDisplay: need?.label ?? cbo.name,
+          priority: 'routine',
+          notes: `CHW referral — ${citizenName} → ${cbo.name} · ${cbo.domain}`,
+          gainshareEligible: false,
+        });
+        await getFhirClient().create({
+          resourceType: 'AuditEvent',
+          type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+          action: 'C',
+          recorded: new Date().toISOString(),
+          outcome: '0',
+          agent: [{ who: { reference: 'Practitioner/practitioner-jon', display: 'CHW — Social' }, requestor: true }],
+          source: { observer: { display: 'TCOC Platform — CHW Workflow' } },
+          entity: [
+            { what: { reference: `ServiceRequest/${result.serviceRequest.id}` }, description: `CHW referral — ${cbo.domain}` },
+            { what: { reference: `Task/${result.task.id}` }, description: `Referral task for ${citizenName}` },
+          ],
+        }).catch(() => { /* AuditEvent failure is non-fatal */ });
+      } catch (err) {
+        console.warn('[CHWWorkflow] FHIR referral write failed:', err);
+      }
+    }
+  };
+
   if (confirmed) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -556,7 +613,7 @@ function ReferralApprovalModal({ cbo, need, citizenName, onClose }: { cbo: CBORe
         </div>
         <div className="px-6 py-4 border-t border-carbon-gray-20 bg-carbon-gray-10 flex items-center justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-xs font-semibold border border-carbon-gray-20 text-carbon-gray-70 bg-white hover:bg-carbon-gray-10">Cancel</button>
-          <button onClick={() => { setConfirmed(true); toast.success('Referral approved', { description: `${citizenName} \u2192 ${cbo.name}` }); }} className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#0043ce] hover:bg-[#002d9c]">
+          <button onClick={handleConfirm} className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#0043ce] hover:bg-[#002d9c]">
             <Icon name="CheckIcon" size={12} /> Confirm Referral
           </button>
         </div>
@@ -571,6 +628,21 @@ export default function CHWWorkflowPage() {
   const activePatient = getPatientById(activePatientId);
   const [view, setView] = useState<CHWView>('queue');
   const [referralTarget, setReferralTarget] = useState<{ cbo: CBORecord; need?: CitizenNeed } | null>(null);
+  const [fhirTaskCount, setFhirTaskCount] = useState<number | null>(null);
+  const fhirLoadedRef = useRef(false);
+
+  // Live FHIR: fetch Tasks assigned to the CHW practitioner on mount
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Task', { owner: 'Practitioner/practitioner-jon', _count: 50, status: 'requested,accepted,in-progress' })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? []).filter((e: any) => e?.resource?.resourceType === 'Task').length;
+        if (count > 0) setFhirTaskCount(count);
+      })
+      .catch(() => { /* non-fatal — queue still shows static tasks */ });
+  }, []);
   const recommendedResources = recommendResources(activePatientId, CBOS);
   const nbas = citizenNBAs(activePatientId, CBOS);
   const panelDoNow = buildTriageQueue({ adt: [], tasks: CHW_SOCIAL_TASKS, transitions: [] }).filter((sig) => sig.domain === 'Social' && sig.tier === 'Do Now').length;
@@ -980,6 +1052,7 @@ export default function CHWWorkflowPage() {
           cbo={referralTarget.cbo}
           need={referralTarget.need}
           citizenName={activePatient?.name ?? 'Citizen'}
+          patientId={activePatientId}
           onClose={() => setReferralTarget(null)}
         />
       )}
