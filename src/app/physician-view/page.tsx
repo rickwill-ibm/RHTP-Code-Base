@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { useAppContext } from '@/lib/appContext';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 import { toast } from 'sonner';
 
 type TeamNBA = { id: string; type: 'sprint' | 'coverage' | 'rebalance'; title: string; whyNow: string; detail: string; impact: string; owner: string; agent: string; confidence: 'High' | 'Medium'; tone: 'balance' | 'perf' | 'cov'; targetName: string; link?: string };
@@ -222,6 +223,23 @@ function CareTeamMembersContent() {
   const searchParams = useSearchParams();
   const { addOpsTask, opsTasks } = useAppContext();
   const [opsModal, setOpsModal] = useState<TeamNBA | null>(null);
+  const [fhirPractitionerCount, setFhirPractitionerCount] = useState<number | null>(null);
+  const fhirLoadedRef = useRef(false);
+
+  // Live FHIR: verify practitioners are present in HAPI on mount
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Practitioner', { _count: 20, active: 'true' })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? []).filter(
+          (e: any) => e?.resource?.resourceType === 'Practitioner'
+        ).length;
+        if (count > 0) setFhirPractitionerCount(count);
+      })
+      .catch(() => { /* non-fatal */ });
+  }, []);
   const confirmOps = () => {
     if (!opsModal) return;
     const st = opsModal.type === 'sprint' ? 'scheduled' : opsModal.type === 'coverage' ? 'requested' : 'in-progress';
@@ -320,6 +338,11 @@ function CareTeamMembersContent() {
           <span className="text-xs font-semibold text-[#0043ce]">Organization: {providerName}</span>
           <span className="text-xs text-[#0043ce]">{allMembers.length} Care Team Members</span>
           <span className="text-xs text-[#0043ce]">{clinicalMembers.length} PCPs · {bhMembers.length} BH Counselors · {chwMembers.length} CHW Supervisors</span>
+          {fhirPractitionerCount !== null && (
+            <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+              FHIR R4 · {fhirPractitionerCount} practitioners verified
+            </span>
+          )}
           <span className="ml-auto text-xs text-carbon-gray-50">Data as of May 29, 2026</span>
         </div>
       }

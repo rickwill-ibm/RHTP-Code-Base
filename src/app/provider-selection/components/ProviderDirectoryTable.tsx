@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
 import type { Provider } from '@/lib/mockData';
 
@@ -537,6 +538,26 @@ function ProviderDetailPanel({ provider, onClose, onInitiateReferral }: { provid
 const ProviderDirectoryTable: React.FC<{ filters?: import('@/app/provider-selection/page').ProviderFilters }> = ({ filters }) => {
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const { advanceWorkflow } = useWorkflowMachine();
+  const [fhirNetworkCount, setFhirNetworkCount] = useState<{ practitioners: number; orgs: number } | null>(null);
+  const fhirLoadedRef = useRef(false);
+
+  // Live FHIR: verify network Practitioners + Organizations on mount
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    Promise.all([
+      getFhirClient().search('Practitioner', { _count: 50, active: 'true' }),
+      getFhirClient().search('Organization', { _count: 50 }),
+    ]).then(([pracBundle, orgBundle]: [any, any]) => {
+      const practitioners = (pracBundle?.entry ?? []).filter(
+        (e: any) => e?.resource?.resourceType === 'Practitioner'
+      ).length;
+      const orgs = (orgBundle?.entry ?? []).filter(
+        (e: any) => e?.resource?.resourceType === 'Organization'
+      ).length;
+      if (practitioners > 0 || orgs > 0) setFhirNetworkCount({ practitioners, orgs });
+    }).catch(() => { /* non-fatal */ });
+  }, []);
 
   const { mockProviders } = require('@/lib/mockData');
 
@@ -584,6 +605,15 @@ const ProviderDirectoryTable: React.FC<{ filters?: import('@/app/provider-select
 
   return (
     <>
+      {/* FHIR network verification badge */}
+      {fhirNetworkCount !== null && (
+        <div className="px-4 py-2 flex items-center gap-2 bg-[#f0fdf4] border border-[#a7f0ba] mb-2">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">
+            Network verified · {fhirNetworkCount.practitioners} practitioners · {fhirNetworkCount.orgs} organizations
+          </span>
+        </div>
+      )}
       {/* Table */}
       <div className="border border-carbon-gray-20 overflow-hidden">
         {/* Header */}
