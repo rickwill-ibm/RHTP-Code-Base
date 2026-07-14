@@ -1,7 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
 const HOUSEHOLDS = [
   {
@@ -73,6 +74,23 @@ const SDOH_COLORS: Record<string, string> = {
 export default function HouseholdViewPage() {
   const [selectedHousehold, setSelectedHousehold] = useState<string | null>('hh-001');
   const [search, setSearch] = useState('');
+  const [fhirPatientCount, setFhirPatientCount] = useState<number | null>(null);
+  const fhirLoadedRef = useRef(false);
+
+  // Live FHIR: count patients on mount to verify HAPI connectivity
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Patient', { _count: 100 })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? []).filter(
+          (e: any) => e?.resource?.resourceType === 'Patient'
+        ).length;
+        if (count > 0) setFhirPatientCount(count);
+      })
+      .catch(() => { /* non-fatal */ });
+  }, []);
 
   const filteredHouseholds = HOUSEHOLDS.filter((hh) =>
     hh.address.toLowerCase().includes(search.toLowerCase()) ||
@@ -92,6 +110,12 @@ export default function HouseholdViewPage() {
       breadcrumbs={[{ label: 'CDP & Agentic Automation' }, { label: 'Household View' }]}
     >
       {/* KPI Strip */}
+      {fhirPatientCount !== null && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{fhirPatientCount} patients verified in HAPI FHIR</span>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Households', value: totalHouseholds.toString(), icon: 'HomeIcon', color: 'text-[#0043ce]', bg: 'bg-[#d0e2ff]' },

@@ -1068,6 +1068,123 @@ function buildPractitionerBundle() {
   return { resourceType: 'Bundle', type: 'transaction', entry: entries };
 }
 
+// ─── Consent resources ────────────────────────────────────────────────────────
+
+function buildConsentBundle() {
+  /**
+   * Seeds FHIR R4 Consent records matching the CONSENT_RECORDS shape in
+   * consent-sovereignty-panel/page.tsx.  Three records for Maria Redhawk,
+   * one for Dorothy Simmons — all PUT so re-runs are idempotent.
+   */
+  const entries = [
+    // cns-001 — Maria: Data Sharing (ACTIVE)
+    {
+      resource: {
+        resourceType: 'Consent',
+        id: 'cns-001',
+        status: 'active',
+        scope: {
+          coding: [{ system: 'http://terminology.hl7.org/CodeSystem/consentscope', code: 'patient-privacy', display: 'Privacy Consent' }],
+        },
+        category: [{ coding: [{ system: 'http://loinc.org', code: '59284-0', display: 'Consent Document' }] }],
+        patient: { reference: 'Patient/patient-maria-001', display: 'Maria Redhawk' },
+        dateTime: '2024-03-12',
+        organization: [{ display: 'Bennett County Health Network' }],
+        provision: {
+          type: 'permit',
+          period: { start: '2024-03-12', end: '2025-03-12' },
+          purpose: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActReason', code: 'TREAT', display: 'Treatment' }],
+        },
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-type', valueString: 'Data Sharing' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text', valueString: 'Clinical + Claims + SDOH' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-method', valueString: 'Electronic' },
+        ],
+      },
+      request: { method: 'PUT', url: 'Consent/cns-001' },
+    },
+    // cns-002 — Maria: Research (ACTIVE)
+    {
+      resource: {
+        resourceType: 'Consent',
+        id: 'cns-002',
+        status: 'active',
+        scope: {
+          coding: [{ system: 'http://terminology.hl7.org/CodeSystem/consentscope', code: 'research', display: 'Research' }],
+        },
+        category: [{ coding: [{ system: 'http://loinc.org', code: '59284-0', display: 'Consent Document' }] }],
+        patient: { reference: 'Patient/patient-maria-001', display: 'Maria Redhawk' },
+        dateTime: '2024-03-12',
+        organization: [{ display: 'RHTP Research Registry' }],
+        provision: {
+          type: 'permit',
+          period: { start: '2024-03-12', end: '2026-03-12' },
+          purpose: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActReason', code: 'HRESCH', display: 'Healthcare Research' }],
+        },
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-type', valueString: 'Research' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text', valueString: 'De-identified Clinical' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-method', valueString: 'Electronic' },
+        ],
+      },
+      request: { method: 'PUT', url: 'Consent/cns-002' },
+    },
+    // cns-003 — Maria: BH Data (REVOKED)
+    {
+      resource: {
+        resourceType: 'Consent',
+        id: 'cns-003',
+        status: 'rejected',
+        scope: {
+          coding: [{ system: 'http://terminology.hl7.org/CodeSystem/consentscope', code: 'patient-privacy', display: 'Privacy Consent' }],
+        },
+        category: [{ coding: [{ system: 'http://loinc.org', code: '59284-0', display: 'Consent Document' }] }],
+        patient: { reference: 'Patient/patient-maria-001', display: 'Maria Redhawk' },
+        dateTime: '2023-11-01',
+        organization: [{ display: 'CCBHC — Clay County' }],
+        provision: {
+          type: 'deny',
+          period: { start: '2023-11-01', end: '2024-11-01' },
+        },
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-type', valueString: 'BH Data' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text', valueString: 'Behavioral Health Records' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-method', valueString: 'Paper' },
+        ],
+      },
+      request: { method: 'PUT', url: 'Consent/cns-003' },
+    },
+    // cns-004 — Dorothy: Data Sharing (ACTIVE)
+    {
+      resource: {
+        resourceType: 'Consent',
+        id: 'cns-004',
+        status: 'active',
+        scope: {
+          coding: [{ system: 'http://terminology.hl7.org/CodeSystem/consentscope', code: 'patient-privacy', display: 'Privacy Consent' }],
+        },
+        category: [{ coding: [{ system: 'http://loinc.org', code: '59284-0', display: 'Consent Document' }] }],
+        patient: { reference: 'Patient/patient-dorothy-042', display: 'Dorothy Simmons' },
+        dateTime: '2024-01-08',
+        organization: [{ display: 'Jackson County Memorial' }],
+        provision: {
+          type: 'permit',
+          period: { start: '2024-01-08', end: '2025-01-08' },
+          purpose: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActReason', code: 'TREAT', display: 'Treatment' }],
+        },
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-type', valueString: 'Data Sharing' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text', valueString: 'Clinical + Claims' },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-method', valueString: 'Electronic' },
+        ],
+      },
+      request: { method: 'PUT', url: 'Consent/cns-004' },
+    },
+  ];
+
+  return { resourceType: 'Bundle', type: 'transaction', entry: entries };
+}
+
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 async function postBundle(bundle) {
@@ -1123,6 +1240,16 @@ async function main() {
     const cboBundle = buildCboOrganizationBundle();
     await postBundle(cboBundle);
     console.log(`✅  ${pracBundle.entry.length + cboBundle.entry.length} resources`);
+  } catch (err) {
+    console.error(`❌  ${err.message}`);
+  }
+
+  // ── Seed Consent records ────────────────────────────────────────────────────
+  process.stdout.write('  → Consent records … ');
+  try {
+    const consentBundle = buildConsentBundle();
+    await postBundle(consentBundle);
+    console.log(`✅  ${consentBundle.entry.length} resources`);
   } catch (err) {
     console.error(`❌  ${err.message}`);
   }

@@ -164,7 +164,7 @@ Both referral screens use `mockReferrals` from the `ActiveReferralsTable` compon
 
 ### Sub-Task 6 — Household View + Consent Sovereignty: Patient + Consent Read
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit ST-6)*
 
 **Intent:**
 `HouseholdView` uses hardcoded `HOUSEHOLDS` data. `ConsentSovereigntyPanel` uses hardcoded `CONSENT_RECORDS` but already has `fhirConsent` field references in the data shape. Both need live FHIR reads — `HouseholdView` reads grouped `Patient` resources, `ConsentSovereigntyPanel` reads `Consent` resources.

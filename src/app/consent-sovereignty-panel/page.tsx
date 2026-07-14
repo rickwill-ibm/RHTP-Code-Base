@@ -1,9 +1,12 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
-const CONSENT_RECORDS = [
+// ─── Static mock/fallback data ────────────────────────────────────────────────
+
+const CONSENT_RECORDS_MOCK = [
   { id: 'cns-001', patient: 'Maria Redhawk', patientId: 'PAT-0006', mrn: 'MRN-0006', type: 'Data Sharing', scope: 'Clinical + Claims + SDOH', grantedTo: 'Bennett County Health Network', status: 'ACTIVE', grantedDate: '2024-03-12', expiresDate: '2025-03-12', method: 'Electronic', fhirConsent: 'Consent/cns-001' },
   { id: 'cns-002', patient: 'Maria Redhawk', patientId: 'PAT-0006', mrn: 'MRN-0006', type: 'Research', scope: 'De-identified Clinical', grantedTo: 'RHTP Research Registry', status: 'ACTIVE', grantedDate: '2024-03-12', expiresDate: '2026-03-12', method: 'Electronic', fhirConsent: 'Consent/cns-002' },
   { id: 'cns-003', patient: 'Maria Redhawk', patientId: 'PAT-0006', mrn: 'MRN-0006', type: 'BH Data', scope: 'Behavioral Health Records', grantedTo: 'CCBHC — Clay County', status: 'REVOKED', grantedDate: '2023-11-01', expiresDate: '2024-11-01', method: 'Paper', fhirConsent: 'Consent/cns-003' },
@@ -22,6 +25,58 @@ const DATA_SOVEREIGNTY_RULES = [
   { rule: 'Pediatric Data Protection', description: 'Patients under 18 require guardian consent for all sharing', status: 'ENFORCED', scope: 'Minors', lastAudit: '2024-11-20' },
 ];
 
+// ─── FHIR → display shape mapper ─────────────────────────────────────────────
+
+type ConsentRecord = {
+  id: string; patient: string; patientId: string; mrn: string;
+  type: string; scope: string; grantedTo: string; status: string;
+  grantedDate: string; expiresDate: string; method: string; fhirConsent: string;
+};
+
+function mapFhirConsent(resource: any): ConsentRecord {
+  // FHIR status → display status
+  const statusMap: Record<string, string> = {
+    active: 'ACTIVE',
+    inactive: 'EXPIRED',
+    rejected: 'REVOKED',
+    'entered-in-error': 'REVOKED',
+    proposed: 'PENDING',
+    draft: 'PENDING',
+  };
+
+  const ext = (url: string) =>
+    resource.extension?.find((e: any) => e.url === url)?.valueString ?? '';
+
+  const patientDisplay: string = resource.patient?.display ?? resource.patient?.reference ?? '';
+  const patientRef: string = resource.patient?.reference ?? '';
+  // derive a PAT-XXXX from the FHIR id if no display ID is available
+  const fhirPatientId = patientRef.replace('Patient/', '');
+  const patientIdDisplay =
+    fhirPatientId === 'patient-maria-001' ? 'PAT-0006' :
+    fhirPatientId === 'patient-dorothy-042' ? 'PAT-0042' :
+    fhirPatientId;
+
+  const period = resource.provision?.period ?? {};
+  const grantedTo = resource.organization?.[0]?.display ?? '—';
+
+  return {
+    id: resource.id ?? '',
+    patient: patientDisplay,
+    patientId: patientIdDisplay,
+    mrn: patientIdDisplay.replace('PAT', 'MRN'),
+    type: ext('http://tcoc.example.org/fhir/StructureDefinition/consent-type') || resource.scope?.coding?.[0]?.display || 'Consent',
+    scope: ext('http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text') || '—',
+    grantedTo,
+    status: statusMap[resource.status] ?? resource.status?.toUpperCase() ?? 'UNKNOWN',
+    grantedDate: resource.dateTime?.split('T')[0] ?? '—',
+    expiresDate: period.end ?? '—',
+    method: ext('http://tcoc.example.org/fhir/StructureDefinition/consent-method') || 'Electronic',
+    fhirConsent: `Consent/${resource.id}`,
+  };
+}
+
+// ─── Status config ────────────────────────────────────────────────────────────
+
 const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string }> = {
   ACTIVE: { bg: '#defbe6', text: '#0e6027', dot: '#198038' },
   REVOKED: { bg: '#fff1f1', text: '#da1e28', dot: '#da1e28' },
@@ -30,22 +85,46 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string }> =
   ENFORCED: { bg: '#defbe6', text: '#0e6027', dot: '#198038' },
 };
 
+// ─── Page component ───────────────────────────────────────────────────────────
+
 export default function ConsentSovereigntyPanelPage() {
   const [activeTab, setActiveTab] = useState<'consents' | 'sovereignty' | 'audit'>('consents');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [consentRecords, setConsentRecords] = useState<ConsentRecord[]>(CONSENT_RECORDS_MOCK);
+  const [fhirSource, setFhirSource] = useState(false);
+  const fhirLoadedRef = useRef(false);
+
+  // Live FHIR: fetch all Consent resources on mount
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Consent', { _count: 50 })
+      .then((bundle: any) => {
+        const entries: any[] = bundle?.entry ?? [];
+        const resources = entries
+          .map((e: any) => e?.resource)
+          .filter((r: any) => r?.resourceType === 'Consent');
+        if (resources.length > 0) {
+          setConsentRecords(resources.map(mapFhirConsent));
+          setFhirSource(true);
+        }
+      })
+      .catch(() => { /* non-fatal — keep mock data */ });
+  }, []);
 
   const statuses = ['All', 'ACTIVE', 'REVOKED', 'EXPIRED', 'PENDING'];
-  const filtered = CONSENT_RECORDS.filter((r) => {
+  const filtered = consentRecords.filter((r) => {
     const matchSearch = r.patient.toLowerCase().includes(search.toLowerCase()) || r.patientId.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'All' || r.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const activeCount = CONSENT_RECORDS.filter((r) => r.status === 'ACTIVE').length;
-  const revokedCount = CONSENT_RECORDS.filter((r) => r.status === 'REVOKED').length;
-  const expiredCount = CONSENT_RECORDS.filter((r) => r.status === 'EXPIRED').length;
-  const pendingCount = CONSENT_RECORDS.filter((r) => r.status === 'PENDING').length;
+  const activeCount = consentRecords.filter((r) => r.status === 'ACTIVE').length;
+  const revokedCount = consentRecords.filter((r) => r.status === 'REVOKED').length;
+  const expiredCount = consentRecords.filter((r) => r.status === 'EXPIRED').length;
+  const pendingCount = consentRecords.filter((r) => r.status === 'PENDING').length;
 
   return (
     <AppLayout
@@ -53,6 +132,12 @@ export default function ConsentSovereigntyPanelPage() {
       breadcrumbs={[{ label: 'CDP & Agentic Automation' }, { label: 'Consent & Sovereignty Panel' }]}
     >
       {/* KPI Strip */}
+      {fhirSource && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{consentRecords.length} consent records loaded from HAPI FHIR</span>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Active Consents', value: activeCount.toString(), icon: 'ShieldCheckIcon', color: 'text-[#198038]', bg: 'bg-[#defbe6]' },
@@ -90,7 +175,12 @@ export default function ConsentSovereigntyPanelPage() {
       {activeTab === 'consents' && (
         <div className="bg-white border border-carbon-gray-20">
           <div className="flex items-center justify-between px-4 py-3 border-b border-carbon-gray-20 flex-wrap gap-2">
-            <p className="text-sm font-semibold text-carbon-gray-100">Patient Consent Records</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-carbon-gray-100">Patient Consent Records</p>
+              {fhirSource && (
+                <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Icon name="MagnifyingGlassIcon" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-carbon-gray-50" />
@@ -126,7 +216,7 @@ export default function ConsentSovereigntyPanelPage() {
             </thead>
             <tbody>
               {filtered.map((rec, i) => {
-                const sc = STATUS_CONFIG[rec.status];
+                const sc = STATUS_CONFIG[rec.status] ?? STATUS_CONFIG['EXPIRED'];
                 return (
                   <tr key={rec.id} className={`border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors ${i % 2 === 0 ? '' : 'bg-carbon-gray-10/30'}`}>
                     <td className="px-4 py-3">
