@@ -180,10 +180,20 @@ function ResponsePanel({ result }: { result: TestResult }) {
   );
 }
 
+// ─── Known FHIR patients (seeded in HAPI server) ─────────────────────────────
+const FHIR_PATIENTS = [
+  { id: 'patient-maria-001',    name: 'Maria Redhawk' },
+  { id: 'patient-dorothy-042',  name: 'Dorothy Simmons' },
+  { id: 'patient-james-087',    name: 'James Wilson' },
+  { id: 'patient-robert-103',   name: 'Robert Chen' },
+  { id: 'patient-lisa-156',     name: 'Lisa Thompson' },
+  { id: 'patient-alex-kirby',   name: 'Alex Kirby' },
+];
+
 // ─── Patient Lookup Tab ────────────────────────────────────────────────────────
 
 function PatientLookupTab() {
-  const [patientId, setPatientId] = useState('patient-001');
+  const [patientId, setPatientId] = useState(FHIR_PATIENTS[0].id);
   const [includeConditions, setIncludeConditions] = useState(true);
   const [includeMeds, setIncludeMeds] = useState(false);
   const [includeObs, setIncludeObs] = useState(false);
@@ -238,13 +248,15 @@ function PatientLookupTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Patient ID (FHIR logical ID)</label>
-            <input
-              type="text"
+            <select
               value={patientId}
               onChange={(e) => setPatientId(e.target.value)}
-              placeholder="e.g. patient-001"
               className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
-            />
+            >
+              {FHIR_PATIENTS.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {p.id}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">FHIR Base URL</label>
@@ -310,7 +322,7 @@ const ORDER_TEMPLATES = [
 
 function OrderSubmissionTab() {
   const [selectedTemplate, setSelectedTemplate] = useState(ORDER_TEMPLATES[0].id);
-  const [patientId, setPatientId] = useState('patient-001');
+  const [patientId, setPatientId] = useState(FHIR_PATIENTS[0].id);
   const [encounterId, setEncounterId] = useState('enc-20260416-001');
   const [note, setNote] = useState('Cardiology consult for uncontrolled hypertension and new onset chest pain.');
   const [result, setResult] = useState<TestResult>({ status: 'idle' });
@@ -379,12 +391,15 @@ function OrderSubmissionTab() {
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Patient ID</label>
-            <input
-              type="text"
+            <select
               value={patientId}
               onChange={(e) => setPatientId(e.target.value)}
               className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
-            />
+            >
+              {FHIR_PATIENTS.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {p.id}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Encounter ID</label>
@@ -467,7 +482,7 @@ const CDS_HOOK_CONFIGS = [
 
 function CdsHooksTab() {
   const [selectedHook, setSelectedHook] = useState(CDS_HOOK_CONFIGS[0].id);
-  const [patientId, setPatientId] = useState('patient-001');
+  const [patientId, setPatientId] = useState(FHIR_PATIENTS[0].id);
   const [encounterId, setEncounterId] = useState('enc-20260416-001');
   const [result, setResult] = useState<TestResult>({ status: 'idle' });
 
@@ -540,12 +555,15 @@ function CdsHooksTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Patient ID</label>
-            <input
-              type="text"
+            <select
               value={patientId}
               onChange={(e) => setPatientId(e.target.value)}
               className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
-            />
+            >
+              {FHIR_PATIENTS.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {p.id}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Encounter ID</label>
