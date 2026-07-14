@@ -228,12 +228,14 @@ function useFhirPatients() {
 // ─── Encounters hook — fetches real encounters for the selected patient ────────
 function usePatientEncounters(patientId: string) {
   const [encounters, setEncounters] = useState<{ id: string }[]>([]);
+  const [encounterId, setEncounterId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!patientId) return;
     setLoading(true);
     setEncounters([]);
+    setEncounterId('');
     realFhirRequest('GET', `Encounter?subject=Patient/${patientId}&_count=50&_elements=id`)
       .then((res) => {
         const bundle = JSON.parse(res.body);
@@ -241,12 +243,14 @@ function usePatientEncounters(patientId: string) {
           .map((e: { resource?: { id?: string } }) => e.resource?.id ? { id: e.resource.id } : null)
           .filter(Boolean);
         setEncounters(ids);
+        // Auto-select the first encounter so the field is never blank
+        if (ids.length > 0) setEncounterId(ids[0].id);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [patientId]);
 
-  return { encounters, loading };
+  return { encounters, encounterId, setEncounterId, loading };
 }
 
 // ─── Patient Lookup Tab ────────────────────────────────────────────────────────
@@ -386,8 +390,7 @@ function OrderSubmissionTab() {
   const { patients: fhirPatients, loading: patientsLoading } = useFhirPatients();
   const [selectedTemplate, setSelectedTemplate] = useState(ORDER_TEMPLATES[0].id);
   const [patientId, setPatientId] = useState(FHIR_PATIENTS_FALLBACK[0].id);
-  const { encounters, loading: encLoading } = usePatientEncounters(patientId);
-  const [encounterId, setEncounterId] = useState('');
+  const { encounters, encounterId, setEncounterId, loading: encLoading } = usePatientEncounters(patientId);
   const [note, setNote] = useState('Cardiology consult for uncontrolled hypertension and new onset chest pain.');
   const [result, setResult] = useState<TestResult>({ status: 'idle' });
 
@@ -400,7 +403,7 @@ function OrderSubmissionTab() {
     category: [{ coding: [{ system: 'http://snomed.info/sct', code: '306206005', display: 'Referral to service' }] }],
     code: { coding: [{ system: template.system, code: template.code, display: template.display }], text: template.label },
     subject: { reference: `Patient/${patientId}` },
-    encounter: { reference: `Encounter/${encounterId}` },
+    ...(encounterId ? { encounter: { reference: `Encounter/${encounterId}` } } : {}),
     requester: { reference: 'Practitioner/practitioner-rick', display: 'Dr. Rick Whitfield' },
     authoredOn: new Date().toISOString(),
     priority: template.priority,
@@ -556,8 +559,7 @@ function CdsHooksTab() {
   const { patients: fhirPatients, loading: patientsLoading } = useFhirPatients();
   const [selectedHook, setSelectedHook] = useState(CDS_HOOK_CONFIGS[0].id);
   const [patientId, setPatientId] = useState(FHIR_PATIENTS_FALLBACK[0].id);
-  const { encounters, loading: encLoading } = usePatientEncounters(patientId);
-  const [encounterId, setEncounterId] = useState('');
+  const { encounters, encounterId, setEncounterId, loading: encLoading } = usePatientEncounters(patientId);
   const [result, setResult] = useState<TestResult>({ status: 'idle' });
 
   const hook = CDS_HOOK_CONFIGS.find((h) => h.id === selectedHook) || CDS_HOOK_CONFIGS[0];
