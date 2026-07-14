@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import {
@@ -12,6 +12,7 @@ import { SD_RECOMMENDATIONS } from '@/lib/sdResourceData';
 import { getPatientSync } from '@/lib/services/patientService';
 import { getVisiblePatients } from '@/lib/patientRegistry';
 import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import { citizenNeeds, nbaForCategory, type ResourceCategory } from '@/lib/careTeam/graph/resources';
 import { toast } from 'sonner';
 
@@ -338,6 +339,46 @@ function ScreeningReferralModal({ items, citizenName, onConfirm, onClose }: { it
 export default function SocialNeedsScreeningPage() {
   const { activePatientId, setActivePatientId, addReferralTasks } = useAppContext();
   const [referModal, setReferModal] = useState<ReferItem[] | null>(null);
+
+  // ── FHIR: past screening Observations for this patient ──────────────────────
+  const [fhirScreenings, setFhirScreenings] = useState<{ date: string; domains: string[]; id: string }[]>([]);
+  const [fhirScreeningLoading, setFhirScreeningLoading] = useState(false);
+  const lastFhirPatientId = useRef('');
+
+  useEffect(() => {
+    if (getFhirMockMode()) { setFhirScreenings([]); return; }
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? (activePatientId.startsWith('patient-') ? activePatientId : null);
+    if (!fhirId || fhirId === lastFhirPatientId.current) return;
+    lastFhirPatientId.current = fhirId;
+    setFhirScreeningLoading(true);
+    getFhirClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .search('Observation', { 'category': 'social-history', 'subject': `Patient/${fhirId}`, '_count': '50', '_sort': '-date' } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((bundle: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const entries: { date: string; domains: string[]; id: string }[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const byDate: Record<string, string[]> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const e of (bundle?.entry ?? [])) {
+          const obs = e?.resource;
+          if (!obs || obs.resourceType !== 'Observation') continue;
+          const date: string = (obs.effectiveDateTime ?? obs.meta?.lastUpdated ?? '').slice(0, 10);
+          const domain: string = obs.code?.text ?? obs.code?.coding?.[0]?.display ?? 'Unknown';
+          if (!byDate[date]) byDate[date] = [];
+          byDate[date].push(domain);
+        }
+        for (const [date, domains] of Object.entries(byDate)) {
+          entries.push({ date, domains, id: `fhir-${date}` });
+        }
+        entries.sort((a, b) => b.date.localeCompare(a.date));
+        setFhirScreenings(entries);
+      })
+      .catch(() => setFhirScreenings([]))
+      .finally(() => setFhirScreeningLoading(false));
+  }, [activePatientId]);
+
   const screenedDate = new Map(SCREENING_HISTORY.map(r => [r.patientId, r.date]));
   const monthsSince = (d?: string) => d ? (Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24 * 30) : Infinity;
   const screeningStatus = (pid: string): 'Current' | 'Due Soon' | 'Overdue' | 'Never' => {
@@ -345,11 +386,36 @@ export default function SocialNeedsScreeningPage() {
     return m === Infinity ? 'Never' : m > 12 ? 'Overdue' : m > 10 ? 'Due Soon' : 'Current';
   };
   const dueCitizens = getVisiblePatients(getFhirMockMode()).filter(c => screeningStatus(c.platformId) !== 'Current');
-  const confirmReferrals = () => {
+
+  // ── confirmReferrals: add to caseload + POST ServiceRequest to FHIR ─────────
+  const confirmReferrals = async () => {
     if (!referModal) return;
     const cname = getPatientSync(activePatientId)?.name ?? 'Citizen';
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? (activePatientId.startsWith('patient-') ? activePatientId : null);
     addReferralTasks(referModal.map((it, i) => ({ id: `ref-${activePatientId}-${it.category}-${Date.now()}-${i}`, patientId: activePatientId, citizenName: cname, action: it.action, category: it.category, cboName: it.cboName, keystone: it.keystone, status: 'pending' as const, source: 'screening' as const, createdAt: new Date().toISOString() })));
-    toast.success(`${referModal.length} referral${referModal.length !== 1 ? 's' : ''} sent to caseload`, { description: `${cname} — now in the CHW Action Queue` });
+    // POST a ServiceRequest to FHIR for each referral item in live mode
+    if (!getFhirMockMode() && fhirId) {
+      const client = getFhirClient();
+      await Promise.allSettled(referModal.map((it) =>
+        client.create({
+          resourceType: 'ServiceRequest',
+          status: 'active',
+          intent: 'referral',
+          priority: it.keystone ? 'urgent' : 'routine',
+          category: [{ coding: [{ system: 'http://snomed.info/sct', code: '306206005', display: 'Referral to service' }] }],
+          code: { text: it.action, coding: [{ system: 'http://snomed.info/sct', display: it.action }] },
+          subject: { reference: `Patient/${fhirId}` },
+          requester: { display: 'TCOC Social Screening' },
+          performer: [{ display: it.cboName }],
+          reasonCode: [{ text: `SDOH domain: ${it.category}` }],
+          authoredOn: new Date().toISOString(),
+          note: [{ text: `Referral from PRAPARE screening. CBO: ${it.cboName}. Category: ${it.category}. Keystone: ${it.keystone}.` }],
+        } as Record<string, unknown>)
+      ));
+      toast.success(`${referModal.length} referral${referModal.length !== 1 ? 's' : ''} sent to caseload + FHIR`, { description: `${cname} — ServiceRequest written to FHIR` });
+    } else {
+      toast.success(`${referModal.length} referral${referModal.length !== 1 ? 's' : ''} sent to caseload`, { description: `${cname} — now in the CHW Action Queue` });
+    }
     setReferModal(null);
   };
   const isMaria = activePatientId === 'MARIA_SD_001' || activePatientId === 'patient-maria';
@@ -930,36 +996,76 @@ export default function SocialNeedsScreeningPage() {
 
       {/* ── Screening History ── */}
       {view === 'history' && (
-        <div className="bg-white border border-carbon-gray-20">
-          <div className="px-4 py-3 border-b border-carbon-gray-20">
-            <p className="text-sm font-semibold text-carbon-gray-100">Screening History</p>
+        <div className="space-y-4">
+          {/* Live FHIR screenings for active patient */}
+          {!getFhirMockMode() && (
+            <div className="bg-white border border-carbon-gray-20">
+              <div className="px-4 py-3 border-b border-carbon-gray-20 flex items-center gap-2">
+                <p className="text-sm font-semibold text-carbon-gray-100">FHIR Screening Records</p>
+                {fhirScreeningLoading && <span className="text-2xs text-carbon-gray-50 animate-pulse">Loading from FHIR…</span>}
+                {!fhirScreeningLoading && fhirScreenings.length > 0 && (
+                  <span className="text-2xs font-bold px-1.5 py-0.5 bg-[#defbe6] text-[#198038]">Live FHIR · {fhirScreenings.length} session{fhirScreenings.length !== 1 ? 's' : ''}</span>
+                )}
+                <span className="ml-auto text-2xs text-carbon-gray-50 font-mono">{getPatientSync(activePatientId)?.name ?? activePatientId}</span>
+              </div>
+              {fhirScreenings.length === 0 && !fhirScreeningLoading ? (
+                <p className="px-4 py-6 text-xs text-carbon-gray-50 italic">No SDOH Observations found in FHIR for this patient. Submit a screening to create records.</p>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-carbon-gray-10 border-b border-carbon-gray-20">
+                      {['Date', 'Domains Identified', 'Count', 'Source'].map(h => (
+                        <th key={h} className="px-4 py-2.5 font-semibold text-carbon-gray-70 text-left">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fhirScreenings.map(fs => (
+                      <tr key={fs.id} className="border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors">
+                        <td className="px-4 py-3 font-mono text-carbon-gray-70">{fs.date}</td>
+                        <td className="px-4 py-3 text-carbon-gray-70">{fs.domains.join(', ')}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-[#da1e28]">{fs.domains.length}</td>
+                        <td className="px-4 py-3"><span className="px-2 py-0.5 text-2xs font-bold bg-[#defbe6] text-[#0e6027]">Live FHIR</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+          {/* Mock / static history */}
+          <div className="bg-white border border-carbon-gray-20">
+            <div className="px-4 py-3 border-b border-carbon-gray-20 flex items-center gap-2">
+              <p className="text-sm font-semibold text-carbon-gray-100">Screening History</p>
+              <span className="text-2xs font-bold px-1.5 py-0.5 bg-[#fff8e1] text-[#8a3800] border border-[#f1c21b]">Mock Data</span>
+            </div>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-carbon-gray-10 border-b border-carbon-gray-20">
+                  {['Patient', 'Patient ID', 'Date', 'Instrument', 'Screener', 'Unmet Needs', 'Tasks Created', 'Status'].map(h => (
+                    <th key={h} className={`px-4 py-2.5 font-semibold text-carbon-gray-70 ${h === 'Unmet Needs' || h === 'Tasks Created' ? 'text-center' : 'text-left'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {SCREENING_HISTORY.map(sh => {
+                  const patient = SOCIAL_PATIENTS.find(p => p.patientId === sh.patientId);
+                  return (
+                    <tr key={sh.id} className="border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors">
+                      <td className="px-4 py-3 font-medium text-carbon-gray-100">{patient?.name ?? sh.patientId}</td>
+                      <td className="px-4 py-3 font-mono text-carbon-gray-50">{sh.patientId}</td>
+                      <td className="px-4 py-3 font-mono text-carbon-gray-70">{sh.date}</td>
+                      <td className="px-4 py-3"><span className="px-2 py-0.5 text-2xs font-bold bg-[#f6f2ff] text-[#6929c4]">{sh.instrument}</span></td>
+                      <td className="px-4 py-3 text-carbon-gray-70">{sh.screener}</td>
+                      <td className="px-4 py-3 text-center font-mono font-bold text-[#da1e28]">{sh.unmetNeeds}</td>
+                      <td className="px-4 py-3 text-center font-mono font-bold text-[#6929c4]">{sh.tasksCreated}</td>
+                      <td className="px-4 py-3"><span className="px-2 py-0.5 text-2xs font-bold bg-[#defbe6] text-[#0e6027]">{sh.status}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-carbon-gray-10 border-b border-carbon-gray-20">
-                {['Patient', 'Patient ID', 'Date', 'Instrument', 'Screener', 'Unmet Needs', 'Tasks Created', 'Status'].map(h => (
-                  <th key={h} className={`px-4 py-2.5 font-semibold text-carbon-gray-70 ${h === 'Unmet Needs' || h === 'Tasks Created' ? 'text-center' : 'text-left'}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {SCREENING_HISTORY.map(sh => {
-                const patient = SOCIAL_PATIENTS.find(p => p.patientId === sh.patientId);
-                return (
-                  <tr key={sh.id} className="border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors">
-                    <td className="px-4 py-3 font-medium text-carbon-gray-100">{patient?.name ?? sh.patientId}</td>
-                    <td className="px-4 py-3 font-mono text-carbon-gray-50">{sh.patientId}</td>
-                    <td className="px-4 py-3 font-mono text-carbon-gray-70">{sh.date}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 text-2xs font-bold bg-[#f6f2ff] text-[#6929c4]">{sh.instrument}</span></td>
-                    <td className="px-4 py-3 text-carbon-gray-70">{sh.screener}</td>
-                    <td className="px-4 py-3 text-center font-mono font-bold text-[#da1e28]">{sh.unmetNeeds}</td>
-                    <td className="px-4 py-3 text-center font-mono font-bold text-[#6929c4]">{sh.tasksCreated}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 text-2xs font-bold bg-[#defbe6] text-[#0e6027]">{sh.status}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       )}
 
