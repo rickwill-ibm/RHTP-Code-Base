@@ -337,7 +337,7 @@ function OrderSubmissionTab() {
     code: { coding: [{ system: template.system, code: template.code, display: template.display }], text: template.label },
     subject: { reference: `Patient/${patientId}` },
     encounter: { reference: `Encounter/${encounterId}` },
-    requester: { reference: 'Practitioner/pract-002', display: 'Dr. James Whitfield' },
+    requester: { reference: 'Practitioner/practitioner-rick', display: 'Dr. Rick Whitfield' },
     authoredOn: new Date().toISOString(),
     priority: template.priority,
     note: note ? [{ text: note }] : undefined,
