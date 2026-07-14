@@ -1,25 +1,128 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import {
   ENROLLMENTS,
   ENROLLMENT_STATUS_CONFIG,
   PROGRAM_DOMAIN_COLORS,
+  type Enrollment,
 } from '@/lib/socialMockData';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+
+// ─── FHIR Coverage → Enrollment mapper ───────────────────────────────────────
+
+const FHIR_STATUS_MAP: Record<string, Enrollment['status']> = {
+  active: 'active',
+  draft: 'pending',
+  cancelled: 'expired',
+  'entered-in-error': 'expired',
+};
+
+function ext(resource: any, key: string): string {
+  return resource.extension?.find((e: any) =>
+    e.url === `http://tcoc.example.org/fhir/StructureDefinition/${key}`
+  )?.valueString ?? '';
+}
+
+function mapFhirCoverage(resource: any): Enrollment {
+  const beneficiary = resource.beneficiary ?? {};
+  const patientDisplay: string = beneficiary.display ?? '';
+  const patientRef: string = beneficiary.reference ?? '';
+  const fhirId = patientRef.replace('Patient/', '');
+
+  const patientIdMap: Record<string, string> = {
+    'patient-dorothy-042': 'PAT-0042',
+    'patient-james-087': 'PAT-0087',
+    'patient-robert-103': 'PAT-0103',
+    'patient-lisa-156': 'PAT-0156',
+    'patient-maria-001': 'MARIA_SD_001',
+  };
+  const patientId = patientIdMap[fhirId] ?? fhirId;
+  const mrn = patientId.replace('PAT', 'MRN').replace('MARIA_SD_001', 'MRN-SD-001');
+
+  const program = resource.class?.[0]?.name ?? resource.id ?? 'Unknown Program';
+  const period = resource.period ?? {};
+  const renewalDeadline = ext(resource, 'coverage-renewal-deadline') || '—';
+  const daysToRenewal = parseInt(ext(resource, 'coverage-days-to-renewal') || '999', 10);
+  const coverageGap = ext(resource, 'coverage-gap') || undefined;
+  const status = FHIR_STATUS_MAP[resource.status] ?? 'pending';
+
+  return {
+    id: resource.id ?? '',
+    patientId,
+    patient: patientDisplay,
+    mrn,
+    program,
+    domain: ext(resource, 'coverage-domain') || 'Other',
+    fundingSource: ext(resource, 'coverage-funding') || resource.payor?.[0]?.display || '—',
+    status,
+    startDate: period.start ?? '—',
+    endDate: period.end ?? '—',
+    renewalDeadline,
+    daysToRenewal,
+    benefitValue: ext(resource, 'coverage-benefit-value') || '—',
+    caseWorker: ext(resource, 'coverage-case-worker') || '—',
+    ...(coverageGap ? { coverageGap } : {}),
+  };
+}
+
+// ─── Page component ───────────────────────────────────────────────────────────
 
 export default function BenefitEnrollmentPage() {
+  const [enrollments, setEnrollments] = useState<Enrollment[]>(ENROLLMENTS);
+  const [fhirSource, setFhirSource] = useState(false);
   const [patientFilter, setPatientFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const fhirLoadedRef = useRef(false);
 
-  const patients = ['All', ...Array.from(new Set(ENROLLMENTS.map(e => e.patient)))];
-  const filtered = ENROLLMENTS.filter(e =>
+  // Live FHIR: fetch all Coverage resources on mount
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Coverage', { _count: 50 })
+      .then((bundle: any) => {
+        const resources = (bundle?.entry ?? [])
+          .map((e: any) => e?.resource)
+          .filter((r: any) => r?.resourceType === 'Coverage');
+        if (resources.length > 0) {
+          setEnrollments(resources.map(mapFhirCoverage));
+          setFhirSource(true);
+        }
+      })
+      .catch(() => { /* non-fatal — keep mock data */ });
+  }, []);
+
+  // Act Now / Renew — POST a ServiceRequest to FHIR (fire-and-forget)
+  function handleEnrollmentAction(enrollment: Enrollment, action: 'enroll' | 'renew') {
+    if (!getFhirMockMode()) {
+      getFhirClient().create({
+        resourceType: 'ServiceRequest',
+        status: 'active',
+        intent: 'order',
+        category: [{ coding: [{ system: 'http://tcoc.example.org/fhir/CodeSystem/service-category', code: 'enrollment', display: 'Benefit Enrollment' }] }],
+        code: { text: `${action === 'renew' ? 'Renewal' : 'Enrollment'}: ${enrollment.program}` },
+        subject: { display: enrollment.patient },
+        requester: { display: 'Care Manager' },
+        note: [{ text: `${action === 'renew' ? 'Renewal' : 'Enrollment'} action initiated from Benefit Enrollment Tracker. Program: ${enrollment.program}, Funding: ${enrollment.fundingSource}` }],
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/enrollment-patient-id', valueString: enrollment.patientId },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/enrollment-program', valueString: enrollment.program },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/enrollment-action', valueString: action },
+        ],
+      }).catch(() => { /* non-fatal */ });
+    }
+  }
+
+  const patients = ['All', ...Array.from(new Set(enrollments.map(e => e.patient)))];
+  const filtered = enrollments.filter(e =>
     (patientFilter === 'All' || e.patient === patientFilter) &&
     (statusFilter === 'All' || e.status === statusFilter)
   );
 
-  const gaps = ENROLLMENTS.filter(e => e.coverageGap);
-  const expiringSoon = ENROLLMENTS.filter(e => e.daysToRenewal > 0 && e.daysToRenewal <= 60);
+  const gaps = enrollments.filter(e => e.coverageGap);
+  const expiringSoon = enrollments.filter(e => e.daysToRenewal > 0 && e.daysToRenewal <= 60);
 
   return (
     <AppLayout
@@ -29,13 +132,21 @@ export default function BenefitEnrollmentPage() {
         { label: 'Benefit Enrollment' },
       ]}
     >
+      {/* FHIR badge */}
+      {fhirSource && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{enrollments.length} Coverage resources loaded from HAPI FHIR</span>
+        </div>
+      )}
+
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {[
-          { label: 'Active Enrollments', value: String(ENROLLMENTS.filter(e => e.status === 'active').length), sub: 'Across all patients', color: '#0e6027', icon: 'CheckBadgeIcon' },
+          { label: 'Active Enrollments', value: String(enrollments.filter(e => e.status === 'active').length), sub: 'Across all patients', color: '#0e6027', icon: 'CheckBadgeIcon' },
           { label: 'Coverage Gaps', value: String(gaps.length), sub: 'Needs immediate action', color: '#da1e28', icon: 'ExclamationTriangleIcon' },
           { label: 'Expiring in 60 Days', value: String(expiringSoon.length), sub: 'Renewal action required', color: '#b45309', icon: 'ClockIcon' },
-          { label: 'Pending Enrollments', value: String(ENROLLMENTS.filter(e => e.status === 'pending').length), sub: 'Awaiting approval', color: '#0043ce', icon: 'ArrowPathIcon' },
+          { label: 'Pending Enrollments', value: String(enrollments.filter(e => e.status === 'pending').length), sub: 'Awaiting approval', color: '#0043ce', icon: 'ArrowPathIcon' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white border border-carbon-gray-20 p-4 flex items-start gap-3">
             <div className="w-8 h-8 flex items-center justify-center bg-carbon-gray-10 flex-shrink-0">
@@ -64,7 +175,10 @@ export default function BenefitEnrollmentPage() {
                 <span className="ml-1 font-mono text-carbon-gray-50 text-2xs">({e.patientId})</span>
               </div>
               <span className="text-[#da1e28]">{e.coverageGap}</span>
-              <button className="ml-auto px-2 py-0.5 text-2xs font-semibold bg-[#da1e28] text-white hover:bg-[#b81922] transition-colors flex-shrink-0">
+              <button
+                onClick={() => handleEnrollmentAction(e, 'enroll')}
+                className="ml-auto px-2 py-0.5 text-2xs font-semibold bg-[#da1e28] text-white hover:bg-[#b81922] transition-colors flex-shrink-0"
+              >
                 Act Now
               </button>
             </div>
@@ -96,6 +210,11 @@ export default function BenefitEnrollmentPage() {
             ))}
           </div>
         </div>
+        {fhirSource && (
+          <div className="ml-auto flex items-center">
+            <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          </div>
+        )}
       </div>
 
       {/* Enrollment Table */}
@@ -150,7 +269,10 @@ export default function BenefitEnrollmentPage() {
                   <td className="px-4 py-3 text-right font-mono font-bold text-carbon-gray-100">{e.benefitValue}</td>
                   <td className="px-4 py-3">
                     {(e.status === 'expired' || urgentRenewal) && (
-                      <button className="px-2 py-1 text-2xs font-semibold bg-[#da1e28] text-white hover:bg-[#b81922] transition-colors">
+                      <button
+                        onClick={() => handleEnrollmentAction(e, 'renew')}
+                        className="px-2 py-1 text-2xs font-semibold bg-[#da1e28] text-white hover:bg-[#b81922] transition-colors"
+                      >
                         {e.status === 'expired' ? 'Renew' : 'Renew Soon'}
                       </button>
                     )}

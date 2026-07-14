@@ -191,7 +191,7 @@ Both referral screens use `mockReferrals` from the `ActiveReferralsTable` compon
 
 ### Sub-Task 7 — Benefit Enrollment: Coverage Read + ServiceRequest Write
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit ST-7)*
 
 **Intent:**
 `BenefitEnrollment` uses `ENROLLMENTS` from `socialMockData`. In live mode it should read `Coverage` resources (FHIR's benefit/enrollment resource) for the active patient, and the "Act Now" / "Renew" buttons should create `ServiceRequest` resources to initiate enrollment.

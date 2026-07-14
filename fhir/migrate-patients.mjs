@@ -1068,6 +1068,236 @@ function buildPractitionerBundle() {
   return { resourceType: 'Bundle', type: 'transaction', entry: entries };
 }
 
+// ─── Coverage resources ───────────────────────────────────────────────────────
+
+function buildCoverageBundle() {
+  /**
+   * Seeds FHIR R4 Coverage records matching the ENROLLMENTS shape in
+   * benefit-enrollment/page.tsx.  One Coverage per active/pending enrollment
+   * for each FHIR-registered patient — PUT so re-runs are idempotent.
+   *
+   * Extensions carry the extra display fields (domain, fundingSource,
+   * benefitValue, caseWorker, coverageGap, daysToRenewal) so the UI can
+   * reconstruct the Enrollment shape without additional lookups.
+   */
+  const ext = (url, value) => ({ url: `http://tcoc.example.org/fhir/StructureDefinition/${url}`, valueString: String(value) });
+
+  const entries = [
+    // ── Dorothy Simmons (patient-dorothy-042) ──────────────────────────────
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e001',
+        status: 'cancelled',      // expired
+        beneficiary: { reference: 'Patient/patient-dorothy-042', display: 'Dorothy Simmons' },
+        payor: [{ display: 'USDA' }],
+        period: { start: '2025-01-01', end: '2025-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'SNAP Food Assistance', value: 'e-001' }],
+        extension: [
+          ext('coverage-domain', 'Food Security'), ext('coverage-funding', 'USDA'),
+          ext('coverage-benefit-value', '$234/mo'), ext('coverage-case-worker', 'DHS Case Worker'),
+          ext('coverage-renewal-deadline', '2025-11-30'), ext('coverage-days-to-renewal', '-183'),
+          ext('coverage-gap', 'Expired Dec 31, 2025 — no food assistance for 5 months'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e001' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e002',
+        status: 'draft',          // pending
+        beneficiary: { reference: 'Patient/patient-dorothy-042', display: 'Dorothy Simmons' },
+        payor: [{ display: 'HUD' }],
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'Section 8 Voucher', value: 'e-002' }],
+        extension: [
+          ext('coverage-domain', 'Housing'), ext('coverage-funding', 'HUD'),
+          ext('coverage-benefit-value', 'Est. $850/mo'), ext('coverage-case-worker', 'Housing Authority'),
+          ext('coverage-gap', 'Application pending since Feb 2026 — no housing subsidy active'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e002' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e003',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-dorothy-042', display: 'Dorothy Simmons' },
+        payor: [{ display: 'BH Block Grant' }],
+        period: { start: '2025-06-01', end: '2026-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'CCBHC BH Services', value: 'e-003' }],
+        extension: [
+          ext('coverage-domain', 'Behavioral Health'), ext('coverage-funding', 'BH Block Grant'),
+          ext('coverage-benefit-value', 'Covered'), ext('coverage-case-worker', 'BH Counselor'),
+          ext('coverage-renewal-deadline', '2026-11-30'), ext('coverage-days-to-renewal', '181'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e003' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e004',
+        status: 'draft',
+        beneficiary: { reference: 'Patient/patient-dorothy-042', display: 'Dorothy Simmons' },
+        payor: [{ display: 'Older Americans Act' }],
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'Meals on Wheels', value: 'e-004' }],
+        extension: [
+          ext('coverage-domain', 'Food Security'), ext('coverage-funding', 'Older Americans Act'),
+          ext('coverage-benefit-value', 'Est. 5 meals/wk'), ext('coverage-case-worker', 'Area Agency on Aging'),
+          ext('coverage-gap', 'Waitlist position 4 — food gap continues'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e004' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e005',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-dorothy-042', display: 'Dorothy Simmons' },
+        payor: [{ display: 'Medicaid 1115' }],
+        period: { start: '2026-01-15', end: '2026-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'CHW Outreach', value: 'e-005' }],
+        extension: [
+          ext('coverage-domain', 'Care Coordination'), ext('coverage-funding', 'Medicaid 1115'),
+          ext('coverage-benefit-value', 'Included'), ext('coverage-case-worker', 'Sarah Johnson (CM)'),
+          ext('coverage-renewal-deadline', '2026-11-30'), ext('coverage-days-to-renewal', '181'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e005' },
+    },
+    // ── James Wilson (patient-james-087) ──────────────────────────────────
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e006',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-james-087', display: 'James Wilson' },
+        payor: [{ display: 'Medicaid' }],
+        period: { start: '2025-03-01', end: '2026-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'Medicaid BH Services', value: 'e-006' }],
+        extension: [
+          ext('coverage-domain', 'Behavioral Health'), ext('coverage-funding', 'Medicaid'),
+          ext('coverage-benefit-value', 'Covered'), ext('coverage-case-worker', 'BH Counselor'),
+          ext('coverage-renewal-deadline', '2026-11-30'), ext('coverage-days-to-renewal', '181'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e006' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e007',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-james-087', display: 'James Wilson' },
+        payor: [{ display: 'Medicaid' }],
+        period: { start: '2026-01-01', end: '2026-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'Medicaid Transport', value: 'e-007' }],
+        extension: [
+          ext('coverage-domain', 'Transportation'), ext('coverage-funding', 'Medicaid'),
+          ext('coverage-benefit-value', 'Covered'), ext('coverage-case-worker', 'Transport Coordinator'),
+          ext('coverage-renewal-deadline', '2026-11-30'), ext('coverage-days-to-renewal', '181'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e007' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e008',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-james-087', display: 'James Wilson' },
+        payor: [{ display: 'SSA' }],
+        period: { start: '2018-01-01', end: '2026-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'SSI Supplemental Income', value: 'e-008' }],
+        extension: [
+          ext('coverage-domain', 'Financial'), ext('coverage-funding', 'SSA'),
+          ext('coverage-benefit-value', '$914/mo'), ext('coverage-case-worker', 'SSA Case Worker'),
+          ext('coverage-renewal-deadline', '2026-11-30'), ext('coverage-days-to-renewal', '181'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e008' },
+    },
+    // ── Robert Chen (patient-robert-103) ──────────────────────────────────
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e009',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-robert-103', display: 'Robert Chen' },
+        payor: [{ display: 'USDA' }],
+        period: { start: '2025-09-01', end: '2026-08-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'SNAP Food Assistance', value: 'e-009' }],
+        extension: [
+          ext('coverage-domain', 'Food Security'), ext('coverage-funding', 'USDA'),
+          ext('coverage-benefit-value', '$281/mo'), ext('coverage-case-worker', 'DHS Case Worker'),
+          ext('coverage-renewal-deadline', '2026-07-31'), ext('coverage-days-to-renewal', '59'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e009' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e010',
+        status: 'draft',
+        beneficiary: { reference: 'Patient/patient-robert-103', display: 'Robert Chen' },
+        payor: [{ display: 'WIOA' }],
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'Workforce Development', value: 'e-010' }],
+        extension: [
+          ext('coverage-domain', 'Employment'), ext('coverage-funding', 'WIOA'),
+          ext('coverage-benefit-value', 'Job training'), ext('coverage-case-worker', 'Workforce Dev Center'),
+          ext('coverage-gap', 'Enrollment not yet completed — employment gap continues'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e010' },
+    },
+    // ── Lisa Thompson (patient-lisa-156) ──────────────────────────────────
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e011',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-lisa-156', display: 'Lisa Thompson' },
+        payor: [{ display: 'HUD ESG' }],
+        period: { start: '2026-03-01', end: '2026-08-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'Emergency Housing', value: 'e-011' }],
+        extension: [
+          ext('coverage-domain', 'Housing'), ext('coverage-funding', 'HUD ESG'),
+          ext('coverage-benefit-value', '$1,200/mo'), ext('coverage-case-worker', 'Housing CBO'),
+          ext('coverage-renewal-deadline', '2026-07-31'), ext('coverage-days-to-renewal', '59'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e011' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e012',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-lisa-156', display: 'Lisa Thompson' },
+        payor: [{ display: 'USDA' }],
+        period: { start: '2025-09-01', end: '2026-08-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'SNAP Food Assistance', value: 'e-012' }],
+        extension: [
+          ext('coverage-domain', 'Food Security'), ext('coverage-funding', 'USDA'),
+          ext('coverage-benefit-value', '$281/mo'), ext('coverage-case-worker', 'DHS Case Worker'),
+          ext('coverage-renewal-deadline', '2026-07-31'), ext('coverage-days-to-renewal', '59'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e012' },
+    },
+    {
+      resource: {
+        resourceType: 'Coverage', id: 'cov-e013',
+        status: 'active',
+        beneficiary: { reference: 'Patient/patient-lisa-156', display: 'Lisa Thompson' },
+        payor: [{ display: 'Medicaid 1115' }],
+        period: { start: '2026-01-15', end: '2026-12-31' },
+        class: [{ type: { coding: [{ code: 'plan' }] }, name: 'CHW Outreach', value: 'e-013' }],
+        extension: [
+          ext('coverage-domain', 'Care Coordination'), ext('coverage-funding', 'Medicaid 1115'),
+          ext('coverage-benefit-value', 'Included'), ext('coverage-case-worker', 'Sarah Johnson (CM)'),
+          ext('coverage-renewal-deadline', '2026-11-30'), ext('coverage-days-to-renewal', '181'),
+        ],
+      },
+      request: { method: 'PUT', url: 'Coverage/cov-e013' },
+    },
+  ];
+
+  return { resourceType: 'Bundle', type: 'transaction', entry: entries };
+}
+
 // ─── Consent resources ────────────────────────────────────────────────────────
 
 function buildConsentBundle() {
@@ -1240,6 +1470,16 @@ async function main() {
     const cboBundle = buildCboOrganizationBundle();
     await postBundle(cboBundle);
     console.log(`✅  ${pracBundle.entry.length + cboBundle.entry.length} resources`);
+  } catch (err) {
+    console.error(`❌  ${err.message}`);
+  }
+
+  // ── Seed Coverage records ──────────────────────────────────────────────────
+  process.stdout.write('  → Coverage records … ');
+  try {
+    const coverageBundle = buildCoverageBundle();
+    await postBundle(coverageBundle);
+    console.log(`✅  ${coverageBundle.entry.length} resources`);
   } catch (err) {
     console.error(`❌  ${err.message}`);
   }
