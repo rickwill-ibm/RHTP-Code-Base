@@ -225,6 +225,30 @@ function useFhirPatients() {
   return { patients, loading };
 }
 
+// ─── Encounters hook — fetches real encounters for the selected patient ────────
+function usePatientEncounters(patientId: string) {
+  const [encounters, setEncounters] = useState<{ id: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!patientId) return;
+    setLoading(true);
+    setEncounters([]);
+    realFhirRequest('GET', `Encounter?subject=Patient/${patientId}&_count=50&_elements=id`)
+      .then((res) => {
+        const bundle = JSON.parse(res.body);
+        const ids: { id: string }[] = (bundle.entry ?? [])
+          .map((e: { resource?: { id?: string } }) => e.resource?.id ? { id: e.resource.id } : null)
+          .filter(Boolean);
+        setEncounters(ids);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [patientId]);
+
+  return { encounters, loading };
+}
+
 // ─── Patient Lookup Tab ────────────────────────────────────────────────────────
 
 function PatientLookupTab() {
@@ -362,7 +386,8 @@ function OrderSubmissionTab() {
   const { patients: fhirPatients, loading: patientsLoading } = useFhirPatients();
   const [selectedTemplate, setSelectedTemplate] = useState(ORDER_TEMPLATES[0].id);
   const [patientId, setPatientId] = useState(FHIR_PATIENTS_FALLBACK[0].id);
-  const [encounterId, setEncounterId] = useState('enc-20260416-001');
+  const { encounters, loading: encLoading } = usePatientEncounters(patientId);
+  const [encounterId, setEncounterId] = useState('');
   const [note, setNote] = useState('Cardiology consult for uncontrolled hypertension and new onset chest pain.');
   const [result, setResult] = useState<TestResult>({ status: 'idle' });
 
@@ -444,12 +469,18 @@ function OrderSubmissionTab() {
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Encounter ID</label>
-            <input
-              type="text"
+            <select
               value={encounterId}
               onChange={(e) => setEncounterId(e.target.value)}
-              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
-            />
+              disabled={encLoading}
+              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10 disabled:opacity-60"
+            >
+              {encLoading && <option value="">Loading encounters…</option>}
+              {!encLoading && encounters.length === 0 && <option value="">No encounters found</option>}
+              {encounters.map((e) => (
+                <option key={e.id} value={e.id}>{e.id}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Priority</label>
@@ -525,7 +556,8 @@ function CdsHooksTab() {
   const { patients: fhirPatients, loading: patientsLoading } = useFhirPatients();
   const [selectedHook, setSelectedHook] = useState(CDS_HOOK_CONFIGS[0].id);
   const [patientId, setPatientId] = useState(FHIR_PATIENTS_FALLBACK[0].id);
-  const [encounterId, setEncounterId] = useState('enc-20260416-001');
+  const { encounters, loading: encLoading } = usePatientEncounters(patientId);
+  const [encounterId, setEncounterId] = useState('');
   const [result, setResult] = useState<TestResult>({ status: 'idle' });
 
   const hook = CDS_HOOK_CONFIGS.find((h) => h.id === selectedHook) || CDS_HOOK_CONFIGS[0];
@@ -611,12 +643,18 @@ function CdsHooksTab() {
           </div>
           <div>
             <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Encounter ID</label>
-            <input
-              type="text"
+            <select
               value={encounterId}
               onChange={(e) => setEncounterId(e.target.value)}
-              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10"
-            />
+              disabled={encLoading}
+              className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10 disabled:opacity-60"
+            >
+              {encLoading && <option value="">Loading encounters…</option>}
+              {!encLoading && encounters.length === 0 && <option value="">No encounters found</option>}
+              {encounters.map((e) => (
+                <option key={e.id} value={e.id}>{e.id}</option>
+              ))}
+            </select>
           </div>
         </div>
         {/* Service URL */}
