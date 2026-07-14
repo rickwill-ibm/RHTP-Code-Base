@@ -77,7 +77,7 @@ The Care Plan Monitor (`/care-plan-monitor/[patientId]`) generates care plans vi
 
 ### Sub-Task 3 — CHW Workflow: Task + ServiceRequest Live Read/Write
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit e932495)*
 
 **Intent:**
 CHW Workflow already uses `getFhirMockMode()` and `getVisiblePatients()` but has no `getFhirClient()` calls. Referral approvals currently fire a toast with no persistence. In live mode, the screen should read `Task` resources assigned to the active CHW and write `ServiceRequest` + `Task` on referral approval (matching the pattern in `ReferralTracking`).
@@ -107,7 +107,7 @@ CHW Workflow already uses `getFhirMockMode()` and `getVisiblePatients()` but has
 
 ### Sub-Task 4 — Referral Journey Tracker + Submitted Referrals: Live ServiceRequest + Task Read
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit 06ea288)*
 
 **Intent:**
 Both referral screens use `mockReferrals` from the `ActiveReferralsTable` component. In live mode they should read `ServiceRequest` and `Task` resources from FHIR — the same resources that `ReferralTracking` already writes. This closes the loop: one screen writes referrals, these screens read and display them.
@@ -136,7 +136,7 @@ Both referral screens use `mockReferrals` from the `ActiveReferralsTable` compon
 
 ### Sub-Task 5 — Physician View + Provider Selection: Practitioner + Organization Read
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit 84e3d1b)*
 
 **Intent:**
 `PhysicianView` uses hardcoded `MEMBERS_BY_PROVIDER` data. `ProviderSelection` uses `mockData` via `ProviderDirectoryTable`. Both should read `Practitioner` and `Organization` resources from FHIR — which are already seeded by `migrate-patients.mjs` (12 Practitioner/CBO Organization resources).
