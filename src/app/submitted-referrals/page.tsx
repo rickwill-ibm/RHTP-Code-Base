@@ -1,10 +1,46 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { mockReferrals } from '@/app/referral-tracking/components/ActiveReferralsTable';
 import type { ReferralRecord, ReferralStatus, ReferralUrgency } from '@/app/referral-tracking/page';
 import { generatePDFReport } from '@/lib/exportUtils';
+import { useAppContext } from '@/lib/appContext';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+
+// ─── FHIR ServiceRequest → ReferralRecord mapper ──────────────────────────────
+
+function mapFhirToReferralRecord(sr: any, taskMap: Map<string, any>): ReferralRecord {
+  const task = taskMap.get(sr.id) ?? null;
+  const taskStatus: string = task?.status ?? 'requested';
+  const statusMap: Record<string, ReferralRecord['status']> = {
+    requested: 'Pending', accepted: 'Assigned', 'in-progress': 'In Progress',
+    completed: 'Completed', rejected: 'Cancelled', cancelled: 'Cancelled',
+  };
+  return {
+    id: sr.id,
+    patientName: sr.subject?.display ?? 'Unknown Patient',
+    patientId: sr.subject?.reference?.split('/')[1] ?? '',
+    referralDate: sr.authoredOn?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    specialty: sr.code?.text ?? sr.code?.coding?.[0]?.display ?? 'Referral',
+    urgency: (sr.priority === 'stat' ? 'STAT' : sr.priority === 'urgent' ? 'Urgent' : 'Routine') as ReferralRecord['urgency'],
+    status: statusMap[taskStatus] ?? 'Pending',
+    assignedProvider: task?.owner?.display ?? null,
+    providerId: task?.owner?.reference?.split('/')[1] ?? null,
+    providerTier: 'In-Network',
+    icdCode: sr.reasonCode?.[0]?.coding?.[0]?.code ?? sr.reasonCode?.[0]?.text ?? '—',
+    icdDescription: sr.reasonCode?.[0]?.text ?? sr.note?.[0]?.text ?? '—',
+    submissionChannel: 'FHIR',
+    submittedDate: sr.authoredOn?.slice(0, 10) ?? null,
+    appointmentDate: null,
+    closedDate: task?.executionPeriod?.end?.slice(0, 10) ?? null,
+    outcome: taskStatus === 'completed' ? 'Seen' : 'Pending',
+    coordinatorName: sr.requester?.display ?? 'RHTP Platform',
+    notes: sr.note?.[0]?.text ?? '',
+    daysOpen: Math.floor((Date.now() - new Date(sr.authoredOn ?? Date.now()).getTime()) / 86_400_000),
+  };
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -754,18 +790,48 @@ function exportAllReferralsPDF(referrals: ReferralRecord[], subtitle?: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SubmittedReferralsPage() {
+  const { activePatientId, useMockData } = useAppContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [specialtyFilter, setSpecialtyFilter] = useState('All');
   const [urgencyFilter, setUrgencyFilter] = useState('All');
+  const [fhirReferrals, setFhirReferrals] = useState<ReferralRecord[] | null>(null);
+  const [fhirSource, setFhirSource] = useState(false);
+  const loadedRef = useRef(false);
+
+  // Live FHIR: fetch ServiceRequest + Task for active patient on mount
+  useEffect(() => {
+    if (useMockData || getFhirMockMode() || loadedRef.current) return;
+    loadedRef.current = true;
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? activePatientId;
+    if (!fhirId) return;
+    Promise.all([
+      getFhirClient().search('ServiceRequest', { patient: `Patient/${fhirId}`, _count: 50 }),
+      getFhirClient().search('Task', { patient: `Patient/${fhirId}`, _count: 50 }),
+    ]).then(([srBundle, taskBundle]: [any, any]) => {
+      const srEntries = (srBundle?.entry ?? []).map((e: any) => e.resource).filter((r: any) => r?.resourceType === 'ServiceRequest');
+      const taskEntries = (taskBundle?.entry ?? []).map((e: any) => e.resource).filter((r: any) => r?.resourceType === 'Task');
+      if (srEntries.length === 0) return;
+      const taskMap = new Map<string, any>();
+      taskEntries.forEach((t: any) => {
+        const srRef = t.focus?.reference?.split('/')[1];
+        if (srRef) taskMap.set(srRef, t);
+      });
+      const records = srEntries.map((sr: any) => mapFhirToReferralRecord(sr, taskMap));
+      setFhirReferrals(records);
+      setFhirSource(true);
+    }).catch(() => { /* non-fatal — fall back to mock */ });
+  }, [activePatientId, useMockData]);
+
+  const sourceReferrals = fhirReferrals ?? mockReferrals;
 
   const statuses = ['All', 'Pending', 'Assigned', 'In Progress', 'Awaiting EMR', 'Completed', 'Cancelled'];
   const specialties = ['All', 'Cardiology', 'Endocrinology', 'Nephrology', 'Ophthalmology', 'Pulmonology', 'Orthopedics', 'Gastroenterology', 'Geriatrics'];
   const urgencies = ['All', 'Routine', 'Urgent', 'STAT'];
 
   const filtered = useMemo(() => {
-    return mockReferrals.filter((r) => {
+    return sourceReferrals.filter((r) => {
       const q = search.toLowerCase();
       if (q && !r.patientName.toLowerCase().includes(q) && !r.icdCode.toLowerCase().includes(q) && !(r.assignedProvider ?? '').toLowerCase().includes(q) && !r.specialty.toLowerCase().includes(q)) return false;
       if (statusFilter !== 'All' && r.status !== statusFilter) return false;
@@ -773,9 +839,9 @@ export default function SubmittedReferralsPage() {
       if (urgencyFilter !== 'All' && r.urgency !== urgencyFilter) return false;
       return true;
     });
-  }, [search, statusFilter, specialtyFilter, urgencyFilter]);
+  }, [sourceReferrals, search, statusFilter, specialtyFilter, urgencyFilter]);
 
-  const selectedReferral = selectedId ? mockReferrals.find((r) => r.id === selectedId) ?? null : null;
+  const selectedReferral = selectedId ? sourceReferrals.find((r) => r.id === selectedId) ?? null : null;
 
   const hasFilters = search || statusFilter !== 'All' || specialtyFilter !== 'All' || urgencyFilter !== 'All';
 
@@ -790,8 +856,9 @@ export default function SubmittedReferralsPage() {
       contextBanner={
         <div className="bg-[#d0e2ff] border-b border-[#97c1ff] px-6 py-2 flex items-center gap-6 flex-wrap">
           <span className="text-xs font-semibold text-[#0043ce]">Contract: Medicare MSSP Track 3</span>
-          <span className="text-xs text-[#0043ce]">Total Submitted: {mockReferrals.length}</span>
-          <span className="text-xs text-[#0043ce]">Completed: {mockReferrals.filter((r) => r.status === 'Completed').length}</span>
+          <span className="text-xs text-[#0043ce]">Total Submitted: {sourceReferrals.length}</span>
+          <span className="text-xs text-[#0043ce]">Completed: {sourceReferrals.filter((r) => r.status === 'Completed').length}</span>
+          {fhirSource && <span className="ml-1 text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>}
           <span className="ml-auto text-xs text-carbon-gray-50">Data as of Apr 15, 2026</span>
         </div>
       }

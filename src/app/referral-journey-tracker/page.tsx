@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -8,6 +8,42 @@ import { mockReferrals } from '@/app/referral-tracking/components/ActiveReferral
 import type { ReferralRecord } from '@/app/referral-tracking/page';
 import { CARE_TEAM_INBOX_TASKS, PROGRAM_TYPE_CONFIG, TASK_STATUS_CONFIG } from '@/lib/fhirCareTeamData';
 import type { TaskProgramType } from '@/lib/fhirCareTeamData';
+import { useAppContext } from '@/lib/appContext';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+
+// ─── FHIR ServiceRequest → ReferralRecord mapper ──────────────────────────────
+
+function mapFhirToReferralRecord(sr: any, taskMap: Map<string, any>): ReferralRecord {
+  const task = taskMap.get(sr.id) ?? null;
+  const taskStatus: string = task?.status ?? 'requested';
+  const statusMap: Record<string, ReferralRecord['status']> = {
+    requested: 'Pending', accepted: 'Assigned', 'in-progress': 'In Progress',
+    completed: 'Completed', rejected: 'Cancelled', cancelled: 'Cancelled',
+  };
+  return {
+    id: sr.id,
+    patientName: sr.subject?.display ?? 'Unknown Patient',
+    patientId: sr.subject?.reference?.split('/')[1] ?? '',
+    referralDate: sr.authoredOn?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    specialty: sr.code?.text ?? sr.code?.coding?.[0]?.display ?? 'Referral',
+    urgency: (sr.priority === 'stat' ? 'STAT' : sr.priority === 'urgent' ? 'Urgent' : 'Routine') as ReferralRecord['urgency'],
+    status: statusMap[taskStatus] ?? 'Pending',
+    assignedProvider: task?.owner?.display ?? null,
+    providerId: task?.owner?.reference?.split('/')[1] ?? null,
+    providerTier: 'In-Network',
+    icdCode: sr.reasonCode?.[0]?.coding?.[0]?.code ?? sr.reasonCode?.[0]?.text ?? '—',
+    icdDescription: sr.reasonCode?.[0]?.text ?? sr.note?.[0]?.text ?? '—',
+    submissionChannel: 'FHIR',
+    submittedDate: sr.authoredOn?.slice(0, 10) ?? null,
+    appointmentDate: null,
+    closedDate: task?.executionPeriod?.end?.slice(0, 10) ?? null,
+    outcome: taskStatus === 'completed' ? 'Seen' : 'Pending',
+    coordinatorName: sr.requester?.display ?? 'RHTP Platform',
+    notes: sr.note?.[0]?.text ?? '',
+    daysOpen: Math.floor((Date.now() - new Date(sr.authoredOn ?? Date.now()).getTime()) / 86_400_000),
+  };
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,6 +194,7 @@ const JOURNEY_ENRICHMENT: Record<string, Partial<ReferralJourneyRecord>> = {
   },
 };
 
+// Static journey enrichment applied to both mock and FHIR-sourced referrals
 const journeyReferrals: ReferralJourneyRecord[] = mockReferrals.map((r) => ({
   ...r,
   journeyStatus: deriveJourneyStatus(r),
@@ -731,18 +768,60 @@ function MultiProgramAnalyticsPanel() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReferralJourneyTrackerPage() {
+  const { activePatientId, useMockData } = useAppContext();
   const [selectedReferral, setSelectedReferral] = useState<ReferralJourneyRecord | null>(null);
   const [filterStatus, setFilterStatus] = useState<JourneyStatus | 'all'>('all');
   const [filterSpecialty, setFilterSpecialty] = useState('All');
   const [filterUrgency, setFilterUrgency] = useState('All');
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState<'clinical' | 'multi-program'>('clinical');
+  const [fhirReferrals, setFhirReferrals] = useState<ReferralJourneyRecord[] | null>(null);
+  const [fhirSource, setFhirSource] = useState(false);
+  const loadedRef = useRef(false);
 
-  const specialties = ['All', ...Array.from(new Set(journeyReferrals.map((r) => r.specialty))).sort()];
+  // Live FHIR: fetch ServiceRequest + Task for active patient on mount
+  useEffect(() => {
+    if (useMockData || getFhirMockMode() || loadedRef.current) return;
+    loadedRef.current = true;
+    const fhirId = PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? activePatientId;
+    if (!fhirId) return;
+    Promise.all([
+      getFhirClient().search('ServiceRequest', { patient: `Patient/${fhirId}`, _count: 50 }),
+      getFhirClient().search('Task', { patient: `Patient/${fhirId}`, _count: 50 }),
+    ]).then(([srBundle, taskBundle]: [any, any]) => {
+      const srEntries = (srBundle?.entry ?? []).map((e: any) => e.resource).filter((r: any) => r?.resourceType === 'ServiceRequest');
+      const taskEntries = (taskBundle?.entry ?? []).map((e: any) => e.resource).filter((r: any) => r?.resourceType === 'Task');
+      if (srEntries.length === 0) return; // no FHIR referrals yet — keep mock
+      // Map Tasks by their focused SR reference
+      const taskMap = new Map<string, any>();
+      taskEntries.forEach((t: any) => {
+        const srRef = t.focus?.reference?.split('/')[1];
+        if (srRef) taskMap.set(srRef, t);
+      });
+      const records = srEntries.map((sr: any) => mapFhirToReferralRecord(sr, taskMap));
+      const enriched: ReferralJourneyRecord[] = records.map((r: ReferralRecord) => ({
+        ...r,
+        journeyStatus: deriveJourneyStatus(r),
+        providerResponse: null,
+        providerResponseDate: null,
+        scheduledDate: r.appointmentDate,
+        appointmentConfirmedDate: null,
+        outcomeNotes: null,
+        outcomeDate: r.closedDate,
+        followUpRequired: false,
+        followUpDate: null,
+      }));
+      setFhirReferrals(enriched);
+      setFhirSource(true);
+    }).catch(() => { /* non-fatal — fall back to mock */ });
+  }, [activePatientId, useMockData]);
+
+  const sourceReferrals = fhirReferrals ?? journeyReferrals;
+  const specialties = ['All', ...Array.from(new Set(sourceReferrals.map((r) => r.specialty))).sort()];
   const urgencies = ['All', 'Routine', 'Urgent', 'STAT'];
 
   const filtered = useMemo(() => {
-    return journeyReferrals.filter((r) => {
+    return sourceReferrals.filter((r) => {
       if (filterStatus !== 'all' && r.journeyStatus !== filterStatus) return false;
       if (filterSpecialty !== 'All' && r.specialty !== filterSpecialty) return false;
       if (filterUrgency !== 'All' && r.urgency !== filterUrgency) return false;
@@ -757,7 +836,7 @@ export default function ReferralJourneyTrackerPage() {
       }
       return true;
     });
-  }, [filterStatus, filterSpecialty, filterUrgency, search]);
+  }, [sourceReferrals, filterStatus, filterSpecialty, filterUrgency, search]);
 
   const hasFilters = filterStatus !== 'all' || filterSpecialty !== 'All' || filterUrgency !== 'All' || search;
 
