@@ -512,6 +512,57 @@ export default function SocialNeedsScreeningPage() {
     disabilities:     '69858-9',
   };
 
+  // Gravity Project Z-codes — ICD-10-CM for problem list (3 SDOH domains for VBC)
+  const DOMAIN_ZCODE: Record<string, { code: string; display: string }> = {
+    food:           { code: 'Z59.41',  display: 'Food insecurity' },
+    housing:        { code: 'Z59.812', display: 'Housing instability' },
+    transportation: { code: 'Z59.82',  display: 'Transportation insecurity' },
+  };
+
+  // POST active Condition (Z-code) to problem list for each VBC-mapped domain
+  const postZCodeConditions = async (patientFhirId: string) => {
+    const client = getFhirClient();
+    const date = new Date().toISOString().split('T')[0];
+    const vbcDomains = unmetDomains.filter(d => DOMAIN_ZCODE[d.id]);
+    await Promise.allSettled(
+      vbcDomains.map(d => {
+        const zcode = DOMAIN_ZCODE[d.id];
+        return client.create({
+          resourceType: 'Condition',
+          id: `${patientFhirId}-sdoh-${d.id}`,
+          clinicalStatus: {
+            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: 'active', display: 'Active' }],
+          },
+          verificationStatus: {
+            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status', code: 'confirmed' }],
+          },
+          category: [
+            { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-category', code: 'problem-list-item', display: 'Problem List Item' }] },
+            { coding: [{ system: 'http://hl7.org/fhir/us/sdoh-clinicalcare/CodeSystem/SDOHCC-CodeSystemTemporaryCodes', code: 'sdoh-condition', display: 'SDOH Condition' }] },
+          ],
+          code: {
+            coding: [{ system: 'http://hl7.org/fhir/sid/icd-10-cm', code: zcode.code, display: zcode.display }],
+            text: zcode.display,
+          },
+          subject: { reference: `Patient/${patientFhirId}` },
+          onsetDateTime: date,
+          note: [{
+            text: `SDOH gap identified via PRAPARE screening on ${date}. Domain: ${d.label}. Gravity Project Z-code: ${zcode.code}.`,
+          }],
+          extension: [{
+            url: 'http://tcoc.example.org/fhir/StructureDefinition/sdoh-domain',
+            valueString: d.id,
+          }, {
+            url: 'http://tcoc.example.org/fhir/StructureDefinition/sdoh-status',
+            valueString: 'open',
+          }],
+        } as Record<string, unknown>).catch((err: unknown) => {
+          console.warn(`[SocialScreening] Failed to post Z-code Condition for ${d.id}:`, err);
+        });
+      })
+    );
+  };
+
   const postPrapareObservations = async (patientFhirId: string) => {
     const client = getFhirClient();
     const date = new Date().toISOString().split('T')[0];
@@ -558,7 +609,9 @@ export default function SocialNeedsScreeningPage() {
       if (fhirId) {
         try {
           await postPrapareObservations(fhirId);
-          console.log('[SocialScreening] PRAPARE observations posted to FHIR');
+          // POST Z-code Conditions to problem list for VBC-mapped domains
+          await postZCodeConditions(fhirId);
+          console.log('[SocialScreening] PRAPARE observations + Z-code Conditions posted to FHIR');
           // POST AuditEvent for the screening save
           const client = getFhirClient();
           client.create({
