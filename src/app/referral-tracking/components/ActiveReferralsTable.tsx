@@ -86,14 +86,17 @@ interface Props {
   filters: ReferralFilters;
   selectedReferralId: string | null;
   onSelectReferral: (id: string | null) => void;
+  referrals?: ReferralRecord[];   // live FHIR records — falls back to mockReferrals when absent
+  loading?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ActiveReferralsTable({ filters, selectedReferralId, onSelectReferral }: Props) {
+export default function ActiveReferralsTable({ filters, selectedReferralId, onSelectReferral, referrals: propReferrals, loading }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('urgency');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const router = useRouter();
+  const source = propReferrals ?? mockReferrals;
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -101,7 +104,7 @@ export default function ActiveReferralsTable({ filters, selectedReferralId, onSe
   };
 
   const filtered = useMemo(() => {
-    let result = mockReferrals.filter((r) => {
+    let result = source.filter((r) => {
       const q = filters.search.toLowerCase();
       if (q && !r.patientName.toLowerCase().includes(q) && !r.icdCode.toLowerCase().includes(q) && !(r.assignedProvider ?? '').toLowerCase().includes(q)) return false;
       if (filters.status !== 'All' && r.status !== filters.status) return false;
@@ -137,7 +140,11 @@ export default function ActiveReferralsTable({ filters, selectedReferralId, onSe
   return (
     <div className="bg-white border border-carbon-gray-20">
       <div className="flex items-center justify-between px-4 py-3 border-b border-carbon-gray-20">
-        <h2 className="text-sm font-semibold text-carbon-gray-100">Active Referrals</h2>
+        <h2 className="text-sm font-semibold text-carbon-gray-100 flex items-center gap-2">
+          Active Referrals
+          {loading && <span className="text-2xs font-normal text-carbon-gray-50 animate-pulse">Loading from FHIR…</span>}
+          {!loading && propReferrals && <span className="text-2xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#198038]">Live FHIR</span>}
+        </h2>
         <span className="text-xs text-carbon-gray-50">{filtered.length} referral{filtered.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="overflow-x-auto">

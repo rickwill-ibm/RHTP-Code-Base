@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
 import ReferralKPIStrip from './components/ReferralKPIStrip';
@@ -51,6 +51,48 @@ export interface ReferralFilters {
   provider: string;
 }
 
+// ─── FHIR ServiceRequest → ReferralRecord mapper ─────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapServiceRequestToReferral(sr: any): ReferralRecord {
+  const code = sr.code?.text ?? sr.code?.coding?.[0]?.display ?? 'Unknown';
+  const patientRef: string = sr.subject?.reference ?? '';
+  const patientId = patientRef.replace('Patient/', '');
+  const patientDisplay = sr.subject?.display ?? patientId;
+  const urgencyMap: Record<string, ReferralUrgency> = { stat: 'STAT', urgent: 'Urgent', routine: 'Routine', asap: 'Urgent' };
+  const urgency: ReferralUrgency = urgencyMap[sr.priority?.toLowerCase() ?? 'routine'] ?? 'Routine';
+  const statusMap: Record<string, ReferralStatus> = {
+    active: 'In Progress', draft: 'Pending', 'on-hold': 'Pending',
+    completed: 'Completed', revoked: 'Cancelled', unknown: 'Pending',
+  };
+  const status: ReferralStatus = statusMap[sr.status ?? 'active'] ?? 'Pending';
+  const authored: string = sr.authoredOn ? sr.authoredOn.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const daysOpen = Math.floor((Date.now() - new Date(authored).getTime()) / 86_400_000);
+  const requester = sr.requester?.display ?? sr.requester?.reference ?? null;
+  const note = (sr.note ?? [])[0]?.text ?? '';
+  return {
+    id: sr.id ?? `sr-${Math.random()}`,
+    patientName: patientDisplay,
+    patientId,
+    referralDate: authored,
+    specialty: code,
+    urgency,
+    status,
+    assignedProvider: requester,
+    providerId: sr.requester?.reference ?? null,
+    providerTier: null,
+    icdCode: sr.reasonCode?.[0]?.coding?.[0]?.code ?? sr.code?.coding?.[0]?.code ?? '—',
+    icdDescription: sr.reasonCode?.[0]?.text ?? sr.reasonCode?.[0]?.coding?.[0]?.display ?? '',
+    submissionChannel: 'FHIR API',
+    submittedDate: authored,
+    appointmentDate: null,
+    closedDate: sr.status === 'completed' ? authored : null,
+    outcome: sr.status === 'completed' ? 'Seen' : 'Pending',
+    coordinatorName: 'FHIR',
+    notes: note,
+    daysOpen,
+  };
+}
+
 export default function ReferralTrackingPage() {
   const { activePhysician, activePatientId, useMockData } = useAppContext();
   const [filters, setFilters] = useState<ReferralFilters>({
@@ -61,6 +103,25 @@ export default function ReferralTrackingPage() {
     provider: 'All',
   });
   const [selectedReferralId, setSelectedReferralId] = useState<string | null>(null);
+  const [fhirReferrals, setFhirReferrals] = useState<ReferralRecord[] | null>(null);
+  const [fhirLoading, setFhirLoading] = useState(false);
+
+  // Fetch live ServiceRequests from FHIR when in live mode
+  useEffect(() => {
+    if (useMockData) { setFhirReferrals(null); return; }
+    setFhirLoading(true);
+    getFhirClient()
+      .search('ServiceRequest', { _count: '100', _sort: '-authored' })
+      .then((bundle: any) => {
+        const records: ReferralRecord[] = (bundle?.entry ?? [])
+          .map((e: any) => e.resource)
+          .filter((r: any) => r?.resourceType === 'ServiceRequest')
+          .map(mapServiceRequestToReferral);
+        setFhirReferrals(records);
+      })
+      .catch(() => setFhirReferrals(null))
+      .finally(() => setFhirLoading(false));
+  }, [useMockData]);
   const [programFilter, setProgramFilter] = useState<TaskProgramType | 'All'>('All');
   const [activeView, setActiveView] = useState<'referrals' | 'tasks'>('referrals');
 
@@ -286,6 +347,8 @@ export default function ReferralTrackingPage() {
               filters={filters}
               selectedReferralId={selectedReferralId}
               onSelectReferral={setSelectedReferralId}
+              referrals={fhirReferrals ?? undefined}
+              loading={fhirLoading}
             />
             {/* Two-column: provider assignment + outcome metrics */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
