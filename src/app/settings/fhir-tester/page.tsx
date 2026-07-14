@@ -48,7 +48,7 @@ interface TestResult {
   timestamp?: string;
 }
 
-type ActiveTab = 'patient' | 'order' | 'cds' | 'gaps' | 'put';
+type ActiveTab = 'patient' | 'order' | 'cds' | 'gaps' | 'put' | 'beforeafter';
 
 // ─── Mock Cerner sandbox responses ────────────────────────────────────────────
 
@@ -717,6 +717,309 @@ const TCOC_PATIENTS = [
 
 const GAP_BASE_URL = 'http://tcoc.example.org/fhir/StructureDefinition';
 
+// ─── Before / After Write Test Tab ───────────────────────────────────────────
+
+const BA_SCENARIOS = [
+  {
+    id: 'task-complete',
+    label: 'Complete a Care Gap Task',
+    description: 'Marks a Task as completed and re-reads it to confirm status changed.',
+    readPath: (id: string) => `Task/${id}`,
+    writePath: (id: string) => `Task/${id}`,
+    defaultId: 'patient-maria-001-task-CG_MARIA_001',
+    buildWriteBody: (id: string) => ({
+      resourceType: 'Task',
+      id,
+      status: 'completed',
+      intent: 'order',
+      lastModified: new Date().toISOString(),
+      output: [{ type: { text: 'Gap Closure Evidence' }, valueReference: { reference: `Observation/${id}-obs` } }],
+    }),
+    snapshotField: (body: Record<string, unknown>) => `status = "${body.status}"`,
+  },
+  {
+    id: 'obs-amend',
+    label: 'Amend an Observation (HbA1c)',
+    description: 'Changes the value of an existing HbA1c Observation and re-reads to confirm.',
+    readPath: (id: string) => `Observation/${id}`,
+    writePath: (id: string) => `Observation/${id}`,
+    defaultId: 'patient-maria-001-obs-hba1c',
+    buildWriteBody: (id: string) => ({
+      resourceType: 'Observation',
+      id,
+      status: 'amended',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'laboratory' }] }],
+      code: { coding: [{ system: 'http://loinc.org', code: '4548-4', display: 'Hemoglobin A1c' }] },
+      subject: { reference: 'Patient/patient-maria-001' },
+      effectiveDateTime: new Date().toISOString().slice(0, 10),
+      valueQuantity: { value: 7.1, unit: '%', system: 'http://unitsofmeasure.org', code: '%' },
+    }),
+    snapshotField: (body: Record<string, unknown>) => {
+      const vq = body.valueQuantity as { value?: number; unit?: string } | undefined;
+      return vq ? `valueQuantity = ${vq.value} ${vq.unit}  |  status = "${body.status}"` : `status = "${body.status}"`;
+    },
+  },
+  {
+    id: 'patient-note',
+    label: 'Update Patient Identifier / Note',
+    description: 'Adds a custom identifier to a Patient resource and re-reads to confirm.',
+    readPath: (id: string) => `Patient/${id}`,
+    writePath: (id: string) => `Patient/${id}`,
+    defaultId: 'patient-maria-001',
+    buildWriteBody: (id: string) => ({
+      resourceType: 'Patient',
+      id,
+      identifier: [{ system: 'http://tcoc.example.org/patient-id', value: id }],
+      name: [{ use: 'official', family: 'Redhawk', given: ['Maria'] }],
+      gender: 'female',
+      birthDate: '1978-04-12',
+      meta: { tag: [{ system: 'http://tcoc.example.org/tags', code: 'before-after-test', display: `Updated at ${new Date().toLocaleTimeString()}` }] },
+    }),
+    snapshotField: (body: Record<string, unknown>) => {
+      const tags = (body.meta as { tag?: { display?: string }[] } | undefined)?.tag;
+      const tag = tags?.[tags.length - 1]?.display ?? '—';
+      return `meta.tag = "${tag}"`;
+    },
+  },
+];
+
+type BAStep = 'idle' | 'reading-before' | 'before-done' | 'writing' | 'reading-after' | 'done' | 'error';
+
+function BeforeAfterTab() {
+  const [scenarioIdx, setScenarioIdx] = useState(0);
+  const [resourceId, setResourceId] = useState(BA_SCENARIOS[0].defaultId);
+  const [step, setStep] = useState<BAStep>('idle');
+  const [before, setBefore] = useState<{ raw: string; snapshot: string; statusCode: number } | null>(null);
+  const [after, setAfter] = useState<{ raw: string; snapshot: string; statusCode: number } | null>(null);
+  const [writeResult, setWriteResult] = useState<{ statusCode: number; latencyMs: number } | null>(null);
+  const [error, setError] = useState('');
+
+  const scenario = BA_SCENARIOS[scenarioIdx];
+
+  function reset() {
+    setStep('idle');
+    setBefore(null);
+    setAfter(null);
+    setWriteResult(null);
+    setError('');
+  }
+
+  function selectScenario(idx: number) {
+    setScenarioIdx(idx);
+    setResourceId(BA_SCENARIOS[idx].defaultId);
+    reset();
+  }
+
+  async function runFullTest() {
+    reset();
+    const id = resourceId.trim();
+    if (!id) { setError('Resource ID is required.'); setStep('error'); return; }
+
+    // ── Step 1: Read BEFORE ──────────────────────────────────────────────────
+    setStep('reading-before');
+    try {
+      const r = await realFhirRequest('GET', scenario.readPath(id));
+      const parsed: Record<string, unknown> = JSON.parse(r.body);
+      setBefore({ raw: JSON.stringify(parsed, null, 2), snapshot: scenario.snapshotField(parsed), statusCode: r.statusCode });
+    } catch (e) {
+      setError(`Before-read failed: ${e instanceof Error ? e.message : String(e)}`);
+      setStep('error'); return;
+    }
+
+    // ── Step 2: Write (PUT) ──────────────────────────────────────────────────
+    setStep('writing');
+    try {
+      const body = scenario.buildWriteBody(id);
+      const w = await realFhirRequest('PUT', scenario.writePath(id), body);
+      if (w.statusCode < 200 || w.statusCode >= 300) {
+        setError(`PUT failed with HTTP ${w.statusCode}: ${w.body}`);
+        setStep('error'); return;
+      }
+      setWriteResult({ statusCode: w.statusCode, latencyMs: w.latencyMs });
+    } catch (e) {
+      setError(`Write failed: ${e instanceof Error ? e.message : String(e)}`);
+      setStep('error'); return;
+    }
+
+    // ── Step 3: Read AFTER ───────────────────────────────────────────────────
+    setStep('reading-after');
+    // Small delay to let the FHIR server commit
+    await new Promise((res) => setTimeout(res, 400));
+    try {
+      const r = await realFhirRequest('GET', scenario.readPath(id));
+      const parsed: Record<string, unknown> = JSON.parse(r.body);
+      setAfter({ raw: JSON.stringify(parsed, null, 2), snapshot: scenario.snapshotField(parsed), statusCode: r.statusCode });
+      setStep('done');
+    } catch (e) {
+      setError(`After-read failed: ${e instanceof Error ? e.message : String(e)}`);
+      setStep('error');
+    }
+  }
+
+  const running = ['reading-before', 'writing', 'reading-after'].includes(step);
+  const changed = before && after && before.snapshot !== after.snapshot;
+
+  const stepLabel: Record<BAStep, string> = {
+    idle: '',
+    'reading-before': '1 / 3 — Reading current value…',
+    'before-done': '',
+    writing: '2 / 3 — Writing update to FHIR…',
+    'reading-after': '3 / 3 — Re-reading to verify…',
+    done: 'Complete',
+    error: 'Error',
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Config panel */}
+      <div className="bg-white border border-carbon-gray-20 p-5">
+        <h3 className="text-sm font-semibold text-carbon-gray-100 mb-1 flex items-center gap-2">
+          <Icon name="ArrowsRightLeftIcon" size={16} className="text-carbon-blue" />
+          Before / After Write Test
+        </h3>
+        <p className="text-xs text-carbon-gray-50 mb-4">
+          Reads a resource, writes a change, then re-reads to confirm the FHIR server persisted it. The before and after snapshots are shown side-by-side.
+        </p>
+
+        {/* Scenario picker */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">Scenario</label>
+          <div className="flex flex-wrap gap-2">
+            {BA_SCENARIOS.map((s, i) => (
+              <button key={s.id} onClick={() => selectScenario(i)}
+                className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
+                  scenarioIdx === i
+                    ? 'bg-carbon-blue text-white border-carbon-blue'
+                    : 'bg-white text-carbon-gray-70 border-carbon-gray-20 hover:border-carbon-blue hover:text-carbon-blue'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-carbon-gray-50 mt-2">{scenario.description}</p>
+        </div>
+
+        {/* Resource ID */}
+        <div className="mb-5">
+          <label className="block text-xs font-medium text-carbon-gray-70 mb-1.5">
+            Resource ID <span className="text-carbon-gray-50 font-normal">(FHIR logical ID)</span>
+          </label>
+          <input type="text" value={resourceId} onChange={(e) => { setResourceId(e.target.value); reset(); }}
+            className="w-full border border-carbon-gray-20 px-3 py-2 text-xs font-mono text-carbon-gray-100 focus:outline-none focus:border-carbon-blue bg-carbon-gray-10 max-w-lg" />
+          <p className="text-2xs text-carbon-gray-50 mt-1">
+            Will call: <code className="font-mono">{LOCAL_FHIR_BASE}/{scenario.readPath(resourceId || '<id>')}</code>
+          </p>
+        </div>
+
+        <button onClick={runFullTest} disabled={running}
+          className="flex items-center gap-2 px-4 py-2 bg-carbon-blue text-white text-xs font-semibold hover:bg-[#0043ce] transition-colors disabled:opacity-50">
+          <Icon name="ArrowsRightLeftIcon" size={14} />
+          {running ? stepLabel[step] : 'Run Before → Write → After Test'}
+        </button>
+      </div>
+
+      {/* Progress bar */}
+      {(running || step === 'done' || step === 'error') && (
+        <div className="bg-white border border-carbon-gray-20 px-5 py-4">
+          <div className="flex items-center gap-3 mb-3">
+            {['reading-before', 'writing', 'reading-after'].map((s, i) => {
+              const stepOrder: BAStep[] = ['reading-before', 'writing', 'reading-after'];
+              const currentIdx = stepOrder.indexOf(step as BAStep);
+              const done = step === 'done' || (currentIdx > i);
+              const active = stepOrder[i] === step;
+              return (
+                <React.Fragment key={s}>
+                  <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 ${
+                    done ? 'bg-[#defbe6] text-[#198038]' :
+                    active ? 'bg-[#d0e2ff] text-carbon-blue' :
+                    'bg-carbon-gray-10 text-carbon-gray-50'
+                  }`}>
+                    {done ? '✓' : active ? '…' : `${i + 1}`}
+                    <span>{['Read Before', 'PUT Write', 'Read After'][i]}</span>
+                  </div>
+                  {i < 2 && <div className="flex-1 h-px bg-carbon-gray-20" />}
+                </React.Fragment>
+              );
+            })}
+          </div>
+          {step === 'error' && (
+            <div className="px-3 py-2 bg-[#fff1f1] border-l-2 border-carbon-red text-xs text-carbon-red font-medium">{error}</div>
+          )}
+        </div>
+      )}
+
+      {/* Before / After comparison */}
+      {(before || after) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* BEFORE */}
+          <div className="bg-white border border-carbon-gray-20 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-carbon-gray-100 flex items-center gap-2">
+                <span className="px-1.5 py-0.5 bg-carbon-gray-10 text-carbon-gray-70 text-2xs font-bold border border-carbon-gray-20">BEFORE</span>
+                GET → HTTP {before?.statusCode}
+              </span>
+            </div>
+            {before && (
+              <>
+                <div className="mb-2 px-3 py-2 bg-[#fff8e1] border-l-2 border-[#f1c21b] text-xs font-mono text-[#8a3800]">
+                  {before.snapshot}
+                </div>
+                <pre className="text-2xs font-mono text-carbon-gray-70 overflow-auto max-h-64 bg-carbon-gray-10 p-3 border border-carbon-gray-20 whitespace-pre-wrap">
+                  {before.raw}
+                </pre>
+              </>
+            )}
+            {!before && <p className="text-xs text-carbon-gray-50 italic">Waiting…</p>}
+          </div>
+
+          {/* AFTER */}
+          <div className="bg-white border border-carbon-gray-20 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-carbon-gray-100 flex items-center gap-2">
+                <span className={`px-1.5 py-0.5 text-2xs font-bold border ${
+                  step === 'done'
+                    ? changed ? 'bg-[#defbe6] text-[#198038] border-[#a7f0ba]' : 'bg-[#fff1f1] text-carbon-red border-[#ffb3b8]'
+                    : 'bg-carbon-gray-10 text-carbon-gray-70 border-carbon-gray-20'
+                }`}>AFTER</span>
+                {after ? `GET → HTTP ${after.statusCode}` : '—'}
+              </span>
+              {step === 'done' && (
+                <span className={`text-xs font-semibold ${changed ? 'text-[#198038]' : 'text-carbon-red'}`}>
+                  {changed ? '✓ Change confirmed' : '✗ No change detected'}
+                </span>
+              )}
+            </div>
+            {after && (
+              <>
+                <div className={`mb-2 px-3 py-2 border-l-2 text-xs font-mono ${
+                  changed ? 'bg-[#defbe6] border-[#24a148] text-[#0e6027]' : 'bg-[#fff1f1] border-carbon-red text-carbon-red'
+                }`}>
+                  {after.snapshot}
+                </div>
+                <pre className="text-2xs font-mono text-carbon-gray-70 overflow-auto max-h-64 bg-carbon-gray-10 p-3 border border-carbon-gray-20 whitespace-pre-wrap">
+                  {after.raw}
+                </pre>
+              </>
+            )}
+            {!after && <p className="text-xs text-carbon-gray-50 italic">{running ? 'Waiting for write to complete…' : 'Not yet read'}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Write result badge */}
+      {writeResult && (
+        <div className="bg-white border border-carbon-gray-20 px-5 py-3 flex items-center gap-3 text-xs">
+          <span className="font-semibold text-carbon-gray-70">PUT result:</span>
+          <span className={`px-2 py-0.5 font-bold text-2xs ${writeResult.statusCode < 300 ? 'bg-[#defbe6] text-[#198038]' : 'bg-[#fff1f1] text-carbon-red'}`}>
+            HTTP {writeResult.statusCode}
+          </span>
+          <span className="text-carbon-gray-50">{writeResult.latencyMs}ms</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── PUT Resource Tab ─────────────────────────────────────────────────────────
 
 const PUT_RESOURCE_TEMPLATES: { label: string; resourceType: string; body: object }[] = [
@@ -1272,6 +1575,7 @@ export default function FhirTesterPage() {
     { key: 'patient', label: 'Patient Lookup', icon: 'UserIcon' },
     { key: 'order', label: 'Order Submission (POST)', icon: 'ClipboardDocumentListIcon' },
     { key: 'put', label: 'PUT Resource', icon: 'PencilSquareIcon' },
+    { key: 'beforeafter', label: 'Before / After Test', icon: 'ArrowsRightLeftIcon' },
     { key: 'cds', label: 'CDS Hook Calls', icon: 'CpuChipIcon' },
     { key: 'gaps', label: 'Gap & Write Verification', icon: 'CheckCircleIcon' },
   ];
@@ -1340,6 +1644,7 @@ export default function FhirTesterPage() {
         {activeTab === 'patient' && <PatientLookupTab />}
         {activeTab === 'order' && <OrderSubmissionTab />}
         {activeTab === 'put' && <PutResourceTab />}
+        {activeTab === 'beforeafter' && <BeforeAfterTab />}
         {activeTab === 'cds' && <CdsHooksTab />}
         {activeTab === 'gaps' && <GapVerificationTab />}
       </div>
