@@ -1,8 +1,9 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { toast } from 'sonner';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 import STARSPayerBonusJourney, { type STARSMeasure } from './components/STARSPayerBonusJourney';
 import HEDISMeasureDocJourney, { type HEDISMeasure } from './components/HEDISMeasureDocJourney';
 import MIPSPaymentAdjJourney, { type MIPSAdjustment } from './components/MIPSPaymentAdjJourney';
@@ -523,6 +524,21 @@ const PROGRAM_CONFIG: Record<Program, { label: string; description: string; colo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function STARSHEDISMIPSPage() {
   const [activeProgram, setActiveProgram] = useState<Program>('STARS');
+  const [fhirSource, setFhirSource] = useState(false);
+  const [fhirMeasureCount, setFhirMeasureCount] = useState(0);
+  const fhirLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('MeasureReport', { _count: 20 })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? []).filter((e: any) => e?.resource?.resourceType === 'MeasureReport').length;
+        if (count > 0) { setFhirMeasureCount(count); setFhirSource(true); }
+      })
+      .catch(() => {});
+  }, []);
   const [selectedSTARS, setSelectedSTARS] = useState<STARSMeasure | null>(null);
   const [selectedHEDIS, setSelectedHEDIS] = useState<HEDISMeasure | null>(null);
   const [selectedMIPS, setSelectedMIPS] = useState<MIPSAdjustment | null>(null);
@@ -593,6 +609,12 @@ export default function STARSHEDISMIPSPage() {
       pageTitle="Care Manager Attribution"
       breadcrumbs={[{ label: 'TCOC Platform' }, { label: 'Care Manager Attribution' }]}
     >
+      {fhirSource && (
+        <div className="flex items-center gap-2 mb-3 px-4 py-2 border-b border-carbon-gray-20">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{fhirMeasureCount} MeasureReport resources verified in HAPI FHIR</span>
+        </div>
+      )}
       {/* Program Selector */}
       <div className="bg-white border-b border-carbon-gray-20 px-6 py-3">
         <div className="flex items-center gap-2 flex-wrap">

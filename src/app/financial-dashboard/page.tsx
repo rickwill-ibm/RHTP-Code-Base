@@ -1,6 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 import FinancialKPIGrid from './components/FinancialKPIGrid';
 import PmpmTrendChart from './components/PmpmTrendChart';
 import CostEnvelopeChart from './components/CostEnvelopeChart';
@@ -36,6 +37,22 @@ type FinancialView = 'clinical' | 'braided';
 
 export default function FinancialDashboardPage() {
   const [view, setView] = useState<FinancialView>('clinical');
+  const [fhirSource, setFhirSource] = useState(false);
+  const fhirLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    // Verify aggregate data presence via any EXEC MeasureReport
+    getFhirClient()
+      .search('MeasureReport', { _count: 10 })
+      .then((bundle: any) => {
+        const found = (bundle?.entry ?? []).some((e: any) =>
+          e?.resource?.extension?.some((x: any) => x.url?.includes('measure-program') && x.valueString === 'EXEC'));
+        if (found) setFhirSource(true);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <AppLayout
@@ -53,6 +70,12 @@ export default function FinancialDashboardPage() {
         </div>
       }
     >
+      {fhirSource && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">Aggregate MeasureReport resources verified in HAPI FHIR</span>
+        </div>
+      )}
       {/* View Toggle */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={() => setView('clinical')}

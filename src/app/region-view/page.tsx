@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
 interface RegionData {
   id: string;
@@ -123,6 +124,25 @@ function MetricBar({ value, target, color, label }: { value: number; target: num
 export default function RegionViewPage() {
   const router = useRouter();
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [fhirSource, setFhirSource] = useState(false);
+  const [fhirRegionCount, setFhirRegionCount] = useState(0);
+  const fhirLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Organization', { _count: 20 })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? [])
+          .map((e: any) => e?.resource)
+          .filter((r: any) => r?.resourceType === 'Organization' &&
+            r?.extension?.some((x: any) => x.url?.includes('org-type') && x.valueString === 'region'))
+          .length;
+        if (count > 0) { setFhirRegionCount(count); setFhirSource(true); }
+      })
+      .catch(() => {});
+  }, []);
 
   const totalPatients = REGIONS.reduce((a, r) => a + r.patients, 0);
   const totalProviders = REGIONS.reduce((a, r) => a + r.providers, 0);
@@ -148,6 +168,12 @@ export default function RegionViewPage() {
         </div>
       }
     >
+      {fhirSource && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-carbon-gray-20">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{fhirRegionCount} Region Organizations verified in HAPI FHIR</span>
+        </div>
+      )}
       {/* State-level KPI strip — now includes social + BH */}
       <div className="bg-white border-b border-carbon-gray-20 grid grid-cols-3 lg:grid-cols-6 divide-x divide-carbon-gray-20">
         {[

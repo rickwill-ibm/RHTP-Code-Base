@@ -1415,6 +1415,196 @@ function buildConsentBundle() {
   return { resourceType: 'Bundle', type: 'transaction', entry: entries };
 }
 
+// ─── Aggregate Data: MeasureReport + population Observations ─────────────────
+
+function buildAggregateBundle() {
+  /**
+   * Seeds population-level FHIR R4 resources used by the 6 aggregate dashboard
+   * screens (Stars/HEDIS, Executive Outcomes, Social Needs, Financial, Outcomes
+   * Linkage, Region View).  All PUT so re-runs are idempotent.
+   *
+   * Resources:
+   *   • 6 MeasureReport  — STARS/HEDIS/MIPS/BH/Social measures
+   *   • 6 Observation    — SDOH domain prevalence (population-level, no patient)
+   *   • 6 Observation    — financial/ROI trend points
+   *   • 4 Organization   — region-level performance data (via extension)
+   */
+  const entries = [];
+
+  // ── MeasureReport: STARS measures ──────────────────────────────────────────
+  const starsMeasures = [
+    { id: 'mr-stars-001', measureId: 'D01', name: 'Diabetes Care — HbA1c Control', domain: 'Diabetes', current: 3, target: 4, gaps: 47, bonus: 128400, contract: 'BlueCross MA-001' },
+    { id: 'mr-stars-002', measureId: 'C12', name: 'Controlling Blood Pressure',     domain: 'Cardiovascular', current: 2, target: 4, gaps: 83, bonus: 214700, contract: 'Aetna MA-002' },
+    { id: 'mr-stars-003', measureId: 'D08', name: 'Statin Use — Diabetes',           domain: 'Diabetes', current: 4, target: 5, gaps: 22, bonus: 58200,  contract: 'BlueCross MA-001' },
+    { id: 'mr-stars-004', measureId: 'B09', name: 'Annual Flu Vaccine',              domain: 'Preventive', current: 3, target: 4, gaps: 156, bonus: 312000, contract: 'UHC MA-003' },
+  ];
+  starsMeasures.forEach(m => entries.push({
+    resource: {
+      resourceType: 'MeasureReport', id: m.id,
+      status: 'complete', type: 'summary',
+      measure: `http://tcoc.example.org/fhir/Measure/STARS-${m.measureId}`,
+      date: '2026-06-01',
+      group: [{
+        measureScore: { value: m.current, unit: 'stars' },
+        population: [
+          { code: { coding: [{ code: 'numerator' }] }, count: m.current },
+          { code: { coding: [{ code: 'denominator' }] }, count: m.target },
+        ],
+      }],
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-name', valueString: m.name },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-domain', valueString: m.domain },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-program', valueString: 'STARS' },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-id', valueString: m.measureId },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-gap-count', valueString: String(m.gaps) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-bonus-estimate', valueString: String(m.bonus) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-contract', valueString: m.contract },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-target', valueString: String(m.target) },
+      ],
+    },
+    request: { method: 'PUT', url: `MeasureReport/${m.id}` },
+  }));
+
+  // ── MeasureReport: HEDIS measures ──────────────────────────────────────────
+  const hedisMeasures = [
+    { id: 'mr-hedis-001', measureId: 'CDC-HbA1c', name: 'Comprehensive Diabetes Care — HbA1c Testing', domain: 'Diabetes',      compliance: 71, target: 85, due: 312, compliant: 221, contract: 'BlueCross MA-001' },
+    { id: 'mr-hedis-002', measureId: 'CBP',        name: 'Controlling High Blood Pressure',             domain: 'Cardiovascular', compliance: 58, target: 75, due: 487, compliant: 282, contract: 'Aetna MA-002' },
+    { id: 'mr-hedis-003', measureId: 'BCS',        name: 'Breast Cancer Screening',                     domain: 'Preventive',     compliance: 63, target: 80, due: 198, compliant: 125, contract: 'UHC MA-003' },
+    { id: 'mr-hedis-004', measureId: 'COL',        name: 'Colorectal Cancer Screening',                 domain: 'Preventive',     compliance: 54, target: 72, due: 267, compliant: 144, contract: 'BlueCross MA-001' },
+  ];
+  hedisMeasures.forEach(m => entries.push({
+    resource: {
+      resourceType: 'MeasureReport', id: m.id,
+      status: 'complete', type: 'summary',
+      measure: `http://tcoc.example.org/fhir/Measure/HEDIS-${m.measureId}`,
+      date: '2026-06-01',
+      group: [{
+        measureScore: { value: m.compliance / 100, unit: 'ratio' },
+        population: [
+          { code: { coding: [{ code: 'numerator' }] }, count: m.compliant },
+          { code: { coding: [{ code: 'denominator' }] }, count: m.due },
+        ],
+      }],
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-name', valueString: m.name },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-domain', valueString: m.domain },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-program', valueString: 'HEDIS' },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-id', valueString: m.measureId },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-compliance', valueString: String(m.compliance) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-target', valueString: String(m.target) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-patients-due', valueString: String(m.due) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-contract', valueString: m.contract },
+      ],
+    },
+    request: { method: 'PUT', url: `MeasureReport/${m.id}` },
+  }));
+
+  // ── MeasureReport: Executive summary measures (population closure + quality) ─
+  const execMeasures = [
+    { id: 'mr-exec-gaps-closed',  name: 'Care Gaps Closed YTD',       value: 6842, unit: 'gaps',    program: 'EXEC' },
+    { id: 'mr-exec-gaps-open',    name: 'Open Care Gaps',             value: 8241, unit: 'gaps',    program: 'EXEC' },
+    { id: 'mr-exec-closure-rate', name: 'Care Gap Closure Rate',      value: 68.4, unit: 'percent', program: 'EXEC' },
+    { id: 'mr-exec-gain-share',   name: 'Gain Share Earned YTD',      value: 1100000, unit: 'USD',  program: 'EXEC' },
+    { id: 'mr-exec-savings',      name: 'Shared Savings Realized',    value: 847000,  unit: 'USD',  program: 'EXEC' },
+    { id: 'mr-exec-referral-rate',name: 'Referral Completion Rate',   value: 84,   unit: 'percent', program: 'EXEC' },
+  ];
+  execMeasures.forEach(m => entries.push({
+    resource: {
+      resourceType: 'MeasureReport', id: m.id,
+      status: 'complete', type: 'summary',
+      measure: `http://tcoc.example.org/fhir/Measure/${m.id}`,
+      date: '2026-06-01',
+      group: [{ measureScore: { value: m.value, unit: m.unit } }],
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-name', valueString: m.name },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-program', valueString: m.program },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-unit', valueString: m.unit },
+      ],
+    },
+    request: { method: 'PUT', url: `MeasureReport/${m.id}` },
+  }));
+
+  // ── Observation: SDOH domain prevalence (population-level, no patient ref) ─
+  const sdohDomains = [
+    { id: 'obs-sdoh-food',      domain: 'Food Insecurity',    count: 687, pct: 37.2 },
+    { id: 'obs-sdoh-housing',   domain: 'Housing Instability', count: 521, pct: 28.2 },
+    { id: 'obs-sdoh-transport', domain: 'Transportation',      count: 412, pct: 22.3 },
+    { id: 'obs-sdoh-financial', domain: 'Financial Strain',    count: 389, pct: 21.1 },
+    { id: 'obs-sdoh-isolation', domain: 'Social Isolation',    count: 298, pct: 16.1 },
+    { id: 'obs-sdoh-employment',domain: 'Employment',          count: 187, pct: 10.1 },
+  ];
+  sdohDomains.forEach(o => entries.push({
+    resource: {
+      resourceType: 'Observation', id: o.id,
+      status: 'final',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'social-history' }] }],
+      code: { coding: [{ system: 'http://tcoc.example.org/fhir/CodeSystem/sdoh-domain', code: o.domain }], text: o.domain },
+      valueQuantity: { value: o.count, unit: 'patients' },
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/sdoh-domain', valueString: o.domain },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/sdoh-prevalence-pct', valueString: String(o.pct) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/obs-type', valueString: 'sdoh-prevalence' },
+      ],
+    },
+    request: { method: 'PUT', url: `Observation/${o.id}` },
+  }));
+
+  // ── Observation: Outcomes linkage / ROI interventions ─────────────────────
+  const outcomeInterventions = [
+    { id: 'obs-roi-housing',    intervention: 'Housing Stability',        patients: 89,  savings: 187400, reduction: 50, domain: 'Housing',     evidence: 'Strong' },
+    { id: 'obs-roi-food',       intervention: 'Food Security (SNAP)',      patients: 124, savings: 94200,  reduction: 14, domain: 'Food',        evidence: 'Moderate' },
+    { id: 'obs-roi-bh',         intervention: 'BH Counseling (CCBHC)',    patients: 67,  savings: 312000, reduction: 50, domain: 'BH',          evidence: 'Strong' },
+    { id: 'obs-roi-transport',  intervention: 'Transport Benefit',         patients: 156, savings: 48700,  reduction: 61, domain: 'Transport',   evidence: 'Strong' },
+    { id: 'obs-roi-chw',        intervention: 'CHW Outreach',              patients: 203, savings: 221000, reduction: -26,domain: 'Care Coord',  evidence: 'Moderate' },
+    { id: 'obs-roi-social',     intervention: 'Social Isolation Program',  patients: 44,  savings: 38900,  reduction: 31, domain: 'Social',      evidence: 'Emerging' },
+  ];
+  outcomeInterventions.forEach(o => entries.push({
+    resource: {
+      resourceType: 'Observation', id: o.id,
+      status: 'final',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'survey' }] }],
+      code: { coding: [{ system: 'http://tcoc.example.org/fhir/CodeSystem/outcomes-intervention', code: o.intervention }], text: o.intervention },
+      valueQuantity: { value: o.savings, unit: 'USD' },
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/obs-type', valueString: 'outcomes-roi' },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/intervention-domain', valueString: o.domain },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/intervention-patients', valueString: String(o.patients) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/intervention-reduction', valueString: String(o.reduction) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/intervention-evidence', valueString: o.evidence },
+      ],
+    },
+    request: { method: 'PUT', url: `Observation/${o.id}` },
+  }));
+
+  // ── Organization: Region-level performance (extends base Organization) ────
+  const regions = [
+    { id: 'org-region-west-river', name: 'West River Region',       gapClosure: 73, quality: 81, gainShare: 312000, patients: 14820, socialScreening: 68, bhAccess: 71, status: 'Above Target' },
+    { id: 'org-region-southeast',  name: 'Southeast SD Region',     gapClosure: 64, quality: 72, gainShare: 476000, patients: 22010, socialScreening: 54, bhAccess: 58, status: 'On Track' },
+    { id: 'org-region-northeast',  name: 'Northeast SD Region',     gapClosure: 58, quality: 64, gainShare: 198000, patients: 11340, socialScreening: 41, bhAccess: 49, status: 'At Risk' },
+    { id: 'org-region-central',    name: 'Missouri River Corridor', gapClosure: 70, quality: 77, gainShare: 284000, patients: 16200, socialScreening: 62, bhAccess: 66, status: 'On Track' },
+  ];
+  regions.forEach(r => entries.push({
+    resource: {
+      resourceType: 'Organization', id: r.id,
+      active: true, type: [{ coding: [{ code: 'region' }], text: 'RHTP Region' }],
+      name: r.name,
+      extension: [
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-gap-closure', valueString: String(r.gapClosure) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-quality-score', valueString: String(r.quality) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-gain-share', valueString: String(r.gainShare) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-patients', valueString: String(r.patients) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-social-screening', valueString: String(r.socialScreening) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-bh-access', valueString: String(r.bhAccess) },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/region-status', valueString: r.status },
+        { url: 'http://tcoc.example.org/fhir/StructureDefinition/org-type', valueString: 'region' },
+      ],
+    },
+    request: { method: 'PUT', url: `Organization/${r.id}` },
+  }));
+
+  return { resourceType: 'Bundle', type: 'transaction', entry: entries };
+}
+
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 async function postBundle(bundle) {
@@ -1470,6 +1660,16 @@ async function main() {
     const cboBundle = buildCboOrganizationBundle();
     await postBundle(cboBundle);
     console.log(`✅  ${pracBundle.entry.length + cboBundle.entry.length} resources`);
+  } catch (err) {
+    console.error(`❌  ${err.message}`);
+  }
+
+  // ── Seed Aggregate Data (MeasureReport + population Obs + Region Orgs) ─────
+  process.stdout.write('  → Aggregate data (MeasureReport/Observation/Region Org) … ');
+  try {
+    const aggBundle = buildAggregateBundle();
+    await postBundle(aggBundle);
+    console.log(`✅  ${aggBundle.entry.length} resources`);
   } catch (err) {
     console.error(`❌  ${err.message}`);
   }

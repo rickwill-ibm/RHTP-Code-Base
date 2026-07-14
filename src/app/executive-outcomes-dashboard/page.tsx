@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
 const POPULATION_METRICS = [
   { label: 'Care Gaps Closed', value: '6,842', sub: 'YTD 2026', color: 'text-[#24a148]', icon: 'CheckCircleIcon', trend: '+1,240 vs Q1', up: true },
@@ -65,6 +66,21 @@ type DashSection = 'population' | 'financial' | 'operational';
 
 export default function ExecutiveOutcomesDashboardPage() {
   const [activeSection, setActiveSection] = useState<DashSection>('population');
+  const [fhirSource, setFhirSource] = useState(false);
+  const [fhirMeasureCount, setFhirMeasureCount] = useState(0);
+  const fhirLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('MeasureReport', { _count: 20 })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? []).filter((e: any) => e?.resource?.resourceType === 'MeasureReport').length;
+        if (count > 0) { setFhirMeasureCount(count); setFhirSource(true); }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <AppLayout
@@ -82,6 +98,12 @@ export default function ExecutiveOutcomesDashboardPage() {
         </div>
       }
     >
+      {fhirSource && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{fhirMeasureCount} MeasureReport resources verified in HAPI FHIR</span>
+        </div>
+      )}
       {/* Section tabs */}
       <div className="flex gap-0 border-b border-carbon-gray-20 bg-white px-6">
         {[

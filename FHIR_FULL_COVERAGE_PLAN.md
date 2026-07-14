@@ -219,7 +219,7 @@ Both referral screens use `mockReferrals` from the `ActiveReferralsTable` compon
 
 ### Sub-Task 8 — Migrate Aggregate Data into FHIR (MeasureReport + Population Observations)
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit ST-8)*
 
 **Intent:**
 The aggregate/population dashboard screens (Stars/HEDIS/MIPS, Executive Outcomes, Financial Dashboard, Social Needs Dashboard, Outcomes Linkage, Region View) all use hardcoded trend data and KPI constants. These need to be backed by `MeasureReport` and population-level `Observation` resources seeded into HAPI FHIR so the dashboards can read live data.

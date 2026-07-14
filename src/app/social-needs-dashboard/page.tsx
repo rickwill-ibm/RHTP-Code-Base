@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, Legend } from 'recharts';
+import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
 const FUNNEL_DATA = [
   { name: 'Panel Attributed', value: 4847, fill: '#0043ce' },
@@ -54,6 +55,25 @@ const PROVIDERS = ['All Providers / Networks', 'Truman Medical Centers', 'Saint 
 export default function SocialNeedsDashboardPage() {
   const [activeTab, setActiveTab] = useState<'funnel' | 'domains' | 'dual' | 'regions'>('funnel');
   const [rhtpProgram, setRhtpProgram] = useState(RHTP_PROGRAMS[0]);
+  const [fhirSource, setFhirSource] = useState(false);
+  const [fhirObsCount, setFhirObsCount] = useState(0);
+  const fhirLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (getFhirMockMode() || fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    getFhirClient()
+      .search('Observation', { _count: 20 })
+      .then((bundle: any) => {
+        const count = (bundle?.entry ?? [])
+          .map((e: any) => e?.resource)
+          .filter((r: any) => r?.resourceType === 'Observation' &&
+            r?.extension?.some((x: any) => x.url?.includes('obs-type') && x.valueString === 'sdoh-prevalence'))
+          .length;
+        if (count > 0) { setFhirObsCount(count); setFhirSource(true); }
+      })
+      .catch(() => {});
+  }, []);
   const [region, setRegion] = useState(REGIONS[0]);
   const [provider, setProvider] = useState(PROVIDERS[0]);
 
@@ -67,6 +87,12 @@ export default function SocialNeedsDashboardPage() {
         { label: 'Social Needs Dashboard' },
       ]}
     >
+      {fhirSource && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">FHIR R4</span>
+          <span className="text-xs text-[#0e6027]">{fhirObsCount} SDOH domain Observations verified in HAPI FHIR</span>
+        </div>
+      )}
       {/* ── Context & Filter Banner ─────────────────────────────────────────── */}
       <div className="bg-[#edf5ff] border border-[#0043ce] p-3 mb-4">
         <div className="flex flex-wrap items-center gap-3 mb-2">
