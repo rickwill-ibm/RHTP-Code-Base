@@ -255,7 +255,7 @@ The aggregate/population dashboard screens (Stars/HEDIS/MIPS, Executive Outcomes
 
 ### Sub-Task 9 — End-to-End Test Suite
 
-**Status:** `[ ] pending`
+**Status:** `[x] done` *(commit ST-9)*
 
 **Intent:**
 With all screens wired to live FHIR, add a structured test suite that verifies: (a) each FHIR read returns the expected resource shape, (b) each write/update actually lands in HAPI FHIR, and (c) mock mode fallbacks work when the server is unavailable.

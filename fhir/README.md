@@ -1,182 +1,169 @@
-# FHIR Server Setup & Patient Migration
+# RHTP FHIR R4 — Local Development Guide
 
-This directory contains everything needed to run a local **HAPI FHIR R4** server
-and migrate all TCOC patient data into it.
+## Overview
+
+The RHTP platform uses a **HAPI FHIR R4** server (running locally via Colima + Docker) as its live data backend. All 17 application screens are wired to read from — and where appropriate write to — this server. Mock mode remains fully functional as a fallback.
+
+---
+
+## Prerequisites
+
+| Tool | Purpose |
+|---|---|
+| [Colima](https://github.com/abiosoft/colima) | Docker runtime for macOS (replaces Docker Desktop) |
+| Docker Compose | Container orchestration |
+| Node.js ≥ 18 | Migration + test scripts |
 
 ---
 
 ## Quick Start
 
-### 1 — Start the HAPI FHIR server
-
-Requires **Docker** (Docker Desktop or equivalent).
-
 ```bash
+# 1. Start Docker runtime (once per reboot)
+colima start
+
+# 2. Start HAPI FHIR container
 docker compose -f fhir/docker-compose.yml up -d
-```
 
-The server starts on **http://localhost:8080**.  
-The FHIR R4 base URL is **http://localhost:8080/fhir**.  
-The HAPI web UI is available at **http://localhost:8080/**.
-
-Wait ~60 seconds for the first startup. Check health:
-
-```bash
-curl -s http://localhost:8080/fhir/metadata | head -20
-```
-
----
-
-### 2 — Migrate all patients
-
-Requires **Node.js 18+** (uses native `fetch`).
-
-```bash
+# 3. Seed all patient + aggregate data
 node fhir/migrate-patients.mjs
-```
 
-Expected output:
-```
-╔══════════════════════════════════════════════════════════╗
-║   TCOC → HAPI FHIR R4  Patient Migration                ║
-╚══════════════════════════════════════════════════════════╝
-FHIR base URL : http://localhost:8080/fhir
-Patients      : 5
-
-⏳  Waiting for HAPI FHIR server at http://localhost:8080/fhir …
-✅  Server is ready.
-
-  → Maria Redhawk         (MARIA_SD_001) … ✅  9 resources
-  → Dorothy Simmons       (PAT-0042)     … ✅  8 resources
-  → James Wilson          (PAT-0087)     … ✅  8 resources
-  → Robert Chen           (PAT-0103)     … ✅  7 resources
-  → Lisa Thompson         (PAT-0156)     … ✅  8 resources
-
-─────────────────────────────────────────────────
-  Migrated : 5 / 5 patients
-
-  View patients : http://localhost:8080/fhir/Patient?_count=20
-  HAPI web UI   : http://localhost:8080
-```
-
-To point at a different FHIR server:
-```bash
-node fhir/migrate-patients.mjs --fhir-url https://my-fhir-server.example.com/fhir
-```
-
----
-
-### 3 — Switch the app to live FHIR mode
-
-In `.env.local`, change:
-
-```env
-NEXT_PUBLIC_USE_MOCK_DATA=false
-NEXT_PUBLIC_FHIR_BASE_URL=http://localhost:8080/fhir
-```
-
-Then restart the dev server:
-
-```bash
+# 4. Start the Next.js app
 npm run dev
+# → http://localhost:4029
 ```
 
-The app will now read patient data from HAPI FHIR instead of the mock registry.  
-If the FHIR server is unreachable, `patientContext` logs a warning and falls back to mock data.
+The HAPI FHIR web UI is available at **http://localhost:8080**.
 
 ---
 
-## What gets migrated
+## Scripts
 
-Each patient in `src/lib/patientRegistry.ts` produces the following **FHIR R4 resources**:
+### `node fhir/migrate-patients.mjs`
 
-| Resource | Description |
+Seeds all FHIR R4 resources into HAPI. Safe to re-run — all resources use `PUT` (idempotent).
+
+**Seeded resources:**
+
+| Category | Resources |
 |---|---|
-| `Patient` | Demographics, identifiers, TCOC extensions (RAF score, risk tier, PMPM, etc.) |
-| `Observation` (×N) | One per care gap — domain, status, days open |
-| `Flag` (×N) | One per CDS alert card — indicator level + summary/detail |
-| `RiskAssessment` | RAF score, ER risk %, HCC suspect count & value |
+| Practitioners + CBO Organizations | 12 |
+| Aggregate Data (MeasureReport, SDOH/ROI Obs, Region Orgs) | 30 |
+| Coverage (Benefit Enrollments) | 13 |
+| Consent records | 4 |
+| Per-patient bundles × 5 patients | ~174 total |
 
-### TCOC Extension URLs
+### `node fhir/test-fhir-coverage.mjs`
 
-All custom fields are stored as FHIR extensions under:
-```
-http://tcoc.example.org/fhir/StructureDefinition/<name>
-```
-
-Key extensions on `Patient`:
-
-| Extension name | Type | Example |
-|---|---|---|
-| `raf-score` | `valueDecimal` | `2.18` |
-| `risk-tier` | `valueString` | `"Moderate"` |
-| `er-risk-pct` | `valueInteger` | `42` |
-| `care-manager` | `valueString` | `"Sarah Johnson"` |
-| `episode-type` | `valueString` | `"Postpartum Health"` |
-| `pmpm` | `valueDecimal` | `1240` |
-| `pmpm-target` | `valueDecimal` | `780` |
-| `contract` | `valueString` | `"SD Medicaid"` |
-
----
-
-## Architecture
-
-```
-src/lib/services/
-  fhirClient.ts           Real FHIR R4 HTTP client (fetch-based)
-  fhirResourceMappers.ts  Maps FHIR R4 resources → RegistryPatient
-
-src/lib/patientContext.tsx
-  PatientContextProvider  Loads from FHIR when USE_MOCK_DATA=false
-
-fhir/
-  docker-compose.yml      HAPI FHIR server (Docker)
-  migrate-patients.mjs    Migration script (Node.js)
-```
-
-### Data flow (live mode)
-
-```
-HAPI FHIR R4  ──fetch──▶  fhirClient.getRegistryPatient()
-                               │
-                    fhirResourceMappers.ts
-                               │
-                          RegistryPatient
-                               │
-                    patientContext.tsx  (setPatient)
-                               │
-                        React components
-```
-
----
-
-## Stopping the server
+Full-coverage integration test suite (ST-9). Runs 114 assertions across 9 test suites covering all 18 FHIR resource types used by the application.
 
 ```bash
-docker compose -f fhir/docker-compose.yml down
+# Run against local HAPI + local app
+node fhir/test-fhir-coverage.mjs
+
+# Custom endpoints
+node fhir/test-fhir-coverage.mjs --fhir-url http://localhost:8080/fhir --app-url http://localhost:4029
 ```
 
-Data is persisted in the `hapi-data` Docker volume and survives restarts.  
-To wipe data: `docker compose -f fhir/docker-compose.yml down -v`
+**Test suites:**
+
+| Suite | Scope | Assertions |
+|---|---|---|
+| A — Core Patient Resources | Patient, Observation, Condition, MedicationRequest, Flag, RiskAssessment | 21 |
+| B — Care Coordination | CareTeam, CarePlan, Goal, Task, Encounter | 9 |
+| C — Referral / Workflow | ServiceRequest POST→PUT, Task lifecycle, AuditEvent | 8 |
+| D — Practitioners / Network | Practitioner READ × 4, SEARCH, Organization, Region ext | 14 |
+| E — Consent & Coverage | Consent × 4 + SEARCH, Coverage × 4 + SEARCH | 30 |
+| F — Aggregate Data | MeasureReport READ/SEARCH, SDOH Obs × 6, ROI Obs × 6 | 16 |
+| G — Write Round-Trips | CarePlan, Observation, ServiceRequest, MeasureReport POST→GET→PUT | 9 |
+| H — CDS Hooks | POST /api/cds-hooks/patient-view — cards shape | 4 |
+| I — Mock-Mode Fallback | Dead FHIR base error handling, live server health | 4 |
+
+All test-created resources are **deleted in cleanup** at the end of each run.
+
+### `node fhir/test-fhir-transactions.mjs`
+
+Original detailed transaction test suite — exercises the full referral closed-loop (ServiceRequest → Task → Procedure → Lab Observation → Gap Closure → Provenance).
+
+### `node fhir/debug-fhir-errors.mjs`
+
+Diagnostic helper for FHIR server errors.
 
 ---
 
-## Production considerations
+## FHIR Resource IDs (seeded)
 
-The included `docker-compose.yml` uses an **in-memory H2 database** suitable for
-local dev and demos. For production, replace the `spring.datasource.*` environment
-variables with a persistent PostgreSQL connection:
+### Patients
 
-```yaml
-environment:
-  spring.datasource.url: jdbc:postgresql://db:5432/hapi
-  spring.datasource.username: hapi
-  spring.datasource.password: secret
-  spring.datasource.driverClassName: org.postgresql.Driver
-```
+| Platform ID | FHIR ID |
+|---|---|
+| `MARIA_SD_001` | `patient-maria-001` |
+| `PAT-0042` | `patient-dorothy-042` |
+| `PAT-0087` | `patient-james-087` |
+| `PAT-0103` | `patient-robert-103` |
+| `PAT-0156` | `patient-lisa-156` |
 
-You should also add:
-- TLS termination (nginx / load balancer)
-- SMART on FHIR authentication (`hapi.fhir.oauth_uri`)
-- CORS restriction to your domain only
-- Audit logging
+### Practitioners
+
+| Role | FHIR ID |
+|---|---|
+| PCP — Rick | `practitioner-rick` |
+| Specialist/CHW — Jon | `practitioner-jon` |
+| PCP — Whitfield | `practitioner-whitfield` |
+| Care Manager — Sarah | `practitioner-sarah` |
+
+### Consent
+
+| ID | Patient | Status |
+|---|---|---|
+| `cns-001` | Maria Redhawk | active (Data Sharing) |
+| `cns-002` | Maria Redhawk | active (Research) |
+| `cns-003` | Maria Redhawk | rejected (BH Data — revoked) |
+| `cns-004` | Dorothy Simmons | active (Data Sharing) |
+
+### Coverage (Benefit Enrollments)
+
+`cov-e001` through `cov-e013` — mapped to Dorothy, James, Robert, and Lisa's benefit programs.
+
+### Aggregate Data (ST-8)
+
+| Type | IDs |
+|---|---|
+| STARS MeasureReport | `mr-stars-001` – `mr-stars-004` |
+| HEDIS MeasureReport | `mr-hedis-001` – `mr-hedis-004` |
+| EXEC MeasureReport | `mr-exec-gaps-closed`, `mr-exec-gaps-open`, `mr-exec-closure-rate`, `mr-exec-gain-share`, `mr-exec-savings`, `mr-exec-referral-rate` |
+| SDOH Observations | `obs-sdoh-food`, `obs-sdoh-housing`, `obs-sdoh-transport`, `obs-sdoh-financial`, `obs-sdoh-isolation`, `obs-sdoh-employment` |
+| ROI Observations | `obs-roi-housing`, `obs-roi-food`, `obs-roi-bh`, `obs-roi-transport`, `obs-roi-chw`, `obs-roi-social` |
+| Region Organizations | `org-region-west-river`, `org-region-southeast`, `org-region-northeast`, `org-region-central` |
+
+---
+
+## App Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_USE_MOCK_DATA` | `false` | Set `true` to disable all FHIR reads and use static mock arrays |
+| `FHIR_BASE_URL` | `http://localhost:8080/fhir` | Override FHIR server base URL |
+
+---
+
+## Screen → Resource Mapping
+
+| Screen | Resource types read | Writes |
+|---|---|---|
+| Patient Detail — Clinical Tab | Condition, MedicationRequest (via patientContext) | — |
+| Care Plan Monitor | CarePlan, Goal | CarePlan PUT |
+| CHW Workflow | Task | ServiceRequest POST, Task PUT, AuditEvent POST |
+| Referral Journey Tracker | ServiceRequest, Task | — |
+| Submitted Referrals | ServiceRequest, Task | — |
+| Physician View | Practitioner | — |
+| Provider Selection | Practitioner, Organization | — |
+| Household View | Patient | — |
+| Consent Sovereignty Panel | Consent | — |
+| Benefit Enrollment | Coverage | ServiceRequest POST (Act Now / Renew) |
+| Stars/HEDIS/MIPS | MeasureReport | — |
+| Executive Outcomes Dashboard | MeasureReport | — |
+| Social Needs Dashboard | Observation (sdoh-prevalence) | — |
+| Financial Dashboard | MeasureReport (EXEC) | — |
+| Outcomes Linkage | Observation (outcomes-roi) | — |
+| Region View | Organization (region type) | — |
