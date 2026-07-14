@@ -79,6 +79,15 @@ const navItems: NavItem[] = [
   { key: 'uhg-population-filter', label: 'Live Population Filter', icon: 'UserGroupIcon', href: '/uhg-orchestrate/portfolio-scale', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-agent-impact', label: 'Agent Impact Dashboard', icon: 'ChartBarIcon', href: '/uhg-orchestrate/agent-impact-dashboard', group: 'Agentic_Orchestrate-Screens' },
   { key: 'uhg-reporting', label: 'Agent Impact — Reporting', icon: 'ChartBarIcon', href: '/uhg-orchestrate/reporting-dashboard', group: 'Agentic_Orchestrate-Screens' },
+  // Admin Console
+  { key: 'nav-ac-home',    label: 'Admin Console',       icon: 'ServerStackIcon',              href: '/admin-console/home',               group: 'Admin Console' },
+  { key: 'nav-ac-data',    label: 'Data Connections',     icon: 'ArrowsRightLeftIcon',          href: '/admin-console/data-connections',    group: 'Admin Console' },
+  { key: 'nav-ac-consent', label: 'Consent & Governance', icon: 'ShieldCheckIcon',              href: '/admin-console/consent-governance',  group: 'Admin Console' },
+  { key: 'nav-ac-health',  label: 'System Health',        icon: 'HeartIcon',                   href: '/admin-console/system-health',       group: 'Admin Console' },
+  { key: 'nav-ac-agents',  label: 'Agent Oversight',      icon: 'CpuChipIcon',                 href: '/admin-console/agent-oversight',     group: 'Admin Console' },
+  { key: 'nav-ac-iam',     label: 'Identity & Access',    icon: 'UserCircleIcon',              href: '/admin-console/identity-access',     group: 'Admin Console' },
+  { key: 'nav-ac-quality', label: 'Data Quality',         icon: 'MagnifyingGlassIcon',         href: '/admin-console/data-quality',        group: 'Admin Console' },
+  { key: 'nav-ac-audit',   label: 'Audit & Compliance',   icon: 'DocumentMagnifyingGlassIcon', href: '/admin-console/audit-compliance',    group: 'Admin Console' },
   // System
   { key: 'nav-settings', label: 'EHR Settings', icon: 'Cog6ToothIcon', href: '/settings', group: 'System' },
   { key: 'nav-fhir-tester', label: 'FHIR API Tester', icon: 'BeakerIcon', href: '/settings/fhir-tester', group: 'System' },
@@ -98,7 +107,7 @@ const navItems: NavItem[] = [
   { key: 'nav-patient-episode-summary', label: 'Patient Episode Summary', icon: 'DocumentTextIcon', href: '/patient-episode-summary', group: 'Backup' },
 ];
 
-const groupOrder = ['RHTP Program', 'Care Team Workflows', 'Whole Person Care', 'Agentic_Orchestrate-Screens', 'System', 'Backup'];
+const groupOrder = ['RHTP Program', 'Care Team Workflows', 'Whole Person Care', 'Agentic_Orchestrate-Screens', 'Admin Console', 'System', 'Backup'];
 
 interface AppLayoutProps {
   children: React.ReactNode;
