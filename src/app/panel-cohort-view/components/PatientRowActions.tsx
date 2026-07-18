@@ -2,6 +2,9 @@
 import React, { useState, useCallback } from 'react';
 import { useWorkflowMachine } from '@/lib/workflowMachine';
 import { useAppContext } from '@/lib/appContext';
+import { useGapClosureStore } from '@/lib/patientContext';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 import type { Patient, HCCSuspect, CareGap, UtilizationAlert } from '@/lib/mockData';
 import { mockHCCSuspects, mockCareGaps, mockAlerts } from '@/lib/mockData';
 import Icon from '@/components/ui/AppIcon';
@@ -274,7 +277,7 @@ function SurfaceHCCModal({ patient, onClose, userName, wm }: BaseModalProps) {
     if (!selectedId) return;
     const suspect = hccSuspects.find((h) => h.id === selectedId);
     if (!suspect) return;
-    if (hccWfStatus === 'idle') wm.startWorkflow('hcc-confirmation', patient.id, userName, 'Care Manager');
+    if (hccWfStatus === 'idle') wm.startWorkflow('hcc-confirmation', patient.id, userName, 'care_manager');
     appendAudit('HCC Suspect Surfaced', patient.name, userName, notes);
     toast.success('HCC Suspect Surfaced', { description: `${suspect.hccCode} — ${suspect.hccDescription} queued for evidence review.` });
     onClose();
@@ -305,7 +308,7 @@ function AcknowledgeAlertModal({ patient, onClose, userName, wm }: BaseModalProp
     if (!selectedId) return;
     const alert = alerts.find((a) => a.id === selectedId);
     if (!alert) return;
-    if (utilWfStatus === 'idle') wm.startWorkflow('utilization-escalation', patient.id, userName, 'Care Manager');
+    if (utilWfStatus === 'idle') wm.startWorkflow('utilization-escalation', patient.id, userName, 'care_manager');
     appendAudit('Utilization Alert Acknowledged', patient.name, userName, notes);
     toast.success('Alert Acknowledged', { description: `${alert.type} alert for ${patient.name} added to care manager queue.` });
     onClose();
@@ -336,8 +339,8 @@ function ReviewHCCEvidenceModal({ patient, onClose, userName, wm }: BaseModalPro
 
   const handleConfirm = () => {
     if (!selectedId || !suspect) return;
-    if (hccWfStatus === 'idle') wm.startWorkflow('hcc-confirmation', patient.id, userName, 'Care Manager');
-    else if (hccWfStatus === 'in-progress') wm.advanceStep('hcc-confirmation', patient.id, userName, 'Care Manager', notes);
+    if (hccWfStatus === 'idle') wm.startWorkflow('hcc-confirmation', patient.id, userName, 'care_manager');
+    else if (hccWfStatus === 'in-progress') wm.advanceStep('hcc-confirmation', patient.id, userName, 'care_manager', notes);
     appendAudit('HCC Evidence Reviewed', patient.name, userName, notes);
     toast.success('HCC Evidence Reviewed', { description: `Evidence for ${suspect.hccCode} reviewed. Ready for physician escalation.` });
     onClose();
@@ -384,8 +387,8 @@ function AssignInterventionModal({ patient, onClose, userName, wm }: BaseModalPr
   const utilWfStatus = wm.getWorkflowStatus('utilization-escalation', patient.id);
 
   const handleConfirm = () => {
-    if (utilWfStatus === 'in-progress') wm.advanceStep('utilization-escalation', patient.id, userName, 'Care Manager', notes);
-    else if (utilWfStatus === 'idle') wm.startWorkflow('utilization-escalation', patient.id, userName, 'Care Manager');
+    if (utilWfStatus === 'in-progress') wm.advanceStep('utilization-escalation', patient.id, userName, 'care_manager', notes);
+    else if (utilWfStatus === 'idle') wm.startWorkflow('utilization-escalation', patient.id, userName, 'care_manager');
     appendAudit('Intervention Assigned', patient.name, userName, `${interventionType} → ${assignedTo}`);
     toast.success('Intervention Assigned', { description: `${interventionType} assigned to ${assignedTo} (${priority} priority).` });
     onClose();
@@ -428,8 +431,8 @@ function EscalateHCCModal({ patient, onClose, userName, wm }: BaseModalProps) {
 
   const handleConfirm = () => {
     if (!selectedId || !suspect) return;
-    if (hccWfStatus === 'in-progress') wm.advanceStep('hcc-confirmation', patient.id, userName, 'Care Manager', notes);
-    else if (hccWfStatus === 'idle') wm.startWorkflow('hcc-confirmation', patient.id, userName, 'Care Manager');
+    if (hccWfStatus === 'in-progress') wm.advanceStep('hcc-confirmation', patient.id, userName, 'care_manager', notes);
+    else if (hccWfStatus === 'idle') wm.startWorkflow('hcc-confirmation', patient.id, userName, 'care_manager');
     appendAudit('HCC Escalated to Physician', patient.name, userName, `Escalated to ${physician}`);
     toast.success('HCC Escalated to Physician', { description: `${suspect.hccCode} routed to ${physician} for clinical review.` });
     onClose();
@@ -471,8 +474,8 @@ function EscalateERRiskModal({ patient, onClose, userName, wm }: BaseModalProps)
   const utilWfStatus = wm.getWorkflowStatus('utilization-escalation', patient.id);
 
   const handleConfirm = () => {
-    if (utilWfStatus === 'in-progress') wm.advanceStep('utilization-escalation', patient.id, userName, 'Care Manager', notes);
-    else if (utilWfStatus === 'idle') wm.startWorkflow('utilization-escalation', patient.id, userName, 'Care Manager');
+    if (utilWfStatus === 'in-progress') wm.advanceStep('utilization-escalation', patient.id, userName, 'care_manager', notes);
+    else if (utilWfStatus === 'idle') wm.startWorkflow('utilization-escalation', patient.id, userName, 'care_manager');
     appendAudit('ER Risk Escalated', patient.name, userName, `Protocol: ${protocol}`);
     toast.error('ER Risk Escalated', { description: `${protocol} protocol initiated for ${patient.name}.` });
     onClose();
@@ -514,8 +517,35 @@ function AssignCareGapModal({ patient, onClose, userName, wm }: BaseModalProps) 
 
   const handleConfirm = () => {
     if (!selectedId || !gap) return;
-    if (careGapWfStatus === 'idle') wm.startWorkflow('care-gap-closure', patient.id, userName, 'Care Manager');
+    if (careGapWfStatus === 'idle') wm.startWorkflow('care-gap-closure', patient.id, userName, 'care_manager');
     appendAudit('Care Gap Assigned', patient.name, userName, `${gap.measureName} → ${assignedTo}`);
+
+    // ── FHIR Task POST (fire-and-forget) ────────────────────────────────────
+    if (!getFhirMockMode()) {
+      const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[patient.id] ?? patient.id;
+      const taskId = `task-gap-assign-${patient.id}-${selectedId}-${Date.now()}`;
+      getFhirClient()
+        .create({
+          resourceType: 'Task',
+          id: taskId,
+          status: 'requested',
+          intent: 'order',
+          priority: priority.toLowerCase() as 'routine' | 'urgent' | 'stat',
+          code: { coding: [{ system: 'http://loinc.org', code: '18776-5', display: 'Plan of care note' }], text: 'Care Gap Assignment' },
+          description: `Assign care gap: ${gap.measureName}`,
+          for: { reference: `Patient/${fhirPatientId}` },
+          authoredOn: new Date().toISOString(),
+          lastModified: new Date().toISOString(),
+          requester: { display: userName },
+          owner: { display: assignedTo },
+          ...(dueDate ? { restriction: { period: { end: dueDate } } } : {}),
+          note: notes ? [{ text: notes }] : undefined,
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id', valueString: selectedId }],
+        })
+        .then(() => console.info(`[Task] Care gap assignment task created for gap ${selectedId}`))
+        .catch((err) => console.warn('[Task] AssignCareGap POST failed:', err));
+    }
+
     toast.success('Care Gap Assigned', { description: `${gap.measureName} assigned to ${assignedTo} (${priority} priority).` });
     onClose();
   };
@@ -596,9 +626,31 @@ function InitiateOutreachModal({ patient, onClose, userName, wm }: BaseModalProp
   const careGapWfStatus = wm.getWorkflowStatus('care-gap-closure', patient.id);
 
   const handleConfirm = () => {
-    if (careGapWfStatus === 'in-progress') wm.advanceStep('care-gap-closure', patient.id, userName, 'Care Manager', notes);
-    else if (careGapWfStatus === 'idle') wm.startWorkflow('care-gap-closure', patient.id, userName, 'Care Manager');
+    if (careGapWfStatus === 'in-progress') wm.advanceStep('care-gap-closure', patient.id, userName, 'care_manager', notes);
+    else if (careGapWfStatus === 'idle') wm.startWorkflow('care-gap-closure', patient.id, userName, 'care_manager');
     appendAudit('Patient Outreach Initiated', patient.name, userName, `${outreachType} → ${assignedTo}`);
+
+    // ── FHIR Communication POST (fire-and-forget) ────────────────────────────
+    if (!getFhirMockMode()) {
+      const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[patient.id] ?? patient.id;
+      getFhirClient()
+        .create({
+          resourceType: 'Communication',
+          status: 'in-progress',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/communication-category', code: 'notification', display: 'Notification' }] }],
+          subject: { reference: `Patient/${fhirPatientId}` },
+          recipient: [{ reference: `Patient/${fhirPatientId}` }],
+          sender: { display: userName },
+          sent: new Date().toISOString(),
+          ...(scheduledDate ? { received: scheduledDate } : {}),
+          payload: [{ contentString: `${outreachType}${notes ? ' — ' + notes : ''}` }],
+          note: [{ text: `Assigned to: ${assignedTo}. Type: ${outreachType}.` }],
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/outreach-type', valueString: outreachType }],
+        })
+        .then(() => console.info(`[Communication] Outreach record created for patient ${fhirPatientId}`))
+        .catch((err) => console.warn('[Communication] InitiateOutreach POST failed:', err));
+    }
+
     toast.success('Outreach Initiated', { description: `${outreachType} scheduled for ${patient.name}. Assigned to ${assignedTo}.` });
     onClose();
   };
@@ -653,15 +705,49 @@ function CloseCareGapModal({ patient, onClose, userName, wm }: BaseModalProps) {
   const [notes, setNotes] = useState('');
   const careGapWfStatus = wm.getWorkflowStatus('care-gap-closure', patient.id);
   const gap = careGaps.find((g) => g.id === selectedId);
+  const gapClosureStore = useGapClosureStore();
 
   const handleConfirm = () => {
     if (!selectedId || !gap) return;
-    if (careGapWfStatus === 'in-progress') wm.completeWorkflow('care-gap-closure', patient.id, userName, 'Care Manager', notes);
+    if (careGapWfStatus === 'in-progress') wm.completeWorkflow('care-gap-closure', patient.id, userName, 'care_manager', notes);
     else if (careGapWfStatus === 'idle') {
-      wm.startWorkflow('care-gap-closure', patient.id, userName, 'Care Manager');
-      wm.completeWorkflow('care-gap-closure', patient.id, userName, 'Care Manager', notes);
+      wm.startWorkflow('care-gap-closure', patient.id, userName, 'care_manager');
+      wm.completeWorkflow('care-gap-closure', patient.id, userName, 'care_manager', notes);
     }
     appendAudit('Care Gap Closed', patient.name, userName, `${gap.measureName} — ${closureMethod}`);
+
+    // ── Submit to GapClosureStore (posts FHIR Observation + Task in live mode) ─
+    gapClosureStore.submitClosure({
+      gapId: selectedId,
+      status: 'CLOSED',
+      closedAt: closureDate ? new Date(closureDate).toISOString() : new Date().toISOString(),
+      closedFrom: 'PATIENT_DETAIL',
+      dateOfService: closureDate || undefined,
+      performingProvider: userName,
+    });
+
+    // ── FHIR Task PUT → completed (fire-and-forget) ──────────────────────────
+    if (!getFhirMockMode()) {
+      const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[patient.id] ?? patient.id;
+      const taskId = `patient-${fhirPatientId}-task-${selectedId}`;
+      getFhirClient()
+        .update({
+          resourceType: 'Task',
+          id: taskId,
+          status: 'completed',
+          intent: 'order',
+          for: { reference: `Patient/${fhirPatientId}` },
+          lastModified: new Date().toISOString(),
+          note: notes ? [{ text: notes }] : undefined,
+          output: [{
+            type: { text: 'Closure Method' },
+            valueString: closureMethod,
+          }],
+        })
+        .then(() => console.info(`[Task] ${taskId} → completed`))
+        .catch(() => {/* task may not exist yet — silently ignore */});
+    }
+
     toast.success('Care Gap Closed', { description: `${gap.measureName} closed via ${closureMethod}.` });
     onClose();
   };

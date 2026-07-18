@@ -166,17 +166,19 @@ function EvidenceModal({ task, onClose }: { task: CareTeamInboxTask; onClose: ()
           <div className="flex gap-2 pt-2">
             <button
               onClick={() => {
-                if (!evidenceType) return;
-                // PUT Task status → completed in live mode
-                if (!getFhirMockMode()) {
-                  getFhirClient().update({
-                    id: task.id, resourceType: 'Task', status: 'completed', intent: 'order',
-                    lastModified: new Date().toISOString(),
-                    output: [{ type: { text: evidenceType }, valueString: notes }],
-                  }).catch(() => {/* silent */});
-                }
-                setSubmitted(true);
-              }}
+                  if (!evidenceType) return;
+                  // PUT Task status → completed in live mode (with required `for` field)
+                  if (!getFhirMockMode()) {
+                    const fhirPatId = PLATFORM_TO_FHIR_ID_MAP[task.patientId] ?? task.patientId;
+                    getFhirClient().update({
+                      id: task.id, resourceType: 'Task', status: 'completed', intent: 'order',
+                      for: { reference: `Patient/${fhirPatId}` },
+                      lastModified: new Date().toISOString(),
+                      output: [{ type: { text: evidenceType }, valueString: notes }],
+                    }).catch(() => {/* silent */});
+                  }
+                  setSubmitted(true);
+                }}
               disabled={!evidenceType}
               className="flex-1 px-4 py-2.5 bg-[#24a148] text-white text-sm font-medium hover:bg-[#1a7a38] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               Complete Task & Submit Evidence
@@ -206,12 +208,13 @@ function MessageThreadPanel({ task, onClose }: { task: CareTeamInboxTask; onClos
   const handleSend = () => {
     if (!newMessage.trim()) return;
     setSending(true);
+    const body = newMessage.trim();
     const msg: ThreadMessage = {
       id: `m-new-${Date.now()}`,
       author: 'Sarah Johnson',
       role: 'Care Manager',
       avatar: 'SJ',
-      body: newMessage.trim(),
+      body,
       timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
       isOwn: true,
     };
@@ -223,6 +226,22 @@ function MessageThreadPanel({ task, onClose }: { task: CareTeamInboxTask; onClos
       setNewMessage('');
       setSending(false);
     }, 400);
+    // ── FHIR Communication POST (fire-and-forget) ─────────────────────────
+    if (!getFhirMockMode()) {
+      const fhirPatId = PLATFORM_TO_FHIR_ID_MAP[task.patientId] ?? task.patientId;
+      getFhirClient().create({
+        resourceType: 'Communication',
+        status: 'completed',
+        category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/communication-category', code: 'alert', display: 'Alert' }] }],
+        subject: { reference: `Patient/${fhirPatId}` },
+        about: [{ reference: `Task/${task.id}` }],
+        sender: { display: 'Sarah Johnson — Care Manager' },
+        recipient: [{ display: task.owner.display }],
+        sent: new Date().toISOString(),
+        payload: [{ contentString: body }],
+        note: [{ text: `Thread on Task: ${task.description} · Patient: ${task.patientName}` }],
+      }).catch((err) => console.warn('[Communication] POST failed:', err));
+    }
   };
 
   return (
@@ -356,9 +375,30 @@ function CarePlanEditPanel({ patientName, patientId, onClose }: { patientName: s
   };
 
   const saveEdit = () => {
-    setGoals((prev) => prev.map((g) => g.id === editingId ? { ...g, ...editDraft, lastUpdated: new Date().toISOString().slice(0, 10) } : g));
+    const updated = goals.find((g) => g.id === editingId);
+    if (!updated) { setEditingId(null); setEditDraft({}); return; }
+    const merged = { ...updated, ...editDraft, lastUpdated: new Date().toISOString().slice(0, 10) };
+    setGoals((prev) => prev.map((g) => g.id === editingId ? merged : g));
     setEditingId(null);
     setEditDraft({});
+
+    // ── FHIR Goal PUT (fire-and-forget) ──────────────────────────────────────
+    if (!getFhirMockMode()) {
+      const fhirPatId = PLATFORM_TO_FHIR_ID_MAP[patientId] ?? patientId;
+      getFhirClient()
+        .update({
+          resourceType: 'Goal',
+          id: merged.id,
+          lifecycleStatus: merged.status === 'active' ? 'active' : merged.status === 'achieved' ? 'completed' : merged.status === 'on-hold' ? 'on-hold' : 'cancelled',
+          description: { text: merged.description },
+          subject: { reference: `Patient/${fhirPatId}` },
+          ...(merged.dueDate ? { target: [{ dueDate: merged.dueDate }] } : {}),
+          note: [{ text: `Target: ${merged.target}` }],
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/goal-owner', valueString: merged.owner }],
+        })
+        .then(() => console.info(`[Goal] ${merged.id} updated`))
+        .catch((err) => console.warn('[Goal] PUT failed:', err));
+    }
   };
 
   const saveNewGoal = () => {
@@ -376,6 +416,24 @@ function CarePlanEditPanel({ patientName, patientId, onClose }: { patientName: s
     setGoals((prev) => [...prev, goal]);
     setAddingNew(false);
     setNewGoal({ category: 'Clinical', status: 'active' });
+
+    // ── FHIR Goal POST (fire-and-forget) ─────────────────────────────────────
+    if (!getFhirMockMode()) {
+      const fhirPatId = PLATFORM_TO_FHIR_ID_MAP[patientId] ?? patientId;
+      getFhirClient()
+        .create({
+          resourceType: 'Goal',
+          id: goal.id,
+          lifecycleStatus: 'active',
+          description: { text: goal.description },
+          subject: { reference: `Patient/${fhirPatId}` },
+          ...(goal.dueDate ? { target: [{ dueDate: goal.dueDate }] } : {}),
+          note: [{ text: `Target: ${goal.target}` }],
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/goal-owner', valueString: goal.owner }],
+        })
+        .then(() => console.info(`[Goal] ${goal.id} created`))
+        .catch((err) => console.warn('[Goal] POST failed:', err));
+    }
   };
 
   const handleSaveAll = () => {
@@ -996,6 +1054,18 @@ export default function CareTeamInboxPage() {
         owner: { display: newOwner.display },
         lastModified: new Date().toISOString(),
       }).catch(() => {/* silent */});
+      // AuditEvent: task reassigned
+      getFhirClient().create({
+        resourceType: 'AuditEvent',
+        type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+        subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'update', display: 'update' }],
+        action: 'U',
+        recorded: new Date().toISOString(),
+        outcome: '0',
+        agent: [{ who: { display: newOwner.display }, requestor: true }],
+        source: { observer: { display: 'TCOC Platform — Care Team Inbox' } },
+        entity: [{ what: { reference: `Task/${taskId}` }, description: `Task reassigned to ${newOwner.display} (${newOwner.role}) — ${newOwner.organization}` }],
+      }).catch(() => {/* non-fatal */});
     }
   }, []);
 

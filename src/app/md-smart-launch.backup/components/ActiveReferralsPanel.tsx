@@ -68,7 +68,7 @@ export default function ActiveReferralsPanel({ launchContext, completedOrders, c
     return {
       id: order.id,
       specialty: order.display,
-      reason: order.notes || `Ordered during encounter ${launchContext.encounterId}`,
+      reason: order.note || `Ordered during encounter ${launchContext.encounterId}`,
       orderedBy: launchContext.practitionerName,
       orderedDate: new Date().toISOString().split('T')[0],
       status: matchedAssignment ? 'Scheduled' : 'Submitted',

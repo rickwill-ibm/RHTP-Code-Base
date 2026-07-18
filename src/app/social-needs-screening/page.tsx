@@ -612,8 +612,31 @@ export default function SocialNeedsScreeningPage() {
           // POST Z-code Conditions to problem list for VBC-mapped domains
           await postZCodeConditions(fhirId);
           console.log('[SocialScreening] PRAPARE observations + Z-code Conditions posted to FHIR');
-          // POST AuditEvent for the screening save
+
+          // ── POST QuestionnaireResponse for full PRAPARE instrument ────────
           const client = getFhirClient();
+          const qrDate = new Date().toISOString();
+          client.create({
+            resourceType: 'QuestionnaireResponse',
+            questionnaire: 'http://loinc.org/q/93025-5',  // PRAPARE questionnaire
+            status: 'completed',
+            subject: { reference: `Patient/${fhirId}` },
+            authored: qrDate,
+            author: { display: 'TCOC Social Screening' },
+            item: FINDHELP_DOMAINS.flatMap((domain) =>
+              domain.questions.map((q) => ({
+                linkId: q.id,
+                text: q.text,
+                answer: responses[q.id] !== undefined
+                  ? [{ valueString: q.options[responses[q.id]] ?? '' }]
+                  : [],
+              }))
+            ),
+          } as Record<string, unknown>)
+            .then(() => console.info(`[QuestionnaireResponse] PRAPARE QR posted for ${fhirId}`))
+            .catch((err: unknown) => console.warn('[QuestionnaireResponse] POST failed:', err));
+
+          // POST AuditEvent for the screening save
           client.create({
             resourceType: 'AuditEvent',
             type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },

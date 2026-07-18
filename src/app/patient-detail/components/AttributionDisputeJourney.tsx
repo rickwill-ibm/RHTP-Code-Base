@@ -637,7 +637,7 @@ interface AttributionDisputeJourneyProps {
 }
 
 export default function AttributionDisputeJourney({ disputeId, record, onClose }: AttributionDisputeJourneyProps) {
-  const { session } = useAppContext();
+  const { user } = useAppContext();
   const { getWorkflow, getWorkflowStatus, startWorkflow, advanceStep, completeWorkflow, rejectWorkflow, resetWorkflow } = useWorkflowMachine();
   const wfDef = workflowDefinitions['attribution-dispute'];
   const wf = getWorkflow('attribution-dispute', disputeId);
@@ -646,8 +646,8 @@ export default function AttributionDisputeJourney({ disputeId, record, onClose }
   // Local evidence sources state (passed between steps)
   const [evidenceSources, setEvidenceSources] = useState<string[]>([]);
 
-  const userName = session?.user?.name ?? 'Care Manager';
-  const userRole = session?.user?.role ?? 'care_manager';
+  const userName = user?.name ?? 'Care Manager';
+  const userRole = user?.role ?? 'care_manager';
 
   // Start workflow if not started
   const handleStart = () => {

@@ -42,13 +42,15 @@ export interface GapClosureEvidence {
 
 interface GapClosureStoreValue {
   closures: Record<string, GapClosureEvidence>;
+  mostRecentClosedGapByPatient: Record<string, string>;
   getGapClosure: (gapId: string) => GapClosureEvidence | undefined;
+  getMostRecentClosedGapId: (patientId: string) => string | undefined;
   startClosing: (gapId: string) => void;
   submitClosure: (evidence: GapClosureEvidence) => void;
   isGapClosed: (gapId: string) => boolean;
   isGapClosing: (gapId: string) => boolean;
-  /** Register the active patient's FHIR ID so observations are correctly attributed. */
-  setActivePatientFhirId: (fhirId: string) => void;
+  /** Register the active patient IDs so closures are correctly attributed. */
+  setActivePatientContext: (platformId: string, fhirId: string) => void;
   /**
    * Pre-populate fhirObservationId for gaps loaded from FHIR.
    * Only writes gaps that do not already have a submitted closure (CLOSING/CLOSED).
@@ -95,9 +97,11 @@ function postGapClosureAuditEvent(
 
 export function GapClosureStoreProvider({ children }: { children: React.ReactNode }) {
   const [closures, setClosures] = useState<Record<string, GapClosureEvidence>>({});
-  // Track active patient for FHIR Observation subject reference.
+  const [mostRecentClosedGapByPatient, setMostRecentClosedGapByPatient] = useState<Record<string, string>>({});
+  // Track active patient context for FHIR writes and patient-specific routing.
   // Populated when PatientContextProvider mounts inside this provider.
   const activePatientFhirIdRef = useRef<string>('');
+  const activePatientPlatformIdRef = useRef<string>('');
 
   const getGapClosure = useCallback((gapId: string) => closures[gapId], [closures]);
 
@@ -129,6 +133,8 @@ export function GapClosureStoreProvider({ children }: { children: React.ReactNod
       hedisCompliance,
     };
 
+    const activePlatformId = activePatientPlatformIdRef.current;
+
     // Capture existing FHIR ID before updating state so we can decide PUT vs POST.
     // setClosures is async; read from the current closure map via the ref pattern.
     setClosures((prev) => {
@@ -136,6 +142,13 @@ export function GapClosureStoreProvider({ children }: { children: React.ReactNod
       finalEvidence.fhirObservationId = existingFhirId ?? finalEvidence.fhirObservationId;
       return { ...prev, [evidence.gapId]: finalEvidence };
     });
+
+    if (activePlatformId) {
+      setMostRecentClosedGapByPatient((prev) => ({
+        ...prev,
+        [activePlatformId]: evidence.gapId,
+      }));
+    }
 
     // Mark the corresponding FHIR Task as completed (fire-and-forget).
     if (!getFhirMockMode()) {
@@ -272,8 +285,14 @@ export function GapClosureStoreProvider({ children }: { children: React.ReactNod
       .catch((err) => console.warn(`[GapClosureStore] Task PUT failed:`, err));
   }, []);
 
-  /** Called by PatientContextProvider to register the active patient's FHIR ID. */
-  const setActivePatientFhirId = useCallback((fhirId: string) => {
+  const getMostRecentClosedGapId = useCallback(
+    (patientId: string) => mostRecentClosedGapByPatient[patientId],
+    [mostRecentClosedGapByPatient],
+  );
+
+  /** Called by PatientContextProvider to register the active patient context. */
+  const setActivePatientContext = useCallback((platformId: string, fhirId: string) => {
+    activePatientPlatformIdRef.current = platformId;
     activePatientFhirIdRef.current = fhirId;
   }, []);
 
@@ -303,7 +322,7 @@ export function GapClosureStoreProvider({ children }: { children: React.ReactNod
   const isGapClosing = useCallback((gapId: string) => closures[gapId]?.status === 'CLOSING', [closures]);
 
   return (
-    <GapClosureStoreContext.Provider value={{ closures, getGapClosure, startClosing, submitClosure, isGapClosed, isGapClosing, setActivePatientFhirId, seedObservationIds, completeTask }}>
+    <GapClosureStoreContext.Provider value={{ closures, mostRecentClosedGapByPatient, getGapClosure, getMostRecentClosedGapId, startClosing, submitClosure, isGapClosed, isGapClosing, setActivePatientContext, seedObservationIds, completeTask }}>
       {children}
     </GapClosureStoreContext.Provider>
   );
@@ -807,10 +826,11 @@ export function PatientContextProvider({ patientId, children }: { patientId?: st
   // (e.g., a colleague closing a gap on their screen).
   useEffect(() => {
     // Resolve the canonical FHIR ID and register it with the gap closure store.
+    const platformId = patientId ?? '';
     const fhirId =
-      PLATFORM_TO_FHIR_ID_MAP[patientId ?? ''] ??
-      (patientId ? patientId.replace(/^patient\//, '') : '');
-    if (fhirId) gapStore?.setActivePatientFhirId(fhirId);
+      PLATFORM_TO_FHIR_ID_MAP[platformId] ??
+      (platformId ? platformId.replace(/^patient\//, '') : '');
+    if (platformId && fhirId) gapStore?.setActivePatientContext(platformId, fhirId);
 
     if (useMockData || !patientId || !fhirId) return;
 

@@ -4,6 +4,7 @@ import Icon from '@/components/ui/AppIcon';
 import { useWorkflowMachine } from '@/lib/workflowMachine';
 import { useAppContext } from '@/lib/appContext';
 import { workflowDefinitions } from '@/lib/actionRegistry';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface HEDISMeasure {
@@ -299,7 +300,40 @@ export default function HEDISMeasureDocJourney({ measure, onClose }: HEDISMeasur
 
   const handleStart = () => startWorkflow(wfType, measure.id, user.name, user.role);
   const handleAdvance = (notes: string) => advanceStep(wfType, measure.id, user.name, user.role, notes);
-  const handleComplete = (notes: string) => completeWorkflow(wfType, measure.id, user.name, user.role, notes);
+  const handleComplete = (notes: string) => {
+    completeWorkflow(wfType, measure.id, user.name, user.role, notes);
+
+    // ── FHIR DocumentReference POST on final attestation (fire-and-forget) ───
+    if (!getFhirMockMode()) {
+      getFhirClient()
+        .create({
+          resourceType: 'DocumentReference',
+          status: 'current',
+          type: {
+            coding: [{ system: 'http://loinc.org', code: '11488-4', display: 'Consult note' }],
+            text: 'HEDIS Measure Certification',
+          },
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'CLINNOTEREF', display: 'Clinical note reference' }] }],
+          date: new Date().toISOString(),
+          author: [{ display: user.name }],
+          description: `HEDIS ${measure.measureId} — ${measure.measureName} — Physician Certified`,
+          content: [{
+            attachment: {
+              contentType: 'text/plain',
+              title: `HEDIS ${measure.measureId} Certification — ${measure.contractName}`,
+              creation: new Date().toISOString(),
+            },
+          }],
+          extension: [
+            { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-id', valueString: measure.measureId },
+            { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-name', valueString: measure.measureName },
+            { url: 'http://tcoc.example.org/fhir/StructureDefinition/contract-name', valueString: measure.contractName },
+          ],
+        })
+        .then(() => console.info(`[DocumentReference] HEDIS ${measure.measureId} certification posted`))
+        .catch((err) => console.warn('[DocumentReference] HEDIS cert POST failed:', err));
+    }
+  };
   const handleReset = () => resetWorkflow(wfType, measure.id);
 
   return (

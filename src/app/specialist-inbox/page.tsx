@@ -14,6 +14,7 @@ import { completeServiceAndCloseGap } from '@/lib/services/referralService';
 
 interface SpecialistTask {
   id: string;
+  gapId?: string;
   patient: string;
   patientId: string;
   dob: string;
@@ -156,6 +157,42 @@ interface DiagnosisEntry {
   savedToFhir: boolean;
 }
 
+function deriveGapContext(task: SpecialistTask) {
+  const normalizedMeasure = `${task.qualityMeasure} ${task.requestedIntervention} ${task.clinicalContext}`.toLowerCase();
+
+  if (normalizedMeasure.includes('retinal') || normalizedMeasure.includes('eye exam') || normalizedMeasure.includes('hedis eed')) {
+    return {
+      gapId: task.patientId === 'PAT-0087' ? 'jw-3' : (task.gapId ?? task.id),
+      procedureCode: '2022F',
+      observationCode: 'retinal-exam',
+      resultValue: undefined,
+      resultUnit: undefined,
+      placeOfService: 'Ophthalmology Clinic',
+    };
+  }
+
+  if (normalizedMeasure.includes('a1c') || normalizedMeasure.includes('hba1c') || normalizedMeasure.includes('diabetes')) {
+    const defaultValue = task.patientId === 'PAT-0087' ? 7.4 : 6.8;
+    return {
+      gapId: task.patientId === 'PAT-0087' ? 'jw-1' : 'CG_MARIA_001',
+      procedureCode: '83036',
+      observationCode: '4548-4',
+      resultValue: defaultValue,
+      resultUnit: '%',
+      placeOfService: 'Lab',
+    };
+  }
+
+  return {
+    gapId: task.gapId ?? task.id,
+    procedureCode: task.icdCode !== '—' ? task.icdCode : 'PROC-001',
+    observationCode: task.icdCode !== '—' ? task.icdCode : 'PROC-001',
+    resultValue: undefined,
+    resultUnit: undefined,
+    placeOfService: 'Specialty Clinic',
+  };
+}
+
 export default function SpecialistInboxPage() {
   const router = useRouter();
   const { activePatientId, assignments, activePhysician, useMockData, setPhysicianPersona } = useAppContext();
@@ -194,8 +231,12 @@ export default function SpecialistInboxPage() {
             const domainSpecialty: Record<string, string> = {
               Clinical: 'Primary Care', BH: 'Behavioral Health', Social: 'Social Work',
             };
+            const derivedGapId = t.extension?.find(
+              (ex: any) => ex.url === 'http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id',
+            )?.valueString;
             return {
               id: t.id,
+              gapId: derivedGapId,
               patient: reg?.name ?? t.for?.display ?? 'Unknown Patient',
               patientId: platformId || fhirPatientId,
               dob: reg?.dob ?? '—',
@@ -259,34 +300,26 @@ export default function SpecialistInboxPage() {
   const autoPopulateEvidence = useCallback((task: SpecialistTask): GapClosureEvidence => {
     const clinicalContext = task.clinicalContext || '';
     const hba1cMatch = clinicalContext.match(/(\d+\.?\d*)\s*%/);
-    const defaultHbA1c = hba1cMatch ? parseFloat(hba1cMatch[1]) : 6.8;
-
-    // Resolve the FHIR patient ID for the task's patient
-    const patientFhirId =
-      PLATFORM_TO_FHIR_ID_MAP[task.patientId] ??
-      PLATFORM_TO_FHIR_ID_MAP[activePatientId] ??
-      'patient-maria-001';
-
-    // The gap closure is for the first HbA1c-related clinical gap.
-    // The observation ID must match the migrated resource: patient-{fhirId}-gap-{gapId}
-    const gapId = 'mg-1'; // HbA1c Lab gap for Maria; adjust per task if needed
-    const fhirObservationId = `patient-${patientFhirId}-gap-${gapId}`;
+    const derivedGap = deriveGapContext(task);
+    const resultValue = derivedGap.resultValue ?? (hba1cMatch ? parseFloat(hba1cMatch[1]) : undefined);
+    const hedisCompliance = resultValue !== undefined ? (resultValue < 8.0 ? 'MET' : 'NOT_MET') : 'MET';
 
     return {
-      gapId,
+      gapId: derivedGap.gapId,
       status: 'CLOSED',
-      closedFrom: 'PATIENT_DETAIL',
+      closedFrom: 'SMART_LAUNCH',
       dateOfService: new Date().toISOString().split('T')[0],
       performingProvider: task.referringProvider || 'Bennett County Health PCP',
-      placeOfService: 'Lab',
-      resultValue: defaultHbA1c,
-      resultUnit: '%',
-      hedisCompliance: defaultHbA1c < 8.0 ? 'MET' : 'NOT_MET',
+      placeOfService: derivedGap.placeOfService,
+      procedureCode: derivedGap.procedureCode,
+      resultValue,
+      resultUnit: derivedGap.resultUnit,
+      hedisCompliance,
       gainshare: 8100,
-      fhirObservationId,
+      fhirObservationId: `patient-${PLATFORM_TO_FHIR_ID_MAP[task.patientId] ?? task.patientId}-gap-${derivedGap.gapId}`,
       closedAt: new Date().toISOString(),
     };
-  }, [activePatientId]);
+  }, []);
 
   // Handle gap closure attestation — Step 5: writes to FHIR when live
   const handleAttestAndClose = useCallback(async (task: SpecialistTask) => {
@@ -296,18 +329,18 @@ export default function SpecialistInboxPage() {
 
     if (!useMockData) {
       try {
-        // Find the FHIR observation ID for this care gap
-        const patientFhirId = task.patientId.startsWith('patient-') ? task.patientId : `patient-maria-001`;
+        const derivedGap = deriveGapContext(task);
+        const patientFhirId = PLATFORM_TO_FHIR_ID_MAP[task.patientId] ?? task.patientId;
         await completeServiceAndCloseGap({
           taskId: (task as any).fhirTaskId ?? `task-${task.id}`,
           serviceRequestId: (task as any).serviceRequestRef ?? `sr-${task.id}`,
           patientId: patientFhirId,
           performerId: activePhysician.fhirId,
-          procedureCode: task.icdCode !== '—' ? task.icdCode : 'PROC-001',
+          procedureCode: derivedGap.procedureCode,
           procedureDisplay: task.requestedIntervention,
           performedDate: new Date().toISOString().split('T')[0],
           observations: [{
-            code: '4548-4',
+            code: derivedGap.observationCode,
             codeSystem: 'http://loinc.org',
             display: task.requestedIntervention,
             valueQuantity: { value: evidence.resultValue ?? 6.8, unit: evidence.resultUnit ?? '%', system: 'http://unitsofmeasure.org', code: '%' },
@@ -316,6 +349,39 @@ export default function SpecialistInboxPage() {
         });
         setClosedByFhir(prev => new Set(prev).add(task.id));
         console.log('[SpecialistInbox] Gap closed in FHIR for task', task.id);
+
+        // ── DetectedIssue PUT: mark gap as mitigated on HAPI ─────────────────
+        // Try to find and update the DetectedIssue for this gap if one exists.
+        // We search by patient and look for a DetectedIssue with status=preliminary.
+        const client = getFhirClient();
+        client.search('DetectedIssue', {
+          patient: `Patient/${patientFhirId}`,
+          status: 'preliminary',
+          _count: 10,
+        }).then((bundle: any) => {
+          const issues: any[] = (bundle?.entry ?? [])
+            .map((e: any) => e?.resource)
+            .filter((r: any) => r?.resourceType === 'DetectedIssue');
+          // Update the first matching DetectedIssue (or the one linked to this task)
+          const issue = issues.find((i: any) =>
+            i.implicated?.some((ref: any) => ref.reference?.includes(task.id))
+          ) ?? issues[0];
+          if (issue?.id) {
+            client.update({
+              resourceType: 'DetectedIssue',
+              id: issue.id,
+              status: 'mitigated',
+              patient: { reference: `Patient/${patientFhirId}` },
+              code: issue.code,
+              mitigation: [{
+                action: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'RESOLVED', display: 'Resolved' }] },
+                date: new Date().toISOString(),
+                author: { reference: `Practitioner/${activePhysician.fhirId}`, display: activePhysician.displayName },
+              }],
+            } as any).catch((err: unknown) => console.warn('[DetectedIssue] PUT mitigated failed:', err));
+          }
+        }).catch(() => { /* DetectedIssue search is best-effort */ });
+
       } catch (err) {
         console.warn('[SpecialistInbox] FHIR gap closure failed (local store updated):', err);
       }
@@ -415,7 +481,7 @@ export default function SpecialistInboxPage() {
             )}
             <span className="text-xs text-carbon-gray-50">Data as of May 29, 2026</span>
             <button
-              onClick={() => { setPhysicianPersona('rick'); router.push('/md-smart-launch'); }}
+              onClick={() => { setPhysicianPersona('rick'); router.push(`/md-smart-launch?patientId=${PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? activePatientId}`); }}
               className="flex items-center gap-1 text-xs font-semibold text-[#6929c4] hover:text-[#491d8b] border border-[#d4bbff] bg-white px-2 py-0.5 hover:bg-[#f6f2ff] transition-colors"
               title="Switch back to Dr. Rick — Smart App"
             >
@@ -708,27 +774,20 @@ export default function SpecialistInboxPage() {
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
                       <button
-                        onClick={() => router.push('/patient-detail')}
+                        onClick={() => router.push(`/patient-detail?id=${task.patientId}`)}
                         className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-[#0043ce] text-white hover:bg-[#0035a8] transition-colors"
                       >
                         <Icon name="UserIcon" size={13} />
                         View Patient
                       </button>
-                      {task.id === 'st-001' ? (
-                        <button
-                          onClick={() => handleAttestAndClose(task)}
-                          disabled={isSubmitting || closedByFhir.has(task.id)}
-                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-[#24a148] text-white hover:bg-[#0e6027] transition-colors disabled:opacity-50"
-                        >
-                          <Icon name="CheckCircleIcon" size={13} />
-                          {closedByFhir.has(task.id) ? '✓ Closed in FHIR' : isSubmitting ? 'Closing...' : 'Attest & Close Gap'}
-                        </button>
-                      ) : (
-                        <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-[#24a148] text-[#24a148] hover:bg-[#defbe6] transition-colors">
-                          <Icon name="CheckCircleIcon" size={13} />
-                          Accept Task
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleAttestAndClose(task)}
+                        disabled={isSubmitting || closedByFhir.has(task.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-[#24a148] text-white hover:bg-[#0e6027] transition-colors disabled:opacity-50"
+                      >
+                        <Icon name="CheckCircleIcon" size={13} />
+                        {closedByFhir.has(task.id) ? '✓ Closed in FHIR' : isSubmitting ? 'Closing...' : 'Attest & Close Gap'}
+                      </button>
                       <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-carbon-gray-20 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">
                         <Icon name="DocumentTextIcon" size={13} />
                         Add Note

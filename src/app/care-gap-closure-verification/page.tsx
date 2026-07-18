@@ -24,6 +24,76 @@ type ProgramEvidenceConfig = {
   timeline: { label: string; date: string; actor: string; org: string }[];
 };
 
+function buildClinicalEvidenceConfig(
+  gapId: string,
+  patientName: string,
+  closure?: ReturnType<ReturnType<typeof useGapClosureStore>['getGapClosure']>,
+): ProgramEvidenceConfig {
+  const gapIdLower = gapId.toLowerCase();
+  const isRetinal = gapIdLower.includes('retinal') || gapIdLower.includes('jw-3') || gapIdLower.includes('eed');
+
+  if (isRetinal) {
+    const closedDate = closure?.dateOfService ?? '2026-06-10';
+    const performingProvider = closure?.performingProvider ?? 'Winner Regional Ophthalmology';
+    const placeOfService = closure?.placeOfService ?? 'Ophthalmology Clinic';
+
+    return {
+      programType: 'Clinical',
+      gapLabel: 'HEDIS EED — Retinal Exam Completed',
+      measure: `HEDIS EED Measure — Diabetic Eye Exam · ${patientName}`,
+      closedDate,
+      gainShare: '$8,100',
+      qualityPoints: '+7.0',
+      evidence: [
+        { id: 'ret-001', type: 'Procedure', label: 'Procedure Performed', value: `Retinal exam documented — ${placeOfService}`, icon: 'EyeIcon', color: 'text-[#0043ce]' },
+        { id: 'ret-002', type: 'Date', label: 'Date of Service', value: closedDate, icon: 'CalendarIcon', color: 'text-carbon-gray-70' },
+        { id: 'ret-003', type: 'Provider', label: 'Performing Provider', value: performingProvider, icon: 'UserIcon', color: 'text-[#6929c4]' },
+        { id: 'ret-004', type: 'Organization', label: 'Organization', value: placeOfService, icon: 'BuildingOffice2Icon', color: 'text-carbon-gray-70' },
+        { id: 'ret-005', type: 'Result', label: 'Closure Evidence', value: 'Retinal screening completed and documented for diabetic eye exam measure.', icon: 'ClipboardDocumentCheckIcon', color: 'text-[#0043ce]' },
+        { id: 'ret-006', type: 'Measure', label: 'HEDIS EED Compliance', value: 'HEDIS EED — COMPLIANT · retinal exam completed in measurement year', icon: 'CheckBadgeIcon', color: 'text-[#24a148]' },
+      ],
+      provenance: [
+        { label: 'Source System', value: `${placeOfService} — EHR`, icon: 'ComputerDesktopIcon' },
+        { label: 'FHIR Resource', value: `Observation/${gapId} (R4) · Retinal exam closure evidence`, icon: 'CodeBracketIcon' },
+        { label: 'Timestamp', value: `${closedDate}T10:30:00Z`, icon: 'ClockIcon' },
+        { label: 'Submitting Organization', value: `${placeOfService} — RHTP Network`, icon: 'BuildingOffice2Icon' },
+        { label: 'EDW Submission', value: `Transmitted to South Dakota DHSS EDW — ${closedDate}T11:00:00Z`, icon: 'ArrowUpTrayIcon' },
+        { label: 'Quality Report', value: 'HEDIS EED retinal exam closure reported', icon: 'DocumentChartBarIcon' },
+      ],
+      timeline: [
+        { label: 'Retinal Gap Identified', date: '2026-04-06', actor: 'Sarah Johnson', org: 'RHTP Care Management' },
+        { label: 'Eye Exam Outreach Initiated', date: '2026-04-18', actor: 'Sarah Johnson', org: 'Winner Regional Medical Center' },
+        { label: 'Retinal Exam Scheduled', date: closedDate, actor: performingProvider, org: placeOfService },
+        { label: 'Retinal Exam Performed', date: closedDate, actor: performingProvider, org: placeOfService },
+        { label: 'Evidence Submitted', date: closedDate, actor: 'RHTP Platform', org: 'Auto-submitted via FHIR' },
+        { label: 'Gap Closed', date: closedDate, actor: 'Care Gap Engine', org: 'RHTP Platform' },
+        { label: 'EDW Updated', date: closedDate, actor: 'South Dakota DHSS EDW', org: 'Quality Reporting System' },
+      ],
+    };
+  }
+
+  return {
+    programType: 'Clinical',
+    gapLabel: 'HEDIS CDC — HbA1c Control (poor) · HbA1c Lab Test',
+    measure: `HEDIS CDC Measure — HbA1c Control (poor) · ${patientName}`,
+    closedDate: closure?.dateOfService ?? '2026-06-10',
+    gainShare: '$8,100',
+    qualityPoints: '+7.0',
+    evidence: buildHbA1cEvidence(
+      closure?.dateOfService ?? '2026-06-10',
+      closure?.performingProvider ?? 'Bennett County Health PCP',
+      closure?.placeOfService ?? 'Lab',
+      closure?.resultValue ?? 6.8,
+      closure?.hedisCompliance ?? 'MET'
+    ),
+    provenance: buildHbA1cProvenance(closure?.dateOfService ?? '2026-06-10'),
+    timeline: buildHbA1cTimeline(
+      closure?.dateOfService ?? '2026-06-10',
+      closure?.performingProvider ?? 'Bennett County Health PCP'
+    ),
+  };
+}
+
 // ─── HbA1c evidence builder from store ───────────────────────────────────────
 function buildHbA1cEvidence(
   dateOfService: string,
@@ -194,8 +264,9 @@ export default function CareGapClosureVerificationPage() {
   const patientName = patient?.name ?? 'Maria Redhawk';
   const patientId = patient?.platformId ?? activePatientId ?? 'MARIA_SD_001';
 
-  const { getGapClosure } = useGapClosureStore();
-  const hbA1cClosure = getGapClosure('CG_MARIA_001');
+  const { getGapClosure, getMostRecentClosedGapId } = useGapClosureStore();
+  const mostRecentGapId = getMostRecentClosedGapId(patientId) ?? (patient?.careGaps.find((gap) => gap.status === 'Closed')?.id ?? 'CG_MARIA_001');
+  const clinicalClosure = getGapClosure(mostRecentGapId);
 
   const [activeSection, setActiveSection] = useState<'evidence' | 'provenance' | 'timeline'>('evidence');
   const [activeProgramTab, setActiveProgramTab] = useState<string>('clinical');
@@ -203,15 +274,16 @@ export default function CareGapClosureVerificationPage() {
   // Live FHIR: read closed care gap observations
   const [fhirClosedGaps, setFhirClosedGaps] = useState<FhirObsResult[]>([]);
   const [fhirSourceLabel, setFhirSourceLabel] = useState<string | null>(null);
+  const [fhirTaskTimeline, setFhirTaskTimeline] = useState<{ label: string; date: string; actor: string; org: string }[]>([]);
 
   useEffect(() => {
     if (getFhirMockMode()) return;
     const fhirPatientId =
       PLATFORM_TO_FHIR_ID_MAP[activePatientId] ??
       (activePatientId.startsWith('patient-') ? activePatientId : 'patient-maria-001');
-    const loadFhirObs = async () => {
+    const loadFhirData = async () => {
+      const client = getFhirClient();
       try {
-        const client = getFhirClient();
         // Search for final (closed) care gap observations for this patient
         const bundle = await client.search('Observation', {
           subject: `Patient/${fhirPatientId}`,
@@ -228,31 +300,31 @@ export default function CareGapClosureVerificationPage() {
       } catch {
         // fall back to static data silently
       }
+
+      // Also load Task history for provenance timeline enrichment
+      try {
+        const taskBundle = await client.search('Task', {
+          patient: `Patient/${fhirPatientId}`,
+          _count: 20,
+        }) as { entry?: { resource?: Record<string, unknown> }[] };
+        const tasks = (taskBundle.entry ?? []).map((e) => e.resource).filter(Boolean);
+        if (tasks.length > 0) {
+          const taskTimelineEntries = tasks.map((t) => ({
+            label: (t?.description as string) ?? (t?.code as Record<string, unknown>)?.text as string ?? 'Task',
+            date: ((t?.lastModified as string) ?? (t?.authoredOn as string) ?? '').slice(0, 10),
+            actor: (t?.owner as { display?: string })?.display ?? 'Care Team',
+            org: 'RHTP Network',
+          }));
+          setFhirTaskTimeline(taskTimelineEntries);
+        }
+      } catch {
+        // task enrichment is optional
+      }
     };
-    loadFhirObs();
+    loadFhirData();
   }, [activePatientId]);
 
-  // Build clinical program data dynamically from store if available
-  const clinicalProgramData: ProgramEvidenceConfig = {
-    programType: 'Clinical',
-    gapLabel: 'HEDIS CDC — HbA1c Control (poor) · HbA1c Lab Test',
-    measure: 'HEDIS CDC Measure — HbA1c Control (poor) · Maria Redhawk',
-    closedDate: hbA1cClosure?.dateOfService ?? '2026-06-10',
-    gainShare: '$8,100',
-    qualityPoints: '+7.0',
-    evidence: buildHbA1cEvidence(
-      hbA1cClosure?.dateOfService ?? '2026-06-10',
-      hbA1cClosure?.performingProvider ?? 'Bennett County Health PCP',
-      hbA1cClosure?.placeOfService ?? 'Lab',
-      hbA1cClosure?.resultValue ?? 6.8,
-      hbA1cClosure?.hedisCompliance ?? 'MET'
-    ),
-    provenance: buildHbA1cProvenance(hbA1cClosure?.dateOfService ?? '2026-06-10'),
-    timeline: buildHbA1cTimeline(
-      hbA1cClosure?.dateOfService ?? '2026-06-10',
-      hbA1cClosure?.performingProvider ?? 'Bennett County Health PCP'
-    ),
-  };
+  const clinicalProgramData = buildClinicalEvidenceConfig(mostRecentGapId, patientName, clinicalClosure);
 
   // Overlay FHIR data into the provenance section if available
   const fhirProvenance: ProgramEvidenceConfig['provenance'] = fhirClosedGaps.length > 0
@@ -260,9 +332,9 @@ export default function CareGapClosureVerificationPage() {
         { label: 'FHIR Source', value: `HAPI FHIR R4 · ${fhirClosedGaps.length} Observations loaded`, icon: 'CodeBracketIcon' },
         { label: 'Patient FHIR ID', value: PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? activePatientId, icon: 'IdentificationIcon' },
         { label: 'Status', value: 'Observations confirmed final on FHIR server', icon: 'CheckCircleIcon' },
-        ...buildHbA1cProvenance(hbA1cClosure?.dateOfService ?? '2026-06-10').slice(1),
+        ...clinicalProgramData.provenance.slice(1),
       ]
-    : buildHbA1cProvenance(hbA1cClosure?.dateOfService ?? '2026-06-10');
+    : clinicalProgramData.provenance;
 
   const clinicalProgramDataWithFhir: ProgramEvidenceConfig = {
     ...clinicalProgramData,
@@ -277,8 +349,9 @@ export default function CareGapClosureVerificationPage() {
   const programData = PROGRAM_EVIDENCE[activeProgramTab];
   const progCfg = PROGRAM_TYPE_CONFIG[programData.programType];
 
-  const hedisCompliance = hbA1cClosure?.hedisCompliance ?? 'MET';
-  const resultValue = hbA1cClosure?.resultValue ?? 6.8;
+  const isClinicalHbA1c = mostRecentGapId === 'CG_MARIA_001' || mostRecentGapId === 'jw-1';
+  const hedisCompliance = clinicalClosure?.hedisCompliance ?? 'MET';
+  const resultValue = clinicalClosure?.resultValue ?? 6.8;
 
   return (
     <AppLayout
@@ -317,7 +390,40 @@ export default function CareGapClosureVerificationPage() {
             Return to Task Queue
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={() => {
+              window.print();
+              // ── FHIR DocumentReference POST — persist evidence export record ─
+              if (!getFhirMockMode()) {
+                const fhirPatientId =
+                  PLATFORM_TO_FHIR_ID_MAP[activePatientId] ??
+                  (activePatientId.startsWith('patient-') ? activePatientId : 'patient-maria-001');
+                getFhirClient()
+                  .create({
+                    resourceType: 'DocumentReference',
+                    status: 'current',
+                    type: {
+                      coding: [{ system: 'http://loinc.org', code: '11488-4', display: 'Consult note' }],
+                      text: 'Care Gap Closure Evidence Export',
+                    },
+                    category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'CLINNOTEREF', display: 'Clinical note reference' }] }],
+                    subject: { reference: `Patient/${fhirPatientId}` },
+                    date: new Date().toISOString(),
+                    author: [{ display: 'TCOC Platform' }],
+                    description: `Care Gap Closure Verification — ${programData.gapLabel}`,
+                    content: [{
+                      attachment: {
+                        contentType: 'text/plain',
+                        title: `Care Gap Evidence — ${patientName} — ${programData.closedDate}`,
+                        creation: new Date().toISOString(),
+                      },
+                    }],
+                    context: { event: [{ coding: [{ display: 'Care Gap Closure' }] }] },
+                    extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/program-type', valueString: programData.programType }],
+                  })
+                  .then(() => console.info('[DocumentReference] Evidence export record posted'))
+                  .catch((err) => console.warn('[DocumentReference] POST failed:', err));
+              }
+            }}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-[#0043ce] text-white hover:bg-[#0035a8] transition-colors"
           >
             <Icon name="DocumentArrowDownIcon" size={14} />
@@ -360,7 +466,8 @@ export default function CareGapClosureVerificationPage() {
           </div>
           <div className="flex-1">
             <p className="text-lg font-bold text-[#0e6027]">
-              {activeProgramTab === 'clinical' ?'HbA1c Lab Test — HEDIS CDC Gap Successfully Closed'
+              {activeProgramTab === 'clinical'
+                ? `${programData.gapLabel} Successfully Closed`
                 : `${programData.programType} Intervention Successfully Closed`}
             </p>
             <p className="text-sm text-[#0e6027] mt-0.5">
@@ -379,8 +486,8 @@ export default function CareGapClosureVerificationPage() {
           </div>
         </div>
 
-        {/* HbA1c HEDIS Quality Measure Panel — only for clinical tab */}
-        {activeProgramTab === 'clinical' && (
+        {/* HbA1c HEDIS Quality Measure Panel — only for HbA1c clinical tab */}
+        {activeProgramTab === 'clinical' && isClinicalHbA1c && (
           <div className="bg-white border border-[#0043ce] p-5 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <Icon name="ChartBarIcon" size={15} className="text-[#0043ce]" />
@@ -535,14 +642,19 @@ export default function CareGapClosureVerificationPage() {
                 {programData.programType} Closure Timeline
               </h3>
               <span className="ml-auto text-xs text-carbon-gray-50">
-                {programData.timeline.length} steps · Closed {programData.closedDate}
+                {(fhirTaskTimeline.length > 0 ? fhirTaskTimeline : programData.timeline).length} steps · Closed {programData.closedDate}
               </span>
+              {fhirTaskTimeline.length > 0 && (
+                <span className="text-2xs font-medium px-2 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                  FHIR Task history
+                </span>
+              )}
             </div>
             <div className="p-5">
               <div className="relative">
                 <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-[#24a148]" />
                 <div className="space-y-0">
-                  {programData.timeline.map((step, i) => (
+                  {(fhirTaskTimeline.length > 0 ? fhirTaskTimeline : programData.timeline).map((step, i) => (
                     <div key={i} className="flex items-start gap-4 pb-6 last:pb-0">
                       <div className="relative z-10 w-10 h-10 bg-[#24a148] flex items-center justify-center flex-shrink-0">
                         <Icon name="CheckIcon" size={14} className="text-white" />

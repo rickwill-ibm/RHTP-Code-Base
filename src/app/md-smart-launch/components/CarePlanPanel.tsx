@@ -7,6 +7,9 @@ import type { MdOrder, CareTeamAssignment } from '@/lib/smartFhirTypes';
 import { generateComprehensiveCarePlan, generateHolisticCarePlan, type GeneratedCarePlan } from '@/lib/services/carePlanGenerator';
 import CarePlanForm from '@/app/patient-detail/components/CarePlanForm';
 import { getClosedGapsForPatient, getProviderGainshareSummary } from '@/lib/services/gapClosureService';
+import { useAppContext } from '@/lib/appContext';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 interface CarePlanPanelProps {
   launchContext: SmartLaunchContext;
@@ -80,13 +83,66 @@ const GOAL_STATUS_ICON: Record<string, { icon: string; color: string }> = {
 type Section = 'conditions' | 'gaps' | 'goals' | 'team' | 'closed-gaps';
 
 export default function CarePlanPanel({ launchContext, completedOrders, confirmedAssignments }: CarePlanPanelProps) {
+  const { activePhysician } = useAppContext();
   const [activeSection, setActiveSection] = useState<Section>('conditions');
   const [showGeneratedPlan, setShowGeneratedPlan] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedCarePlan | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [closedGaps, setClosedGaps] = useState<any[]>([]);
   const [gainshare, setGainshare] = useState<any>(null);
-  
+
+  // ── Live FHIR: read the patient's persisted CarePlan on mount ───────────────
+  const [fhirCarePlan, setFhirCarePlan] = useState<{
+    title: string;
+    description?: string;
+    status: string;
+    lastUpdated?: string;
+    domainCount: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (getFhirMockMode()) return;
+    // Normalize: replace slashes first so 'patient/maria-redhawk-001' → 'patient-maria-redhawk-001'
+    const safePlatformId = launchContext.patientId
+      .replace(/\//g, '-')
+      .replace(/[^A-Za-z0-9\-.]/g, '-');
+    const carePlanId = `cp-${safePlatformId}`;
+    getFhirClient()
+      .read<{
+        resourceType: string;
+        title?: string;
+        description?: string;
+        status?: string;
+        meta?: { lastUpdated?: string };
+        extension?: { url: string; valueString?: string }[];
+        note?: { text?: string }[];
+      }>('CarePlan', carePlanId)
+      .then((cp) => {
+        if (cp?.resourceType !== 'CarePlan') return;
+        const ext = cp.extension?.find(
+          (e) => e.url === 'http://tcoc.example.org/fhir/StructureDefinition/care-plan-domains',
+        );
+        const raw = ext?.valueString ?? cp.note?.[0]?.text ?? null;
+        let domainCount = 0;
+        if (raw) {
+          try { domainCount = (JSON.parse(raw) as unknown[]).length; } catch { /* ignore */ }
+        }
+        setFhirCarePlan({
+          title: cp.title ?? 'Comprehensive Care Plan',
+          description: cp.description,
+          status: cp.status ?? 'active',
+          lastUpdated: cp.meta?.lastUpdated
+            ? new Date(cp.meta.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : undefined,
+          domainCount,
+        });
+        console.info(`[CarePlanPanel] Loaded CarePlan/${carePlanId} from FHIR`);
+      })
+      .catch(() => { /* not yet created — silent */ });
+  }, [launchContext.patientId]);
+
   const patient = mockPatients.find((p) => p.id === launchContext.patientId) || mockPatients[0];
   const careGaps = mockCareGaps.filter((g) => g.patientId === patient.id);
   const openGaps = careGaps.filter((g) => g.status === 'Open' || g.status === 'In Progress');
@@ -161,9 +217,146 @@ export default function CarePlanPanel({ launchContext, completedOrders, confirme
     }
   };
 
-  const handleSave = (planData: any) => {
-    console.log('Saving care plan:', planData);
-    alert('Care plan saved successfully!');
+  const handleSave = async (planData: any) => {
+    setSaveError(null);
+    const now = new Date().toISOString();
+    const safePlatformId = (patient.id ?? launchContext.patientId)
+      .replace(/\//g, '-')
+      .replace(/[^A-Za-z0-9\-.]/g, '-');
+    const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[patient.id] ?? patient.id;
+    const carePlanId = `cp-${safePlatformId}`;
+    const performer = activePhysician?.displayName ?? 'Physician';
+    const planTitle = planData.title ?? 'Comprehensive Care Plan';
+    const planDescription: string | undefined = planData.description ?? undefined;
+
+    // Build domainsPayload in the correct CarePlanDomain shape so
+    // WholePersonCarePlanTab can parse and render the domains.
+    // Group mockCareGaps by domain category using the registry careGap domain field.
+    const DOMAIN_META: Record<string, { color: string; icon: string }> = {
+      Clinical:          { color: '#0043ce', icon: 'HeartIcon' },
+      'Behavioral Health': { color: '#6929c4', icon: 'SparklesIcon' },
+      BH:                { color: '#6929c4', icon: 'SparklesIcon' },
+      Social:            { color: '#b45309', icon: 'HomeIcon' },
+      'Social Needs':    { color: '#b45309', icon: 'HomeIcon' },
+    };
+    const domainMap: Record<string, { color: string; icon: string; goals: any[] }> = {};
+    careGaps.forEach((g) => {
+      // program field is derived from careGap.domain:
+      //   Clinical → HEDIS, BH → MIPS, Social → HEDIS (not STARS)
+      // So map back to domain using the original gap domain name from notes field
+      // or fall back gracefully: MIPS → BH, anything else → Clinical
+      const domainKey = g.program === 'MIPS' ? 'Behavioral Health'
+        : (g.notes?.startsWith('Social') || g.notes?.startsWith('BH')) ? g.notes.split(' ')[0] === 'BH' ? 'Behavioral Health' : 'Social Needs'
+        : 'Clinical';
+      if (!domainMap[domainKey]) {
+        const meta = DOMAIN_META[domainKey] ?? { color: '#0043ce', icon: 'DocumentTextIcon' };
+        domainMap[domainKey] = { color: meta.color, icon: meta.icon, goals: [] };
+      }
+      domainMap[domainKey].goals.push({
+        goal: g.measureName,
+        status: g.status === 'Open' ? 'open' : g.status === 'In Progress' ? 'in-progress' : 'closed',
+        owner: g.assignedTo || performer,
+        dueDate: g.dueDate,
+        tasks: [g.closureRequirement ?? g.measureName],
+      });
+    });
+    const domainsPayload = Object.entries(domainMap).map(([domain, v]) => ({
+      domain,
+      color: v.color,
+      icon: v.icon,
+      goals: v.goals,
+    }));
+
+    if (!getFhirMockMode()) {
+      setIsSaving(true);
+      try {
+        await getFhirClient().update({
+          resourceType: 'CarePlan',
+          id: carePlanId,
+          status: 'active',
+          intent: 'plan',
+          title: planTitle,
+          description: planDescription,
+          subject: { reference: `Patient/${fhirPatientId}` },
+          author: { display: performer },
+          created: now,
+          note: [{ text: `Generated via MD SMART Launch · Encounter: ${launchContext.encounterId} · Saved by: ${performer}` }],
+          extension: [
+            {
+              url: 'http://tcoc.example.org/fhir/StructureDefinition/care-plan-domains',
+              valueString: JSON.stringify(domainsPayload),
+            },
+          ],
+          ...(planData.addresses?.length
+            ? { addresses: planData.addresses.map((a: string) => ({ display: a })) }
+            : {}),
+        });
+
+        console.info(`[CarePlan] ${carePlanId} approved & saved to FHIR`);
+
+        // Update local fhirCarePlan state immediately — no re-fetch needed
+        setFhirCarePlan({
+          title: planTitle,
+          description: planDescription,
+          status: 'active',
+          lastUpdated: new Date(now).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          domainCount: domainsPayload.length,
+        });
+
+        // Fire-and-forget: AuditEvent
+        getFhirClient()
+          .create({
+            resourceType: 'AuditEvent',
+            type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+            subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'update', display: 'update' }],
+            action: 'U',
+            recorded: now,
+            outcome: '0',
+            agent: [{ who: { display: performer }, requestor: true }],
+            source: { observer: { display: 'TCOC-SMART-Launch' } },
+            entity: [{ what: { reference: `CarePlan/${carePlanId}` }, type: { code: '4', display: 'Other' } }],
+          })
+          .catch((err) => console.warn('[AuditEvent] CarePlan audit post failed:', err));
+
+        // Fire-and-forget: ServiceRequest per open gap
+        careGaps
+          .filter((g) => g.status === 'Open' || g.status === 'In Progress')
+          .forEach((gap) => {
+            getFhirClient()
+              .create({
+                resourceType: 'ServiceRequest',
+                status: 'active',
+                intent: 'plan',
+                code: { text: gap.measureName },
+                subject: { reference: `Patient/${fhirPatientId}` },
+                requester: { display: performer },
+                authoredOn: now,
+                note: [{ text: `Care gap: ${gap.measureName} — care plan intervention` }],
+                extension: [
+                  { url: 'http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id', valueString: gap.id },
+                  { url: 'http://tcoc.example.org/fhir/StructureDefinition/care-plan-id', valueString: carePlanId },
+                ],
+              })
+              .catch((err) => console.warn(`[ServiceRequest] Gap ${gap.id} POST failed:`, err));
+          });
+      } catch (err) {
+        console.warn('[CarePlan] FHIR save failed:', err);
+        setSaveError('FHIR save failed — plan saved locally only. Retry or check network.');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Mock mode: still update local display state
+      setFhirCarePlan({
+        title: planTitle,
+        description: planDescription,
+        status: 'active',
+        lastUpdated: new Date(now).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        domainCount: domainsPayload.length,
+      });
+    }
+
+    // Return to the panel view, showing the FHIR banner
     setShowGeneratedPlan(false);
     setGeneratedPlan(null);
   };
@@ -172,6 +365,17 @@ export default function CarePlanPanel({ launchContext, completedOrders, confirme
     setShowGeneratedPlan(false);
     setGeneratedPlan(null);
   };
+
+  // If saving — show spinner overlay over the form
+  if (isSaving) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4">
+        <Icon name="ArrowPathIcon" size={40} className="text-[#6929c4] animate-spin" />
+        <p className="text-sm font-semibold text-carbon-gray-100">Saving Care Plan to FHIR…</p>
+        <p className="text-xs text-carbon-gray-50">Writing CarePlan resource to HAPI server</p>
+      </div>
+    );
+  }
 
   // If showing generated plan form, render it
   if (showGeneratedPlan && generatedPlan) {
@@ -184,6 +388,12 @@ export default function CarePlanPanel({ launchContext, completedOrders, confirme
           <Icon name="ArrowLeftIcon" size={16} />
           Back to Care Plan
         </button>
+        {saveError && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-[#fff1f1] border border-[#ffb3b8] text-xs text-[#da1e28]">
+            <Icon name="ExclamationTriangleIcon" size={14} />
+            {saveError}
+          </div>
+        )}
         <CarePlanForm
           mode="create"
           generatedPlan={generatedPlan}
@@ -227,10 +437,12 @@ export default function CarePlanPanel({ launchContext, completedOrders, confirme
                 </>
               )}
             </button>
-            <span className="px-2 py-1 bg-[#defbe6] text-[#24a148] border border-[#a7f0ba] font-medium text-xs">
-              ✓ Care Plan Active
+            <span className={`px-2 py-1 border font-medium text-xs ${fhirCarePlan ? 'bg-[#defbe6] text-[#24a148] border-[#a7f0ba]' : 'bg-carbon-gray-10 text-carbon-gray-50 border-carbon-gray-20'}`}>
+              {fhirCarePlan ? '✓ Care Plan Active (FHIR)' : '○ No Saved Plan'}
             </span>
-            <span className="text-carbon-gray-50 text-xs">Last updated: 2026-04-08</span>
+            <span className="text-carbon-gray-50 text-xs">
+              {fhirCarePlan?.lastUpdated ? `Last updated: ${fhirCarePlan.lastUpdated}` : 'Last updated: —'}
+            </span>
           </div>
         </div>
 
@@ -250,6 +462,38 @@ export default function CarePlanPanel({ launchContext, completedOrders, confirme
           ))}
         </div>
       </div>
+
+      {/* ── Persisted FHIR CarePlan banner ── updates immediately after approve, and on re-mount */}
+      {fhirCarePlan && (
+        <div className="border border-[#198038] bg-[#defbe6] px-4 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <Icon name="CheckCircleIcon" size={18} className="text-[#198038] flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[#0e6027]">{fhirCarePlan.title}</p>
+                {fhirCarePlan.description && (
+                  <p className="text-xs text-[#198038] mt-0.5 truncate">{fhirCarePlan.description}</p>
+                )}
+                <div className="flex items-center gap-3 mt-1 text-2xs text-[#0e6027]">
+                  {fhirCarePlan.domainCount > 0 && <span>{fhirCarePlan.domainCount} care gap domains</span>}
+                  {fhirCarePlan.lastUpdated && <span>Updated {fhirCarePlan.lastUpdated}</span>}
+                  <span className="text-[#198038]">Status: {fhirCarePlan.status}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <a
+                href={`/patient-detail?id=${launchContext.patientId}&tab=wholeperson`}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-[#198038] text-[#0e6027] hover:bg-[#defbe6] transition-colors"
+              >
+                <Icon name="ArrowTopRightOnSquareIcon" size={12} />
+                View in Patient Detail
+              </a>
+              <span className="font-bold px-2 py-1 bg-[#198038] text-white text-2xs">✓ FHIR Live</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section tabs */}
       <div className="flex gap-0.5 bg-carbon-gray-10 p-0.5 border border-carbon-gray-20">

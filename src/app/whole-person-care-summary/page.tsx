@@ -1009,7 +1009,8 @@ function CanvasSVGGraph({ activeLens, highlightNodeIds, onNodeClick, onNodeHover
   }, [activeLens, dimensions]);
 
   useEffect(() => {
-    const svg = d3.select(svgRef.current);
+    if (!svgRef.current) return;
+    const svg = d3.select<SVGSVGElement, unknown>(svgRef.current);
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 5])
       .on('zoom', (event) => {

@@ -86,24 +86,33 @@ export default function CarePlanMonitorPage() {
   };
 
   const handleStatusUpdate = (actionId: string, newStatus: 'Pending' | 'In Progress' | 'Completed') => {
-    // Map display status to InterventionStatus
+    // Map display status to FHIR-aligned InterventionStatus
     const statusMap: Record<string, InterventionStatus> = {
       'Pending': 'Pending',
       'In Progress': 'Active',
-      'Completed': 'Scheduled' // Using Scheduled as proxy for completed
+      'Completed': 'Completed',
+    };
+    // Map display status to FHIR CarePlan activity status
+    const fhirActivityStatusMap: Record<string, string> = {
+      'Pending': 'scheduled',
+      'In Progress': 'in-progress',
+      'Completed': 'completed',
     };
 
     updateActionStatus(patientId, actionId, statusMap[newStatus]);
     const updated = getCarePlan(patientId);
     setPlan(updated);
 
-    // In live FHIR mode: PUT the updated CarePlan back to HAPI (fire-and-forget)
+    // In live FHIR mode: PUT the updated CarePlan back to HAPI + write Provenance + AuditEvent
     if (!getFhirMockMode() && updated) {
       const safePlatformId = patientId.replace(/[^A-Za-z0-9\-.]/g, '-');
+      const carePlanId = `cp-${safePlatformId}`;
       const fhirId = PLATFORM_TO_FHIR_ID_MAP[patientId] ?? patientId;
+      const now = new Date().toISOString();
+
       getFhirClient()
         .update({
-          id: `cp-${safePlatformId}`,
+          id: carePlanId,
           resourceType: 'CarePlan',
           status: 'active',
           intent: 'plan',
@@ -113,10 +122,40 @@ export default function CarePlanMonitorPage() {
               overallProgress: updated.overallProgress,
               tierProgress: updated.tierProgress,
               lastUpdated: updated.lastUpdated,
+              actionStatusUpdate: { actionId, newStatus: fhirActivityStatusMap[newStatus] ?? newStatus, updatedAt: now },
             }),
           }],
         })
-        .then(() => setFhirSource(`FHIR CarePlan · Updated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`))
+        .then(() => {
+          setFhirSource(`FHIR CarePlan · Updated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+          // Provenance: record who updated what action and when
+          getFhirClient().create({
+            resourceType: 'Provenance',
+            target: [{ reference: `CarePlan/${carePlanId}` }],
+            recorded: now,
+            agent: [{
+              who: { reference: `Patient/${fhirId}`, display: 'Care Plan Monitor — RHTP' },
+              onBehalfOf: { display: 'RHTP Care Team' },
+            }],
+            reason: [{ text: `Action item ${actionId} status updated to ${newStatus} via Care Plan Monitor` }],
+            activity: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-DataOperation', code: 'UPDATE' }] },
+          }).catch((err) => console.warn('[CarePlanMonitor] Provenance POST failed:', err));
+          // AuditEvent: action status update
+          getFhirClient().create({
+            resourceType: 'AuditEvent',
+            type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+            subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'update', display: 'update' }],
+            action: 'U',
+            recorded: now,
+            outcome: '0',
+            agent: [{ who: { display: 'Care Plan Monitor' }, requestor: true }],
+            source: { observer: { display: 'TCOC Platform — Care Plan Monitor' } },
+            entity: [
+              { what: { reference: `CarePlan/${carePlanId}` }, description: `Action ${actionId} status → ${newStatus} (${fhirActivityStatusMap[newStatus] ?? newStatus})` },
+              { what: { reference: `Patient/${fhirId}` }, description: `Patient: ${fhirId}` },
+            ],
+          }).catch(() => { /* non-fatal */ });
+        })
         .catch((err) => console.warn('[CarePlanMonitor] FHIR CarePlan PUT failed:', err));
     }
   };
@@ -143,7 +182,7 @@ export default function CarePlanMonitorPage() {
               No active care plan exists for this patient.
             </p>
             <button
-              onClick={() => router.push('/md-smart-launch')}
+              onClick={() => router.push(`/md-smart-launch?patientId=${PLATFORM_TO_FHIR_ID_MAP[patientId] ?? patientId}`)}
               className="px-6 py-2 bg-carbon-blue-60 text-white rounded hover:bg-carbon-blue-70"
             >
               Generate Care Plan

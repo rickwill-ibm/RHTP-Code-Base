@@ -26,6 +26,7 @@ import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
 import type { PhysicianPersona } from '@/lib/appContext';
 import { referralStore } from '@/lib/mockData';
 import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 type ActiveTab = 'summary' | 'cds' | 'orders' | 'team' | 'careplan' | 'referrals' | 'return' | 'audit' | 'compliance';
 
@@ -140,6 +141,28 @@ export default function MdSmartLaunchPage() {
     [pushAudit]
   );
 
+  // ── FHIR AuditEvent helper for CDS interactions ───────────────────────────
+  const postCdsAuditEvent = useCallback(
+    (action: string, subtype: string, cardSummary: string, detail?: string) => {
+      if (getFhirMockMode()) return;
+      getFhirClient()
+        .create({
+          resourceType: 'AuditEvent',
+          type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+          subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: subtype, display: subtype }],
+          action: 'E',
+          recorded: new Date().toISOString(),
+          outcome: '0',
+          agent: [{ who: { display: launchContext?.practitionerName ?? activePhysician.displayName }, requestor: true }],
+          source: { observer: { display: 'TCOC-SMART-CDS' } },
+          entity: [{ what: { display: cardSummary }, type: { code: '4', display: 'Other' }, detail: detail ? [{ type: 'cds-action', valueBase64Binary: btoa(detail) }] : [] }],
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/cds-action', valueString: action }],
+        })
+        .catch((err) => console.warn('[AuditEvent] CDS audit POST failed:', err));
+    },
+    [launchContext, activePhysician]
+  );
+
   // ── CDS interactions ──────────────────────────────────────────────────────
   const handleAcceptSuggestion = useCallback(
     (cardId: string, suggestionId: string) => {
@@ -154,8 +177,10 @@ export default function MdSmartLaunchPage() {
         hookType: card?.hookType,
         summary: card?.summary,
       });
+      // ── FHIR AuditEvent POST ─────────────────────────────────────────────
+      postCdsAuditEvent('accept', 'create', card?.summary ?? cardId, `suggestion:${suggestionId}`);
     },
-    [cdsCards, pushAudit]
+    [cdsCards, pushAudit, postCdsAuditEvent]
   );
 
   const handleDismiss = useCallback(
@@ -170,8 +195,10 @@ export default function MdSmartLaunchPage() {
         hookType: card?.hookType,
         summary: card?.summary,
       });
+      // ── FHIR AuditEvent POST ─────────────────────────────────────────────
+      postCdsAuditEvent('dismiss', 'delete', card?.summary ?? cardId);
     },
-    [cdsCards, pushAudit]
+    [cdsCards, pushAudit, postCdsAuditEvent]
   );
 
   const handleSnooze = useCallback(
@@ -188,8 +215,10 @@ export default function MdSmartLaunchPage() {
         summary: card?.summary,
         snoozedUntil: until,
       });
+      // ── FHIR AuditEvent POST ─────────────────────────────────────────────
+      postCdsAuditEvent('snooze', 'patch', card?.summary ?? cardId, `until:${until}`);
     },
-    [cdsCards, pushAudit]
+    [cdsCards, pushAudit, postCdsAuditEvent]
   );
 
   const handleAcknowledge = useCallback(
@@ -209,8 +238,10 @@ export default function MdSmartLaunchPage() {
           overrideReason: reason,
         }
       );
+      // ── FHIR AuditEvent POST (critical override — always audit) ─────────
+      postCdsAuditEvent('acknowledge-override', 'update', card?.summary ?? cardId, `override-reason:${reason}`);
     },
-    [cdsCards, pushAudit]
+    [cdsCards, pushAudit, postCdsAuditEvent]
   );
 
   const handleOpenSmartLink = useCallback(
@@ -487,9 +518,9 @@ export default function MdSmartLaunchPage() {
                 {useMockData ? 'Mock Data' : 'Live FHIR'}
               </button>
               <div className="w-px h-6 bg-carbon-gray-20 mx-1" />
-              {/* Navigate to RHTP screen */}
+              {/* Navigate to RHTP screen — pass patient so detail loads the correct record */}
               <button
-                onClick={() => router.push('/patient-detail')}
+                onClick={() => router.push(`/patient-detail?id=${launchContext.patientId}`)}
                 className="flex items-center gap-1.5 px-2.5 py-1 text-2xs font-semibold bg-[#0043ce] text-white hover:bg-[#0035a8] transition-colors"
                 title="Switch to RHTP Citizen Detail screen"
               >
@@ -517,19 +548,6 @@ export default function MdSmartLaunchPage() {
                     <span className={`px-2 py-1 border ${closedGapIds.length > 0 ? 'bg-[#defbe6] text-[#24a148] border-[#a7f0ba]' : 'bg-carbon-gray-10 text-carbon-gray-70 border-carbon-gray-20'}`}>Gainshare Tracking</span>
                   </div>
                 </div>
-              </div>
-            )}
-            {/* CDS critical banner — always visible */}
-            {criticalCdsCount > 0 && activeTab !== 'cds' && (
-              <div
-                className="bg-[#da1e28] text-white px-4 py-2.5 mb-4 flex items-center gap-3 cursor-pointer hover:bg-[#b81922] transition-colors"
-                onClick={() => setActiveTab('cds')}
-              >
-                <Icon name="ShieldExclamationIcon" size={16} />
-                <span className="text-sm font-semibold">
-                  {criticalCdsCount} critical CDS alert{criticalCdsCount !== 1 ? 's' : ''} require acknowledgment before signing orders
-                </span>
-                <Icon name="ChevronRightIcon" size={14} className="ml-auto" />
               </div>
             )}
 
@@ -578,6 +596,7 @@ export default function MdSmartLaunchPage() {
                     cdsCards={cdsCards}
                     onAuditEntry={(action, details) => pushAudit('smart-launch', action, details)}
                     onOpenOrderEntry={() => setActiveTab('orders')}
+                    onOpenCdsAlerts={() => setActiveTab('cds')}
                   />
                 </div>
               </SmartErrorBoundary>
@@ -635,6 +654,7 @@ export default function MdSmartLaunchPage() {
                   <CareTeamAssignmentModule
                     patientId={launchContext.patientId}
                     encounterId={launchContext.encounterId}
+                    practitionerId={launchContext.practitionerId ?? activePhysician.fhirId}
                     onAssignmentConfirmed={handleAssignmentConfirmed}
                   />
                 </div>

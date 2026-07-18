@@ -73,6 +73,10 @@ export interface GeneratedCarePlan {
   referralsCreated: Referral[]; // Auto-created referrals for care gaps
 }
 
+function createInterventionId(scope: string, interventionCounter: number): string {
+  return `intervention-${scope}-${interventionCounter}`;
+}
+
 /**
  * Assign interventions to their related goals (FHIR-aligned approach)
  * Each goal can have multiple interventions that help achieve it
@@ -589,7 +593,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
     analysis.sdohNeeds.forEach(need => {
       const modality = determineOptimalModality('SDoH_Referral', hasTransportationBarrier, hasCaregiverBurden);
       sdohGoal.interventions!.push({
-        id: `intervention-${interventionCounter++}`,
+        id: createInterventionId('goal', interventionCounter++),
         type: 'Referral',
         description: `${need} - Community resource connection`,
         status: 'Pending',
@@ -619,7 +623,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
       // Lab tests - use home kit if transportation barrier
       if (hasTransportationBarrier) {
         qualityGoal.interventions!.push({
-          id: `intervention-${interventionCounter++}`,
+          id: createInterventionId('goal', interventionCounter++),
           type: 'Procedure',
           description: 'Order at-home lab test kit',
           status: 'Pending',
@@ -627,7 +631,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
           notes: 'Mail-order kit, self-collection at home, mail back for processing. Results in 5-7 days.',
         });
         qualityGoal.interventions!.push({
-          id: `intervention-${interventionCounter++}`,
+          id: createInterventionId('goal', interventionCounter++),
           type: 'Appointment',
           description: 'Telehealth follow-up to review lab results',
           status: 'Pending',
@@ -636,7 +640,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
         });
       } else {
         qualityGoal.interventions!.push({
-          id: `intervention-${interventionCounter++}`,
+          id: createInterventionId('goal', interventionCounter++),
           type: 'Appointment',
           description: 'Schedule lab test',
           status: 'Pending',
@@ -646,7 +650,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
     } else if (gap.measureName.toLowerCase().includes('depression') || gap.measureName.toLowerCase().includes('phq') || gap.measureName.toLowerCase().includes('edinburgh')) {
       // Behavioral health screenings - use digital portal
       qualityGoal.interventions!.push({
-        id: `intervention-${interventionCounter++}`,
+        id: createInterventionId('goal', interventionCounter++),
         type: 'Monitoring',
         description: 'Complete screening via patient portal',
         status: 'Pending',
@@ -654,7 +658,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
         notes: 'Self-administered digital screening (10-15 minutes). No appointment needed.',
       });
       qualityGoal.interventions!.push({
-        id: `intervention-${interventionCounter++}`,
+        id: createInterventionId('goal', interventionCounter++),
         type: 'Appointment',
         description: 'Telehealth follow-up if screening indicates need',
         status: 'Pending',
@@ -665,7 +669,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
       // Physical exams - must be in-person but note barriers
       if (hasTransportationBarrier) {
         qualityGoal.interventions!.push({
-          id: `intervention-${interventionCounter++}`,
+          id: createInterventionId('goal', interventionCounter++),
           type: 'Appointment',
           description: 'Schedule in-person visit (after transportation secured)',
           status: 'Pending',
@@ -673,7 +677,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
         });
       } else {
         qualityGoal.interventions!.push({
-          id: `intervention-${interventionCounter++}`,
+          id: createInterventionId('goal', interventionCounter++),
           type: 'Appointment',
           description: 'Schedule in-person visit',
           status: 'Pending',
@@ -684,7 +688,7 @@ function generateGoals(analysis: PatientAnalysis): CarePlanGoal[] {
       // Default - use telehealth if barriers exist
       const modality = determineOptimalModality('Follow_Up', hasTransportationBarrier, hasCaregiverBurden);
       qualityGoal.interventions!.push({
-        id: `intervention-${interventionCounter++}`,
+        id: createInterventionId('goal', interventionCounter++),
         type: 'Appointment',
         description: `Address ${gap.measureName} (${modality.modality})`,
         status: 'Pending',
@@ -810,7 +814,7 @@ function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[
   // Referrals for each specialty needed - always referrals, not appointments
   analysis.specialtiesNeeded.forEach(specialty => {
     interventions.push({
-      id: `intervention-${interventionCounter++}`,
+      id: createInterventionId('plan', interventionCounter++),
       type: 'Referral',
       description: `${specialty} consultation (referral pending)`,
       status: 'Pending',
@@ -822,7 +826,7 @@ function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[
   // Monitoring for chronic conditions - always home-based
   if (analysis.primaryConditions.length > 0) {
     interventions.push({
-      id: `intervention-${interventionCounter++}`,
+      id: createInterventionId('plan', interventionCounter++),
       type: 'Monitoring',
       description: 'Home monitoring program enrollment',
       status: 'Pending',
@@ -835,7 +839,7 @@ function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[
   if (analysis.medicationIssues.length > 0) {
     const modality = determineOptimalModality('Follow_Up', hasTransportationBarrier, hasCaregiverBurden);
     interventions.push({
-      id: `intervention-${interventionCounter++}`,
+      id: createInterventionId('plan', interventionCounter++),
       type: 'Appointment',
       description: `Medication review (${modality.modality})`,
       status: 'Pending',
@@ -846,7 +850,7 @@ function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[
   // Education for quality gaps - always digital/remote
   if (analysis.qualityGaps.length > 0) {
     interventions.push({
-      id: `intervention-${interventionCounter++}`,
+      id: createInterventionId('plan', interventionCounter++),
       type: 'Education',
       description: 'Patient education materials (digital)',
       status: 'Pending',
@@ -857,7 +861,7 @@ function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[
   // Follow-up appointments - barrier-aware modality
   const followUpModality = determineOptimalModality('Follow_Up', hasTransportationBarrier, hasCaregiverBurden);
   interventions.push({
-    id: `intervention-${interventionCounter++}`,
+    id: createInterventionId('plan', interventionCounter++),
     type: 'Appointment',
     description: `Care plan review (${followUpModality.modality})`,
     status: 'Pending',
@@ -870,7 +874,7 @@ function generateInterventions(analysis: PatientAnalysis): CarePlanIntervention[
     analysis.sdohNeeds.forEach(need => {
       const modality = determineOptimalModality('SDoH_Referral', hasTransportationBarrier, hasCaregiverBurden);
       interventions.push({
-        id: `intervention-${interventionCounter++}`,
+        id: createInterventionId('plan', interventionCounter++),
         type: 'Referral',
         description: `${need} - Community resource referral`,
         status: 'Pending',

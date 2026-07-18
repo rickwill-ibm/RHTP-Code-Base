@@ -550,7 +550,7 @@ export interface ReferralJourneyProps {
 
 export default function ReferralJourney({ provider, referralId, onClose }: ReferralJourneyProps) {
   const { getWorkflow, getWorkflowStatus, startWorkflow, advanceStep, completeWorkflow } = useWorkflowMachine();
-  const { currentUser } = useAppContext();
+  const { user: currentUser } = useAppContext();
   const wfDef = workflowDefinitions['provider-referral'];
 
   const wf = getWorkflow('provider-referral', referralId);

@@ -85,6 +85,22 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string }> =
   ENFORCED: { bg: '#defbe6', text: '#0e6027', dot: '#198038' },
 };
 
+// ─── FHIR write helpers ───────────────────────────────────────────────────────
+
+function postConsentAuditEvent(action: 'C' | 'U', consentId: string, patientDisplay: string, detail: string) {
+  getFhirClient().create({
+    resourceType: 'AuditEvent',
+    type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+    subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: action === 'C' ? 'create' : 'update', display: action === 'C' ? 'create' : 'update' }],
+    action,
+    recorded: new Date().toISOString(),
+    outcome: '0',
+    agent: [{ who: { display: 'Care Manager Portal' }, requestor: true }],
+    source: { observer: { display: 'TCOC Platform — Consent Sovereignty Panel' } },
+    entity: [{ what: { reference: `Consent/${consentId}` }, description: detail }],
+  }).catch(() => { /* AuditEvent failure is non-fatal */ });
+}
+
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function ConsentSovereigntyPanelPage() {
@@ -94,6 +110,8 @@ export default function ConsentSovereigntyPanelPage() {
   const [consentRecords, setConsentRecords] = useState<ConsentRecord[]>(CONSENT_RECORDS_MOCK);
   const [fhirSource, setFhirSource] = useState(false);
   const fhirLoadedRef = useRef(false);
+  // Local audit entries prepended by live grant/revoke actions
+  const [liveAuditEntries, setLiveAuditEntries] = useState<{ time: string; event: string; patient: string; detail: string; actor: string; icon: string; color: string }[]>([]);
 
   // Live FHIR: fetch all Consent resources on mount
   useEffect(() => {
@@ -113,6 +131,92 @@ export default function ConsentSovereigntyPanelPage() {
       })
       .catch(() => { /* non-fatal — keep mock data */ });
   }, []);
+
+  // ── FHIR write: revoke an active consent ─────────────────────────────────
+  const handleRevoke = (rec: ConsentRecord) => {
+    if (rec.status !== 'ACTIVE') return;
+    // Optimistic UI update
+    setConsentRecords((prev) =>
+      prev.map((r) => r.id === rec.id ? { ...r, status: 'REVOKED', expiresDate: new Date().toISOString().split('T')[0] } : r)
+    );
+    const now = new Date().toISOString();
+    const nowDate = now.split('T')[0];
+    // Add live audit entry
+    setLiveAuditEntries((prev) => [{
+      time: now.replace('T', ' ').slice(0, 16),
+      event: 'Consent REVOKED',
+      patient: rec.patient,
+      detail: `${rec.type} — ${rec.grantedTo} revoked by Care Manager`,
+      actor: 'Care Manager Portal',
+      icon: 'MinusCircleIcon',
+      color: '#da1e28',
+    }, ...prev]);
+    if (!getFhirMockMode()) {
+      // PUT Consent with status=inactive + period end = now
+      getFhirClient().update({
+        resourceType: 'Consent',
+        id: rec.id,
+        status: 'inactive',
+        patient: { reference: `Patient/${rec.patientId}`, display: rec.patient },
+        dateTime: now,
+        provision: {
+          type: 'deny',
+          period: { start: rec.grantedDate !== '—' ? rec.grantedDate : nowDate, end: nowDate },
+        },
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-type', valueString: rec.type },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text', valueString: rec.scope },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-method', valueString: rec.method },
+        ],
+      }).catch((err) => console.warn('[Consent] PUT revoke failed:', err));
+      postConsentAuditEvent('U', rec.id, rec.patient, `Consent revoked — ${rec.type} — ${rec.grantedTo}`);
+    }
+  };
+
+  // ── FHIR write: grant a new consent for PENDING/EXPIRED record ───────────
+  const handleGrant = (rec: ConsentRecord) => {
+    if (rec.status !== 'PENDING' && rec.status !== 'EXPIRED') return;
+    const now = new Date().toISOString();
+    const nowDate = now.split('T')[0];
+    // One-year default expiry
+    const expiryDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Optimistic UI update
+    setConsentRecords((prev) =>
+      prev.map((r) => r.id === rec.id ? { ...r, status: 'ACTIVE', grantedDate: nowDate, expiresDate: expiryDate } : r)
+    );
+    setLiveAuditEntries((prev) => [{
+      time: now.replace('T', ' ').slice(0, 16),
+      event: 'Consent GRANTED',
+      patient: rec.patient,
+      detail: `${rec.type} — ${rec.grantedTo} granted via Care Manager Portal`,
+      actor: 'Care Manager Portal',
+      icon: 'CheckCircleIcon',
+      color: '#198038',
+    }, ...prev]);
+    if (!getFhirMockMode()) {
+      const newId = `${rec.id}-renewed-${Date.now()}`;
+      getFhirClient().create({
+        resourceType: 'Consent',
+        id: newId,
+        status: 'active',
+        patient: { reference: `Patient/${rec.patientId}`, display: rec.patient },
+        dateTime: now,
+        organization: [{ display: rec.grantedTo }],
+        provision: {
+          type: 'permit',
+          period: { start: nowDate, end: expiryDate },
+        },
+        scope: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/consentscope', code: 'patient-privacy', display: 'Privacy Consent' }] },
+        category: [{ coding: [{ system: 'http://loinc.org', code: '59284-0', display: 'Consent Document' }] }],
+        extension: [
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-type', valueString: rec.type },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-scope-text', valueString: rec.scope },
+          { url: 'http://tcoc.example.org/fhir/StructureDefinition/consent-method', valueString: 'Electronic' },
+        ],
+      }).catch((err) => console.warn('[Consent] POST grant failed:', err));
+      postConsentAuditEvent('C', newId, rec.patient, `Consent granted — ${rec.type} — ${rec.grantedTo}`);
+    }
+  };
 
   const statuses = ['All', 'ACTIVE', 'REVOKED', 'EXPIRED', 'PENDING'];
   const filtered = consentRecords.filter((r) => {
@@ -209,10 +313,10 @@ export default function ConsentSovereigntyPanelPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-carbon-gray-10 border-b border-carbon-gray-20">
-                {['Patient', 'Type', 'Scope', 'Granted To', 'Status', 'Granted', 'Expires', 'FHIR Resource'].map((h) => (
-                  <th key={h} className="px-4 py-2.5 text-left font-semibold text-carbon-gray-70 uppercase tracking-wide text-2xs">{h}</th>
-                ))}
-              </tr>
+                  {['Patient', 'Type', 'Scope', 'Granted To', 'Status', 'Granted', 'Expires', 'FHIR Resource', ''].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-left font-semibold text-carbon-gray-70 uppercase tracking-wide text-2xs">{h}</th>
+                  ))}
+                </tr>
             </thead>
             <tbody>
               {filtered.map((rec, i) => {
@@ -235,6 +339,24 @@ export default function ConsentSovereigntyPanelPage() {
                     <td className="px-4 py-3 text-carbon-gray-50">{rec.grantedDate}</td>
                     <td className="px-4 py-3 text-carbon-gray-50">{rec.expiresDate}</td>
                     <td className="px-4 py-3 font-mono text-carbon-gray-50 text-2xs">{rec.fhirConsent}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {rec.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => handleRevoke(rec)}
+                          className="px-2 py-1 text-2xs font-semibold bg-[#fff1f1] text-[#da1e28] border border-[#ffb3b8] hover:bg-[#ffe0e0] transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                      {(rec.status === 'PENDING' || rec.status === 'EXPIRED') && (
+                        <button
+                          onClick={() => handleGrant(rec)}
+                          className="px-2 py-1 text-2xs font-semibold bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba] hover:bg-[#b7f0c8] transition-colors"
+                        >
+                          Grant
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -277,11 +399,17 @@ export default function ConsentSovereigntyPanelPage() {
 
       {activeTab === 'audit' && (
         <div className="bg-white border border-carbon-gray-20">
-          <div className="px-4 py-3 border-b border-carbon-gray-20">
+          <div className="px-4 py-3 border-b border-carbon-gray-20 flex items-center gap-2">
             <p className="text-sm font-semibold text-carbon-gray-100">Consent Audit Log</p>
+            {liveAuditEntries.length > 0 && (
+              <span className="text-xs font-semibold px-1.5 py-0.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                {liveAuditEntries.length} live event{liveAuditEntries.length > 1 ? 's' : ''} · FHIR AuditEvent written
+              </span>
+            )}
           </div>
           <div className="divide-y divide-carbon-gray-10">
             {[
+              ...liveAuditEntries,
               { time: '2024-12-01 14:32', event: 'Consent GRANTED', patient: 'Maria Redhawk', detail: 'Data Sharing — Bennett County Health Network', actor: 'Patient Portal', icon: 'CheckCircleIcon', color: '#198038' },
               { time: '2024-12-01 11:07', event: 'Share BLOCKED', patient: 'Thomas Begay', detail: 'Cross-org share blocked — no active consent on file', actor: 'Consent Enforcer Agent', icon: 'XCircleIcon', color: '#da1e28' },
               { time: '2024-11-28 09:15', event: 'Consent REVOKED', patient: 'Maria Redhawk', detail: 'BH Data — CCBHC Clay County revoked by patient', actor: 'Care Manager Portal', icon: 'MinusCircleIcon', color: '#da1e28' },
@@ -289,12 +417,15 @@ export default function ConsentSovereigntyPanelPage() {
               { time: '2024-11-15 10:22', event: 'Tribal Rule ENFORCED', patient: 'Maria Redhawk', detail: 'Tribal data sovereignty rule applied — share restricted', actor: 'Consent Enforcer Agent', icon: 'ShieldCheckIcon', color: '#6929c4' },
               { time: '2024-11-10 08:55', event: 'Consent GRANTED', patient: 'Rosa Gutierrez', detail: 'SDOH Sharing — Unite Us Network', actor: 'Patient Portal', icon: 'CheckCircleIcon', color: '#198038' },
             ].map((entry, i) => (
-              <div key={i} className="px-4 py-3 flex items-start gap-3">
+              <div key={i} className={`px-4 py-3 flex items-start gap-3 ${i < liveAuditEntries.length ? 'bg-[#f0faf4]' : ''}`}>
                 <Icon name={entry.icon as any} size={16} style={{ color: entry.color }} className="mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-carbon-gray-100">{entry.event}</span>
                     <span className="text-xs text-carbon-gray-70">— {entry.patient}</span>
+                    {i < liveAuditEntries.length && (
+                      <span className="text-2xs font-semibold px-1 py-0.5 bg-[#defbe6] text-[#0e6027]">LIVE · FHIR AuditEvent</span>
+                    )}
                   </div>
                   <p className="text-xs text-carbon-gray-50 mt-0.5">{entry.detail}</p>
                   <p className="text-2xs text-carbon-gray-30 mt-0.5">{entry.time} · {entry.actor}</p>

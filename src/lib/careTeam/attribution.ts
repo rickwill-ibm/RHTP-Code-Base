@@ -8,6 +8,9 @@ import {
   type Specialty,
 } from './members';
 
+// Re-export Specialty so identity.ts / population.ts can import it from here
+export type { Specialty };
+
 // ─── Patient shape the algorithm reasons over ─────────────────────────────────
 export type RiskTier = 'Critical' | 'High' | 'Moderate' | 'Low';
 export type PrimaryDomain = 'Clinical' | 'BH' | 'Social';

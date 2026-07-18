@@ -157,7 +157,7 @@ export default function MdSmartLaunchPage() {
           'smart-launch',
           `SMART launch: FHIR ID ${ctx.patientId} not mapped to platform patient`,
           { fhirPatientId: ctx.patientId },
-          'warning',
+          'info',
           ctx
         );
       }

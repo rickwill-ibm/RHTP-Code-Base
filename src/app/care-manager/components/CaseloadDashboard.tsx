@@ -112,6 +112,40 @@ export default function CaseloadDashboard() {
         participant: participants,
         subject: { reference: `Patient/${fhirPatientId}` },
       } as Record<string, unknown> & { id: string });
+
+      // POST a routing Task for the new care manager so they see this patient in their queue
+      client.create({
+        resourceType: 'Task',
+        status: 'requested',
+        intent: 'order',
+        priority: 'routine',
+        for: { reference: `Patient/${fhirPatientId}` },
+        owner: { display: newMember?.name ?? newMemberId },
+        requester: { display: 'Care Manager Portal — Caseload Dashboard' },
+        description: `Care gap ownership transferred to ${newMember?.name ?? newMemberId}`,
+        authoredOn: new Date().toISOString(),
+        extension: [
+          { url: `${BASE_EXT}/care-gap-domain`, valueString: 'Clinical' },
+          { url: `${BASE_EXT}/assignment-reason`, valueString: 'Care manager reassignment via Caseload Dashboard' },
+        ],
+      }).catch((err) => console.warn('[CaseloadDashboard] Task POST failed (non-fatal):', err));
+
+      // AuditEvent: care team reassignment
+      client.create({
+        resourceType: 'AuditEvent',
+        type: { system: 'http://terminology.hl7.org/CodeSystem/audit-event-type', code: 'rest', display: 'RESTful Operation' },
+        subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'update', display: 'update' }],
+        action: 'U',
+        recorded: new Date().toISOString(),
+        outcome: '0',
+        agent: [{ who: { display: newMember?.name ?? newMemberId }, requestor: true }],
+        source: { observer: { display: 'TCOC Platform — Care Manager Workspace' } },
+        entity: [
+          { what: { reference: `CareTeam/${careTeamId}` }, description: `Care manager reassigned to ${newMember?.name ?? newMemberId}` },
+          { what: { reference: `Patient/${fhirPatientId}` }, description: `Patient: ${fhirPatientId}` },
+        ],
+      }).catch(() => { /* non-fatal */ });
+
       console.log(`[CaseloadDashboard] CareTeam updated in FHIR: ${careTeamId}`);
     } catch (err) {
       console.warn('[CaseloadDashboard] FHIR CareTeam update failed (local state updated):', err);

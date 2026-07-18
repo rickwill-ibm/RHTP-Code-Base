@@ -8,7 +8,7 @@ import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
 import type { UserSession, PhysicianPersona } from '@/lib/appContext';
 import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
 import PatientSwitcherDropdown from '@/components/PatientSwitcherDropdown';
-import { getAllPatients } from '@/lib/patientRegistry';
+import { getAllPatients, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 import type { RegistryPatient } from '@/lib/patientRegistry';
 import { getFhirClient } from '@/lib/services/fhirClient';
 
@@ -267,15 +267,21 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
                   const normalizedPathname = pathname.endsWith('/') && pathname !== '/'
                     ? pathname.slice(0, -1)
                     : pathname;
-                  const normalizedHref = item.href.endsWith('/') && item.href !== '/'
-                    ? item.href.slice(0, -1)
+                  // For the MD Smart Launch nav item, append the active patient's FHIR ID
+                  // so the SMART App always launches with the patient currently selected
+                  // in the RHTP patient switcher dropdown.
+                  const resolvedHref = item.key === 'nav-md-smart-launch'
+                    ? `/md-smart-launch?patientId=${PLATFORM_TO_FHIR_ID_MAP[activePatientId] ?? activePatientId}`
                     : item.href;
+                  const normalizedHref = resolvedHref.split('?')[0].endsWith('/') && resolvedHref.split('?')[0] !== '/'
+                    ? resolvedHref.split('?')[0].slice(0, -1)
+                    : resolvedHref.split('?')[0];
                   const isActive = normalizedPathname === normalizedHref;
                   
                   return (
                     <Link
                       key={item.key}
-                      href={item.href}
+                      href={resolvedHref}
                       title={item.label}
                       className={`
                         flex items-center gap-3 px-4 py-2.5 mx-2 my-0.5 text-sm font-medium

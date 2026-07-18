@@ -3,10 +3,12 @@ import React, { useState } from 'react';
 import type { CareTeamAssignment } from '@/lib/smartFhirTypes';
 import { mockCareTeamCandidates } from '@/lib/smartFhirMockData';
 import Icon from '@/components/ui/AppIcon';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 interface CareTeamAssignmentModuleProps {
   patientId: string;
   encounterId: string;
+  practitionerId?: string;   // requester (Dr. Rick's FHIR ID)
   onAssignmentConfirmed: (assignments: CareTeamAssignment[]) => void;
 }
 
@@ -16,7 +18,7 @@ const NETWORK_CONFIG = {
   'Out-of-Network': { bg: 'bg-[#fff1f1]', text: 'text-[#da1e28]', border: 'border-[#ffb3b8]' },
 };
 
-export default function CareTeamAssignmentModule({ patientId, encounterId, onAssignmentConfirmed }: CareTeamAssignmentModuleProps) {
+export default function CareTeamAssignmentModule({ patientId, encounterId, practitionerId = 'practitioner-rick', onAssignmentConfirmed }: CareTeamAssignmentModuleProps) {
   const [candidates, setCandidates] = useState<CareTeamAssignment[]>(mockCareTeamCandidates);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     mockCareTeamCandidates.filter((c) => c.autoSelected).map((c) => c.id)
@@ -33,20 +35,83 @@ export default function CareTeamAssignmentModule({ patientId, encounterId, onAss
 
   const handleConfirm = () => {
     setStep('submitting');
-    setTimeout(() => {
-      const ts = new Date().toISOString();
-      const cid = `CTA-${Date.now().toString(36).toUpperCase()}`;
-      setConfirmedAt(ts);
-      setConfirmId(cid);
-      setStep('confirmed');
-      const confirmed = selectedCandidates.map((c) => ({
-        ...c,
-        status: 'confirmed' as const,
-        confirmedAt: ts,
-        fhirServiceRequestId: `SR-${c.id.toUpperCase()}`,
-      }));
-      onAssignmentConfirmed(confirmed);
-    }, 1000);
+
+    const ts = new Date().toISOString();
+    const cid = `CTA-${Date.now().toString(36).toUpperCase()}`;
+
+    const confirmed = selectedCandidates.map((c) => ({
+      ...c,
+      status: 'confirmed' as const,
+      confirmedAt: ts,
+      fhirServiceRequestId: `SR-${c.id.toUpperCase()}`,
+    }));
+
+    // ── FHIR writes: ServiceRequest + Task per specialist (fire-and-forget) ──
+    if (!getFhirMockMode()) {
+      const client = getFhirClient();
+      selectedCandidates.forEach((specialist) => {
+        // 1. POST ServiceRequest (the referral order)
+        client
+          .create({
+            resourceType: 'ServiceRequest',
+            status: 'active',
+            intent: 'order',
+            priority: 'routine',
+            category: [{
+              coding: [{ system: 'http://snomed.info/sct', code: '3457005', display: 'Patient referral' }],
+            }],
+            code: { text: `${specialist.specialty} Referral — Care Team Assignment` },
+            subject: { reference: `Patient/${patientId}` },
+            encounter: { reference: `Encounter/${encounterId}` },
+            requester: { reference: `Practitioner/${practitionerId}`, display: 'Dr. Rick Williams' },
+            performer: [{ reference: `Practitioner/${specialist.providerId}`, display: specialist.providerName }],
+            authoredOn: ts,
+            note: [{ text: specialist.selectionReason ?? `${specialist.specialty} referral — care team assignment` }],
+            extension: [
+              { url: 'http://tcoc.example.org/fhir/StructureDefinition/network-tier', valueString: specialist.networkTier },
+              { url: 'http://tcoc.example.org/fhir/StructureDefinition/quality-score', valueInteger: specialist.qualityScore },
+            ],
+          })
+          .then((sr: unknown) => {
+            const srId = (sr as { id?: string })?.id ?? `SR-${specialist.id}`;
+            console.info(`[CareTeamAssignment] ServiceRequest ${srId} created for ${specialist.providerName}`);
+
+            // 2. POST Task owned by the specialist so their inbox receives it
+            client
+              .create({
+                resourceType: 'Task',
+                status: 'requested',
+                intent: 'order',
+                priority: 'routine',
+                code: {
+                  coding: [{ system: 'http://hl7.org/fhir/CodeSystem/task-code', code: 'fulfill', display: 'Fulfill the focal request' }],
+                  text: 'Specialist Referral',
+                },
+                description: `${specialist.specialty} referral — care team assignment from Dr. Rick Williams`,
+                focus: { reference: `ServiceRequest/${srId}` },
+                for: { reference: `Patient/${patientId}` },
+                encounter: { reference: `Encounter/${encounterId}` },
+                authoredOn: ts,
+                lastModified: ts,
+                requester: { reference: `Practitioner/${practitionerId}`, display: 'Dr. Rick Williams' },
+                owner: { reference: `Practitioner/${specialist.providerId}`, display: specialist.providerName },
+                note: [{ text: `NPI: ${specialist.providerNpi} · Network: ${specialist.networkTier} · Quality: ${specialist.qualityScore}` }],
+                extension: [
+                  { url: 'http://tcoc.example.org/fhir/StructureDefinition/care-gap-domain', valueString: 'Clinical' },
+                  { url: 'http://tcoc.example.org/fhir/StructureDefinition/specialist-specialty', valueString: specialist.specialty },
+                ],
+              })
+              .then((task: unknown) => console.info(`[CareTeamAssignment] Task ${(task as { id?: string })?.id} created → owner: ${specialist.providerName}`))
+              .catch((err) => console.warn(`[CareTeamAssignment] Task POST failed for ${specialist.providerName}:`, err));
+          })
+          .catch((err) => console.warn(`[CareTeamAssignment] ServiceRequest POST failed for ${specialist.providerName}:`, err));
+      });
+    }
+
+    setConfirmedAt(ts);
+    setConfirmId(cid);
+    setStep('confirmed');
+    onAssignmentConfirmed(confirmed);
   };
 
   if (step === 'submitting') {

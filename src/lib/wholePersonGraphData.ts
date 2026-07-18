@@ -307,7 +307,7 @@ export const graphNodes: GraphNode[] = [
   },
   {
     id: 'n36', nodeNum: 36, type: 'SeasonalBarrier', label: 'SD Winter Barrier', sublabel: 'Nov–Mar road closure risk',
-    properties: { type: 'SD_WINTER', months: [11, 12, 1, 2, 3], impact: 'ROAD_CLOSURE_RISK' },
+    properties: { type: 'SD_WINTER', months: ['11', '12', '1', '2', '3'], impact: 'ROAD_CLOSURE_RISK' },
     lens: ['all', 'social'],
     color: C.slate, radius: 12, cluster: 'sdoh', propertyRichness: 0.55, totalProperties: 5,
   },

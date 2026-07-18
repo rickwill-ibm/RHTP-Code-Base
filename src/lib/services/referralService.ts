@@ -182,7 +182,7 @@ export async function createReferralServiceRequest(
       ]
     };
 
-    const response = await fhirClient.create(serviceRequest as any);
+    const response = await fhirClient.create<{ id: string }>(serviceRequest as any);
     console.log('ServiceRequest created:', response.id);
     return response;
   }, 'Create ServiceRequest');
@@ -236,7 +236,7 @@ export async function createReferralTask(
       }
     };
 
-    const response = await fhirClient.create(task as any);
+    const response = await fhirClient.create<{ id: string }>(task as any);
     console.log('Task created:', response.id);
     return response;
   }, 'Create Task');
@@ -281,6 +281,15 @@ export async function createProcedure(
   request: ServiceCompletionRequest
 ): Promise<any> {
   return retryWithBackoff(async () => {
+    // Only add reasonReference / basedOn when the serviceRequestId refers to a resource
+    // that actually exists in HAPI. Synthetic placeholders like 'sr-st-001' (built from
+    // mock task IDs) are not seeded in HAPI and will cause a 422 OperationOutcome with
+    // HAPI-0931 "Invalid reference found at path 'Procedure.reasonReference'".
+    const hasRealServiceRequest =
+      !!request.serviceRequestId &&
+      !request.serviceRequestId.startsWith('sr-') &&  // strip sr-{mock-task-id} pattern
+      request.serviceRequestId !== '';
+
     const procedure: any = {
       resourceType: 'Procedure',
       status: 'completed',
@@ -300,12 +309,10 @@ export async function createProcedure(
           reference: `Practitioner/${request.performerId}`
         }
       }],
-      reasonReference: [{
-        reference: `ServiceRequest/${request.serviceRequestId}`
-      }],
-      basedOn: [{
-        reference: `ServiceRequest/${request.serviceRequestId}`
-      }],
+      ...(hasRealServiceRequest && {
+        reasonReference: [{ reference: `ServiceRequest/${request.serviceRequestId}` }],
+        basedOn: [{ reference: `ServiceRequest/${request.serviceRequestId}` }],
+      }),
       ...(request.notes && {
         note: [{
           text: request.notes
@@ -313,7 +320,7 @@ export async function createProcedure(
       })
     };
 
-    const response = await fhirClient.create(procedure);
+    const response = await fhirClient.create<{ id: string }>(procedure);
     console.log('Procedure created:', response.id);
     return response;
   }, 'Create Procedure');
@@ -330,6 +337,12 @@ export async function createObservations(
 ): Promise<any[]> {
   const results = [];
   
+  // Only link basedOn when the ServiceRequest actually exists in HAPI
+  const hasRealServiceRequest =
+    !!serviceRequestId &&
+    !serviceRequestId.startsWith('sr-') &&
+    serviceRequestId !== '';
+
   for (const obs of observations) {
     const observation = await retryWithBackoff(async () => {
       const resource: any = {
@@ -375,12 +388,12 @@ export async function createObservations(
             }]
           }]
         }),
-        basedOn: [{
-          reference: `ServiceRequest/${serviceRequestId}`
-        }]
+        ...(hasRealServiceRequest && {
+          basedOn: [{ reference: `ServiceRequest/${serviceRequestId}` }]
+        })
       };
 
-      const response = await fhirClient.create(resource);
+      const response = await fhirClient.create<{ id: string }>(resource);
       console.log('Observation created:', response.id);
       return response;
     }, `Create Observation ${obs.code}`);
@@ -474,7 +487,7 @@ export async function createProvenanceRecord(
       })
     };
 
-    const response = await fhirClient.create(provenance);
+    const response = await fhirClient.create<{ id: string }>(provenance);
     console.log('Provenance record created:', response.id);
     return response;
   }, 'Create Provenance');

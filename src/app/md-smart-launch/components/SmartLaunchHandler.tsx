@@ -5,6 +5,7 @@ import { mockSmartLaunchContext } from '@/lib/smartFhirMockData';
 import Icon from '@/components/ui/AppIcon';
 import { SmartErrorFallback, type SmartError } from './SmartErrorBoundary';
 import { appConfig, shouldUseMockData } from '@/lib/config/appConfig';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 interface SmartLaunchHandlerProps {
   onLaunchReady: (ctx: SmartLaunchContext) => void;
@@ -30,13 +31,14 @@ export default function SmartLaunchHandler({
   /**
    * Mock launch sequence for development
    */
+  // ── Mock launch sequence ─────────────────────────────────────────────────────
   const runMockLaunchSequence = useCallback(() => {
     setStep('validating');
     setProgress(0);
     setSmartError(null);
 
     const urlParams = new URLSearchParams(window.location.search);
-    // Default to Maria Redhawk (from patient registry) instead of Maria Reyes (mock patient)
+    // Prefer patientId from URL query param (passed by RHTP patient selector)
     const patientId = urlParams.get('patientId') || 'patient/maria-redhawk-001';
     const patientName = urlParams.get('patientName') || 'Maria Redhawk';
 
@@ -66,17 +68,84 @@ export default function SmartLaunchHandler({
     });
   }, [onLaunchReady]);
 
+  // ── Live FHIR launch sequence ────────────────────────────────────────────────
+  // Reads Patient/{id} from HAPI to confirm existence and extract the real name,
+  // then fires onLaunchReady with a fully-populated SmartLaunchContext.
+  const runLiveFhirLaunchSequence = useCallback(async () => {
+    setStep('validating');
+    setProgress(0);
+    setSmartError(null);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawPatientId = urlParams.get('patientId') || 'patient-maria-001';
+
+    try {
+      setStep('exchanging-token');
+      setProgress(25);
+      await new Promise((r) => setTimeout(r, 400)); // brief UI pause for auth step
+
+      setStep('loading-patient');
+      setProgress(55);
+
+      // Resolve the HAPI patient resource ID (strip legacy 'patient/' prefix if present)
+      const fhirPatientId = rawPatientId.startsWith('patient/')
+        ? rawPatientId.replace('patient/', 'patient-')
+        : rawPatientId;
+
+      // Attempt to read Patient resource from HAPI
+      const patientResource = await getFhirClient().read<{
+        resourceType: string;
+        id?: string;
+        name?: { family?: string; given?: string[] }[];
+        birthDate?: string;
+        gender?: string;
+      }>('Patient', fhirPatientId);
+
+      // Derive display name from FHIR Patient.name
+      let patientName = 'Unknown Patient';
+      if (patientResource?.name?.length) {
+        const n = patientResource.name[0];
+        const given = n.given?.join(' ') ?? '';
+        const family = n.family ?? '';
+        patientName = `${given} ${family}`.trim() || 'Unknown Patient';
+      }
+
+      setProgress(85);
+      await new Promise((r) => setTimeout(r, 300));
+
+      const launchContext: SmartLaunchContext = {
+        ...mockSmartLaunchContext,
+        patientId: fhirPatientId,
+        practitionerName: 'Bennett County Health PCP',
+      };
+
+      setStep('ready');
+      setProgress(100);
+      setTimeout(() => onLaunchReady(launchContext), 300);
+
+      if (appConfig.dev.enableDebugLogging) {
+        console.log(`[SmartLaunchHandler] Live FHIR — loaded Patient/${fhirPatientId} → "${patientName}"`);
+      }
+    } catch (err) {
+      // Patient not found on HAPI — fall back to mock launch sequence
+      console.warn('[SmartLaunchHandler] Live FHIR patient read failed, falling back to mock:', err);
+      runMockLaunchSequence();
+    }
+  }, [onLaunchReady, runMockLaunchSequence]);
+
   /**
    * Run appropriate launch sequence based on mode
    */
   useEffect(() => {
-    // Log data source mode in development
     if (appConfig.dev.enableDebugLogging) {
-      console.log('🎭 SmartLaunchHandler mode:', effectiveUseMockData ? 'MOCK DATA' : 'LIVE FHIR');
+      console.log('[SmartLaunchHandler] mode:', getFhirMockMode() ? 'MOCK DATA' : 'LIVE FHIR');
     }
-    
-    runMockLaunchSequence();
-  }, [effectiveUseMockData, runMockLaunchSequence]);
+    if (getFhirMockMode()) {
+      runMockLaunchSequence();
+    } else {
+      runLiveFhirLaunchSequence();
+    }
+  }, [effectiveUseMockData, runMockLaunchSequence, runLiveFhirLaunchSequence]);
 
   const handleRetry = () => {
     setRetryCount((c) => c + 1);

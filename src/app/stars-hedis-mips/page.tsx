@@ -4,6 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { toast } from 'sonner';
 import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
+import { useGapClosureStore } from '@/lib/patientContext';
 import STARSPayerBonusJourney, { type STARSMeasure } from './components/STARSPayerBonusJourney';
 import HEDISMeasureDocJourney, { type HEDISMeasure } from './components/HEDISMeasureDocJourney';
 import MIPSPaymentAdjJourney, { type MIPSAdjustment } from './components/MIPSPaymentAdjJourney';
@@ -74,7 +75,9 @@ function KPIStrip({ program }: { program: 'STARS' | 'HEDIS' | 'MIPS' }) {
 }
 
 // ─── STARS Table ──────────────────────────────────────────────────────────────
-function STARSTable({ onSelect, onCreateCohort }: { onSelect: (m: STARSMeasure) => void; onCreateCohort: (d: MeasureDescriptor) => void }) {
+type MeasureOverlay = Record<string, { numerator: number; denominator: number; rate: number }>;
+
+function STARSTable({ onSelect, onCreateCohort, overlay = {} }: { onSelect: (m: STARSMeasure) => void; onCreateCohort: (d: MeasureDescriptor) => void; overlay?: MeasureOverlay }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -93,7 +96,9 @@ function STARSTable({ onSelect, onCreateCohort }: { onSelect: (m: STARSMeasure) 
           </tr>
         </thead>
         <tbody>
-          {STARS_MEASURES.map((m) => (
+          {STARS_MEASURES.map((m) => {
+            const live = overlay[m.id];
+            return (
             <tr key={m.id} className="border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors">
               <td className="px-4 py-3">
                 <p className="font-mono font-bold text-[#b45309]">{m.measureId}</p>
@@ -107,6 +112,7 @@ function STARSTable({ onSelect, onCreateCohort }: { onSelect: (m: STARSMeasure) 
                     <Icon key={i} name="StarIcon" size={12} className={i < m.currentRating ? 'text-[#b45309]' : 'text-carbon-gray-20'} />
                   ))}
                 </div>
+                {live && <p className="text-2xs text-[#0043ce] mt-0.5 font-mono">{live.rate}% FHIR</p>}
               </td>
               <td className="px-4 py-3 text-center">
                 <div className="flex items-center justify-center gap-0.5">
@@ -115,7 +121,10 @@ function STARSTable({ onSelect, onCreateCohort }: { onSelect: (m: STARSMeasure) 
                   ))}
                 </div>
               </td>
-              <td className="px-4 py-3 text-right font-mono font-bold text-[#da1e28]">{m.gapCount}</td>
+              <td className="px-4 py-3 text-right font-mono font-bold text-[#da1e28]">
+                {live ? live.denominator - live.numerator : m.gapCount}
+                {live && <p className="text-2xs text-[#0043ce] font-normal">{live.numerator}/{live.denominator} FHIR</p>}
+              </td>
               <td className="px-4 py-3 text-right font-mono font-bold text-[#24a148]">${m.bonusEstimate.toLocaleString()}</td>
               <td className="px-4 py-3 text-center font-mono text-carbon-gray-70">{m.deadline}</td>
               <td className="px-4 py-3 text-center">
@@ -136,7 +145,8 @@ function STARSTable({ onSelect, onCreateCohort }: { onSelect: (m: STARSMeasure) 
                 </div>
               </td>
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </div>
@@ -144,7 +154,7 @@ function STARSTable({ onSelect, onCreateCohort }: { onSelect: (m: STARSMeasure) 
 }
 
 // ─── HEDIS Table ──────────────────────────────────────────────────────────────
-function HEDISTable({ onSelect, onCreateCohort }: { onSelect: (m: HEDISMeasure) => void; onCreateCohort: (d: MeasureDescriptor) => void }) {
+function HEDISTable({ onSelect, onCreateCohort, overlay = {} }: { onSelect: (m: HEDISMeasure) => void; onCreateCohort: (d: MeasureDescriptor) => void; overlay?: MeasureOverlay }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -163,7 +173,9 @@ function HEDISTable({ onSelect, onCreateCohort }: { onSelect: (m: HEDISMeasure) 
         </thead>
         <tbody>
           {HEDIS_MEASURES.map((m) => {
-            const color = m.complianceRate >= m.targetRate ? '#24a148' : m.complianceRate >= m.targetRate * 0.8 ? '#b45309' : '#da1e28';
+            const live = overlay[m.id];
+            const displayRate = live ? live.rate : m.complianceRate;
+            const color = displayRate >= m.targetRate ? '#24a148' : displayRate >= m.targetRate * 0.8 ? '#b45309' : '#da1e28';
             return (
               <tr key={m.id} className="border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors">
                 <td className="px-4 py-3">
@@ -173,15 +185,20 @@ function HEDISTable({ onSelect, onCreateCohort }: { onSelect: (m: HEDISMeasure) 
                 <td className="px-4 py-3 text-carbon-gray-70">{m.domain}</td>
                 <td className="px-4 py-3 text-carbon-gray-50 font-mono text-2xs">{m.contractName}</td>
                 <td className="px-4 py-3 text-right">
-                  <p className="font-mono font-bold" style={{ color }}>{m.complianceRate}%</p>
+                  <p className="font-mono font-bold" style={{ color }}>
+                    {displayRate}%
+                    {live && <span className="ml-1 text-2xs font-normal text-[#0043ce]">FHIR</span>}
+                  </p>
                   <div className="w-16 h-1 bg-carbon-gray-20 mt-1 ml-auto">
-                    <div className="h-full" style={{ width: `${m.complianceRate}%`, backgroundColor: color }} />
+                    <div className="h-full" style={{ width: `${displayRate}%`, backgroundColor: color }} />
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-carbon-gray-70">{m.targetRate}%</td>
                 <td className="px-4 py-3 text-right">
-                  <p className="font-mono font-bold text-[#da1e28]">{m.patientsDue - m.patientsCompliant}</p>
-                  <p className="text-carbon-gray-30 text-2xs">{m.patientsDue} total</p>
+                  <p className="font-mono font-bold text-[#da1e28]">
+                    {live ? (live.denominator - live.numerator) : (m.patientsDue - m.patientsCompliant)}
+                  </p>
+                  <p className="text-carbon-gray-30 text-2xs">{live ? live.denominator : m.patientsDue} total</p>
                 </td>
                 <td className="px-4 py-3 text-center font-mono text-carbon-gray-70">{m.dueDate}</td>
                 <td className="px-4 py-3 text-center">
@@ -195,7 +212,7 @@ function HEDISTable({ onSelect, onCreateCohort }: { onSelect: (m: HEDISMeasure) 
                       <Icon name="PlayIcon" size={10} />
                       Start Workflow
                     </button>
-                    <button onClick={() => onCreateCohort({ measureKey: m.measureId, measureName: m.measureName, contractName: m.contractName, program: 'HEDIS', openGapCount: m.patientsDue - m.patientsCompliant })} className="flex items-center gap-1 px-3 py-1.5 bg-[#6929c4] text-white text-2xs font-semibold hover:bg-[#491d8b] transition-colors whitespace-nowrap">
+                    <button onClick={() => onCreateCohort({ measureKey: m.measureId, measureName: m.measureName, contractName: m.contractName, program: 'HEDIS', openGapCount: live ? (live.denominator - live.numerator) : (m.patientsDue - m.patientsCompliant) })} className="flex items-center gap-1 px-3 py-1.5 bg-[#6929c4] text-white text-2xs font-semibold hover:bg-[#491d8b] transition-colors whitespace-nowrap">
                       <Icon name="UserGroupIcon" size={10} />
                       Create Cohort &amp; Auto-Assign
                     </button>
@@ -522,23 +539,89 @@ const PROGRAM_CONFIG: Record<Program, { label: string; description: string; colo
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── MeasureReport FHIR→display overlay ──────────────────────────────────────
+// Maps a canonical measure URL fragment to the local static measure IDs
+const MEASURE_URL_TO_ID: Record<string, string> = {
+  'CDC-HbA1c': 'hedis-001',
+  'CBP': 'hedis-002',
+  'BCS': 'hedis-003',
+  'COL': 'hedis-004',
+  'D01': 'stars-001',
+  'C12': 'stars-002',
+  'D08': 'stars-003',
+  'B09': 'stars-004',
+};
+
+function extractMeasureId(url: string): string | null {
+  for (const key of Object.keys(MEASURE_URL_TO_ID)) {
+    if (url?.includes(key)) return MEASURE_URL_TO_ID[key];
+  }
+  return null;
+}
+
 export default function STARSHEDISMIPSPage() {
   const [activeProgram, setActiveProgram] = useState<Program>('STARS');
   const [fhirSource, setFhirSource] = useState(false);
   const [fhirMeasureCount, setFhirMeasureCount] = useState(0);
+  // Live FHIR MeasureReport overlays: measureId → { numerator, denominator, complianceRate }
+  const [fhirMeasureOverlay, setFhirMeasureOverlay] = useState<Record<string, { numerator: number; denominator: number; rate: number }>>({});
   const fhirLoadedRef = useRef(false);
+  const { closures } = useGapClosureStore();
+  const closureCount = Object.values(closures).filter((c) => c.status === 'CLOSED').length;
+  const prevClosureCountRef = useRef(closureCount);
 
-  useEffect(() => {
-    if (getFhirMockMode() || fhirLoadedRef.current) return;
-    fhirLoadedRef.current = true;
+  const fetchMeasureReports = () => {
+    if (getFhirMockMode()) return;
     getFhirClient()
-      .search('MeasureReport', { _count: 20 })
+      .search('MeasureReport', { _count: 50 })
       .then((bundle: any) => {
-        const count = (bundle?.entry ?? []).filter((e: any) => e?.resource?.resourceType === 'MeasureReport').length;
-        if (count > 0) { setFhirMeasureCount(count); setFhirSource(true); }
+        const reports: any[] = (bundle?.entry ?? [])
+          .map((e: any) => e?.resource)
+          .filter((r: any) => r?.resourceType === 'MeasureReport');
+        const count = reports.length;
+        if (count > 0) {
+          setFhirMeasureCount(count);
+          setFhirSource(true);
+          // Build overlay map: match MeasureReport.measure URL to local measure IDs
+          const overlay: Record<string, { numerator: number; denominator: number; rate: number }> = {};
+          for (const report of reports) {
+            const measureUrl: string = report.measure ?? '';
+            const localId = extractMeasureId(measureUrl);
+            if (!localId) continue;
+            // Extract numerator/denominator from MeasureReport.group[0].population
+            const populations: any[] = report.group?.[0]?.population ?? [];
+            const numeratorPop = populations.find((p: any) =>
+              p.code?.coding?.some((c: any) => c.code === 'numerator')
+            );
+            const denominatorPop = populations.find((p: any) =>
+              p.code?.coding?.some((c: any) => c.code === 'denominator')
+            );
+            const numerator: number = numeratorPop?.count ?? 0;
+            const denominator: number = denominatorPop?.count ?? 0;
+            const rate = denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
+            overlay[localId] = { numerator, denominator, rate };
+          }
+          if (Object.keys(overlay).length > 0) setFhirMeasureOverlay(overlay);
+        }
       })
       .catch(() => {});
+  };
+
+  // Initial load
+  useEffect(() => {
+    if (fhirLoadedRef.current) return;
+    fhirLoadedRef.current = true;
+    fetchMeasureReports();
   }, []);
+
+  // Re-fetch MeasureReports whenever a new gap closure is recorded in the store
+  useEffect(() => {
+    if (closureCount > prevClosureCountRef.current) {
+      prevClosureCountRef.current = closureCount;
+      console.info(`[MeasureReport] Re-fetching after gap closure (${closureCount} closed gaps)`);
+      fetchMeasureReports();
+    }
+  }, [closureCount]);
   const [selectedSTARS, setSelectedSTARS] = useState<STARSMeasure | null>(null);
   const [selectedHEDIS, setSelectedHEDIS] = useState<HEDISMeasure | null>(null);
   const [selectedMIPS, setSelectedMIPS] = useState<MIPSAdjustment | null>(null);
@@ -690,8 +773,8 @@ export default function STARSHEDISMIPSPage() {
               )}
             </div>
           </div>
-          {activeProgram === 'STARS' && <STARSTable onSelect={setSelectedSTARS} onCreateCohort={setCohortMeasure} />}
-          {activeProgram === 'HEDIS' && <HEDISTable onSelect={setSelectedHEDIS} onCreateCohort={setCohortMeasure} />}
+          {activeProgram === 'STARS' && <STARSTable onSelect={setSelectedSTARS} onCreateCohort={setCohortMeasure} overlay={fhirMeasureOverlay} />}
+          {activeProgram === 'HEDIS' && <HEDISTable onSelect={setSelectedHEDIS} onCreateCohort={setCohortMeasure} overlay={fhirMeasureOverlay} />}
           {activeProgram === 'MIPS' && <MIPSTable onSelect={setSelectedMIPS} />}
           {activeProgram === 'BH' && <BHTable onCreateCohort={setCohortMeasure} />}
           {activeProgram === 'Social' && <SocialTable onCreateCohort={setCohortMeasure} />}

@@ -172,11 +172,8 @@ export default function ContractProgramSelectionPage() {
   );
 }
 
-const ContractFilters: React.FC = () => {
-  React.useEffect(() => {
-    console.warn('Placeholder: ContractFilters is not implemented yet.');
-  }, []);
-  return <div />;
+export type ContractFilters = {
+  search: string;
+  program: string;
+  performance: string;
 };
-
-export { ContractFilters };

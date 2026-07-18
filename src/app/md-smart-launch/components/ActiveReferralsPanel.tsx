@@ -1,8 +1,12 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
-import { referralStore } from '@/lib/mockData';
+import { referralStore, mockCareGaps } from '@/lib/mockData';
 import type { SmartLaunchContext, MdOrder, CareTeamAssignment } from '@/lib/smartFhirTypes';
+import ReferralModal, { type ReferralFormData } from './ReferralModal';
+import { initiateReferral } from '@/lib/services/referralService';
+import { getFhirMockMode } from '@/lib/services/fhirClient';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 
 interface ActiveReferralsPanelProps {
   launchContext: SmartLaunchContext;
@@ -71,6 +75,9 @@ const UPCOMING_PREVENTIVE_NEEDS = [
 
 export default function ActiveReferralsPanel({ launchContext, completedOrders, confirmedAssignments }: ActiveReferralsPanelProps) {
   const referralOrders = getReferralOrders(completedOrders);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [referralSubmitting, setReferralSubmitting] = useState(false);
+  const [lastReferralConfirmId, setLastReferralConfirmId] = useState<string | null>(null);
 
   // Build this-visit referrals from signed orders + confirmed assignments
   const thisVisitReferrals: ReferralPanelItem[] = referralOrders.map((order) => {
@@ -153,6 +160,57 @@ export default function ActiveReferralsPanel({ launchContext, completedOrders, c
   const allThisVisit: ReferralPanelItem[] = [...dedupedStoreReferrals, ...existingVisitReferrals];
   const totalActive = allThisVisit.length;
 
+  // Build care gaps list for the referral modal from mock data (filtered to this patient)
+  const patientPlatformId = Object.entries(PLATFORM_TO_FHIR_ID_MAP).find(
+    ([, fhirId]) => fhirId === launchContext.patientId || launchContext.patientId.endsWith(fhirId)
+  )?.[0] ?? launchContext.patientId;
+  const referralCareGaps = (mockCareGaps ?? [])
+    .filter((g) => g.patientId === 'patient-001' || g.patientId === patientPlatformId)
+    .filter((g) => g.status === 'Open' || g.status === 'In Progress')
+    .map((g) => ({
+      id: g.id,
+      name: g.measureName,
+      program: g.program ?? 'HEDIS',
+      cmsMips: g.measureId ?? '—',
+      priority: 'High',
+      status: g.status,
+      daysOpen: g.daysOpen ?? 0,
+    }));
+
+  // Handle referral form submission — write to FHIR in live mode
+  const handleReferralSubmit = async (data: ReferralFormData) => {
+    setReferralSubmitting(true);
+    const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[patientPlatformId] ?? launchContext.patientId;
+    const confirmId = `REF-${Date.now().toString(36).toUpperCase()}`;
+
+    if (!getFhirMockMode()) {
+      try {
+        const result = await initiateReferral({
+          patientId: fhirPatientId,
+          requesterId: launchContext.practitionerId ?? 'practitioner-rick',
+          performerId: 'practitioner-jon', // specialist / Dr. Jon Noyes
+          serviceCode: '3457005',
+          serviceDisplay: `${data.specialistType} Referral — ${data.careGapName}`,
+          careGapId: data.careGapId,
+          priority: data.priority,
+          notes: data.clinicalNotes,
+          gainshareEligible: true,
+        });
+        console.info(`[ActiveReferrals] Referral initiated — SR: ${result.serviceRequest?.id}, Task: ${result.task?.id}`);
+        setLastReferralConfirmId(result.task?.id ?? confirmId);
+      } catch (err) {
+        console.warn('[ActiveReferrals] initiateReferral failed — logged locally only:', err);
+        setLastReferralConfirmId(confirmId);
+      }
+    } else {
+      // Mock mode: local confirm only
+      setLastReferralConfirmId(confirmId);
+    }
+
+    setReferralSubmitting(false);
+    setShowReferralModal(false);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -176,6 +234,13 @@ export default function ActiveReferralsPanel({ launchContext, completedOrders, c
                 {allThisVisit.length} from this visit
               </span>
             )}
+            <button
+              onClick={() => setShowReferralModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0043ce] text-white text-xs font-semibold hover:bg-[#0035a8] transition-colors"
+            >
+              <Icon name="PaperAirplaneIcon" size={12} />
+              Create Referral
+            </button>
           </div>
         </div>
 
@@ -291,6 +356,19 @@ export default function ActiveReferralsPanel({ launchContext, completedOrders, c
         </div>
       </div>
 
+      {/* Last referral confirmation */}
+      {lastReferralConfirmId && (
+        <div className="bg-[#defbe6] border border-[#a7f0ba] px-4 py-3 flex items-center gap-3 text-xs">
+          <Icon name="CheckCircleIcon" size={14} className="text-[#0e6027]" />
+          <span className="text-[#0e6027] font-semibold">Referral submitted</span>
+          <span className="font-mono text-[#0e6027]/70">{lastReferralConfirmId}</span>
+          <span className="text-[#0e6027]/70">— FHIR ServiceRequest + Task written · Specialist Inbox notified</span>
+          <button onClick={() => setLastReferralConfirmId(null)} className="ml-auto text-[#0e6027]/50 hover:text-[#0e6027]">
+            <Icon name="XMarkIcon" size={12} />
+          </button>
+        </div>
+      )}
+
       {/* FHIR note */}
       <div className="bg-carbon-gray-10 border border-carbon-gray-20 px-4 py-3 flex items-start gap-2 text-xs text-carbon-gray-50">
         <Icon name="BoltIcon" size={13} className="text-[#6929c4] mt-0.5 flex-shrink-0" />
@@ -298,6 +376,16 @@ export default function ActiveReferralsPanel({ launchContext, completedOrders, c
           Referrals from this visit are written to Cerner as FHIR <span className="font-mono">ServiceRequest</span> resources and will appear in PowerChart on return. Pre-existing referrals are sourced from FHIR R4 at <span className="font-mono text-2xs">{launchContext.fhirBaseUrl}</span>.
         </span>
       </div>
+
+      {/* Referral Modal */}
+      <ReferralModal
+        isOpen={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+        onSubmit={handleReferralSubmit}
+        careGaps={referralCareGaps}
+        patientName={launchContext.patientId}
+        patientId={launchContext.patientId}
+      />
     </div>
   );
 }

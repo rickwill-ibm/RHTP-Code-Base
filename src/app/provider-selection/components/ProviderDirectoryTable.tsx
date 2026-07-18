@@ -537,7 +537,7 @@ function ProviderDetailPanel({ provider, onClose, onInitiateReferral }: { provid
 }
 const ProviderDirectoryTable: React.FC<{ filters?: import('@/app/provider-selection/page').ProviderFilters }> = ({ filters }) => {
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const { advanceWorkflow } = useWorkflowMachine();
+  const { startWorkflow } = useWorkflowMachine();
   const [fhirNetworkCount, setFhirNetworkCount] = useState<{ practitioners: number; orgs: number } | null>(null);
   const fhirLoadedRef = useRef(false);
 
@@ -597,10 +597,7 @@ const ProviderDirectoryTable: React.FC<{ filters?: import('@/app/provider-select
   }, [filters, mockProviders]);
 
   const handleInitiateReferral = (provider: Provider) => {
-    advanceWorkflow('provider-referral', `ref-${provider.id}`, {
-      providerId: provider.id,
-      providerName: provider.name,
-    });
+    startWorkflow('provider-referral', `ref-${provider.id}`, provider.name, 'care_manager');
   };
 
   return (

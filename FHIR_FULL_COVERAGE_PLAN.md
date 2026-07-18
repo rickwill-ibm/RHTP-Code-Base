@@ -310,3 +310,4 @@ Each sub-task is independently deployable. Sub-Tasks 6, 7, and 8 require additio
 - No authentication/authorization layer (SMART on FHIR is out of scope for this plan).
 - No changes to the UHG Orchestrate screens (separate product demo, intentionally static).
 - No changes to mock mode behavior — mock mode must continue to work identically after all sub-tasks.
+                                                                                                                                                                       

@@ -6,6 +6,7 @@ import { useAppContext } from '@/lib/appContext';
 import { workflowDefinitions } from '@/lib/actionRegistry';
 import { useGapClosureStore, usePatientContext } from '@/lib/patientContext';
 import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 import type { CareGap } from '@/lib/mockData';
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
@@ -807,6 +808,8 @@ export default function CareGapClosureJourney({ gap, onClose }: CareGapClosureJo
   const { user } = useAppContext();
   const { patient } = usePatientContext();
   const { submitClosure, startClosing } = useGapClosureStore();
+  // Track the FHIR Task ID created in Step 1 so Step 2 can update it to in-progress
+  const [assignedTaskId, setAssignedTaskId] = useState<string | null>(null);
   const {
     getWorkflow,
     getWorkflowStatus,
@@ -843,11 +846,72 @@ export default function CareGapClosureJourney({ gap, onClose }: CareGapClosureJo
   const handleAssign = (coordinator: string, notes: string) => {
     if (!wf) return;
     advanceStep('care-gap-closure', gap.id, userName, userRole, `Assigned to: ${coordinator}${notes ? ` | ${notes}` : ''}`);
+
+    // ── FHIR Task POST → requested (fire-and-forget) ─────────────────────────
+    if (!getFhirMockMode()) {
+      const taskId = `task-journey-${patientFhirId}-${gap.id}-${Date.now()}`;
+      getFhirClient()
+        .create({
+          resourceType: 'Task',
+          id: taskId,
+          status: 'requested',
+          intent: 'order',
+          code: { coding: [{ system: 'http://loinc.org', code: '18776-5', display: 'Plan of care note' }], text: 'Care Gap Assignment' },
+          description: `Care gap assignment: ${gap.measureName}`,
+          for: { reference: `Patient/${patientFhirId}` },
+          authoredOn: new Date().toISOString(),
+          lastModified: new Date().toISOString(),
+          requester: { display: userName },
+          owner: { display: coordinator },
+          note: notes ? [{ text: notes }] : undefined,
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id', valueString: gap.id }],
+        })
+        .then((res: unknown) => {
+          const createdId = (res as { id?: string })?.id ?? taskId;
+          setAssignedTaskId(createdId);
+          console.info(`[Task] Journey task ${createdId} created for gap ${gap.id}`);
+        })
+        .catch((err) => console.warn('[Task] Journey assign POST failed:', err));
+    }
   };
 
   const handleOutreach = (method: string, notes: string) => {
     if (!wf) return;
     advanceStep('care-gap-closure', gap.id, userName, userRole, notes);
+
+    // ── FHIR Communication POST (fire-and-forget) ─────────────────────────────
+    if (!getFhirMockMode()) {
+      getFhirClient()
+        .create({
+          resourceType: 'Communication',
+          status: 'in-progress',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/communication-category', code: 'notification', display: 'Notification' }] }],
+          subject: { reference: `Patient/${patientFhirId}` },
+          recipient: [{ reference: `Patient/${patientFhirId}` }],
+          sender: { display: userName },
+          sent: new Date().toISOString(),
+          payload: [{ contentString: `${method}${notes ? ' — ' + notes : ''}` }],
+          extension: [{ url: 'http://tcoc.example.org/fhir/StructureDefinition/tcoc-gap-id', valueString: gap.id }],
+        })
+        .then(() => console.info(`[Communication] Outreach record posted for gap ${gap.id}`))
+        .catch((err) => console.warn('[Communication] Journey outreach POST failed:', err));
+
+      // ── FHIR Task PUT → in-progress (if we have the Task ID from Step 1) ──
+      if (assignedTaskId) {
+        getFhirClient()
+          .update({
+            resourceType: 'Task',
+            id: assignedTaskId,
+            status: 'in-progress',
+            intent: 'order',
+            for: { reference: `Patient/${patientFhirId}` },
+            lastModified: new Date().toISOString(),
+            note: [{ text: `Outreach initiated: ${method}` }],
+          })
+          .then(() => console.info(`[Task] ${assignedTaskId} → in-progress`))
+          .catch((err) => console.warn('[Task] Journey outreach Task PUT failed:', err));
+      }
+    }
   };
 
   const handleClosure = (

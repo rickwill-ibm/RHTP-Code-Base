@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { useAppContext } from '@/lib/appContext';
 import { buildCohort, type MeasureDescriptor } from '@/lib/careTeam/cohorts';
 import { getMember } from '@/lib/careTeam/members';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
+import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
 
 const BAR_COLORS = ['#0043ce', '#6929c4', '#198038', '#b45309', '#9f1853', '#007d79'];
 
@@ -31,6 +33,61 @@ export default function CohortAttributionModal({
 
   const handleConfirm = () => {
     addCohort(cohort);
+
+    // ── FHIR Group POST + per-patient Task POST (fire-and-forget) ────────────
+    if (!getFhirMockMode()) {
+      const groupId = `group-cohort-${cohort.id}`;
+
+      // POST Group resource representing this care gap cohort
+      getFhirClient()
+        .create({
+          resourceType: 'Group',
+          id: groupId,
+          type: 'person',
+          actual: true,
+          active: true,
+          code: {
+            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'PCDS', display: 'patient care/disease management' }],
+            text: cohort.measureName,
+          },
+          name: `${cohort.measureKey} — ${cohort.contractName}`,
+          quantity: cohort.patientIds.length,
+          member: cohort.patientIds.map((pid) => ({
+            entity: { reference: `Patient/${PLATFORM_TO_FHIR_ID_MAP[pid] ?? pid}` },
+            inactive: false,
+          })),
+          extension: [
+            { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-key', valueString: cohort.measureKey },
+            { url: 'http://tcoc.example.org/fhir/StructureDefinition/program', valueString: cohort.program },
+          ],
+        })
+        .then(() => console.info(`[Group] Cohort ${groupId} created with ${cohort.patientIds.length} members`))
+        .catch((err) => console.warn('[Group] Cohort POST failed:', err));
+
+      // POST one Task per patient in the cohort (gap assignment tasks)
+      cohort.patientIds.forEach((pid) => {
+        const fhirPatientId = PLATFORM_TO_FHIR_ID_MAP[pid] ?? pid;
+        const assignment = cohort.assignments[pid];
+        getFhirClient()
+          .create({
+            resourceType: 'Task',
+            status: 'requested',
+            intent: 'order',
+            code: { coding: [{ system: 'http://loinc.org', code: '18776-5', display: 'Plan of care note' }], text: 'Care Gap Assignment' },
+            description: `${cohort.measureName} — cohort gap assignment`,
+            for: { reference: `Patient/${fhirPatientId}` },
+            authoredOn: cohort.createdAt,
+            lastModified: cohort.createdAt,
+            owner: assignment ? { display: assignment.memberId } : undefined,
+            extension: [
+              { url: 'http://tcoc.example.org/fhir/StructureDefinition/measure-key', valueString: cohort.measureKey },
+              { url: 'http://tcoc.example.org/fhir/StructureDefinition/cohort-id', valueString: groupId },
+            ],
+          })
+          .catch((err) => console.warn(`[Task] Cohort patient task failed for ${pid}:`, err));
+      });
+    }
+
     toast.success('Cohort created & auto-assigned', {
       description: `${cohort.patientIds.length} patients across ${distEntries.length} case managers`,
     });

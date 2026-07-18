@@ -4,7 +4,7 @@ import Icon from '@/components/ui/AppIcon';
 import { toast } from 'sonner';
 import { useAppContext } from '@/lib/appContext';
 import { useWorkflowMachine } from '@/lib/workflowMachine';
-import type { PatientTab } from '@/lib/actionRegistry';
+import type { PatientTab, EntryContext } from '@/lib/actionRegistry';
 import type { ActionDefinition } from '@/lib/actionRegistry';
 import { mockPatients, mockHCCSuspects, mockCareGaps, mockAlerts } from '@/lib/mockData';
 import type { HCCSuspect, CareGap, UtilizationAlert } from '@/lib/mockData';
@@ -272,7 +272,7 @@ function SurfaceHCCModal({ patientId, patientName, onClose, userName, wm }: { pa
     const suspect = hccSuspects.find((h) => h.id === selectedId);
     if (!suspect) return;
     const status = wm.getWorkflowStatus('hcc-confirmation', patientId);
-    if (status === 'idle') wm.startWorkflow('hcc-confirmation', patientId, userName, 'Care Manager');
+    if (status === 'idle') wm.startWorkflow('hcc-confirmation', patientId, userName, 'care_manager');
     toast.success('HCC Suspect Surfaced', { description: `${suspect.hccCode} — ${suspect.hccDescription} queued for evidence review.` });
     onClose();
   };
@@ -302,7 +302,7 @@ function AcknowledgeAlertModal({ patientId, patientName, onClose, userName, wm }
     const alert = alerts.find((a) => a.id === selectedId);
     if (!alert) return;
     const status = wm.getWorkflowStatus('utilization-escalation', patientId);
-    if (status === 'idle') wm.startWorkflow('utilization-escalation', patientId, userName, 'Care Manager');
+    if (status === 'idle') wm.startWorkflow('utilization-escalation', patientId, userName, 'care_manager');
     toast.success('Alert Acknowledged', { description: `${alert.type} alert for ${patientName} added to care manager queue.` });
     onClose();
   };
@@ -332,8 +332,8 @@ function ReviewHCCEvidenceModal({ patientId, patientName, onClose, userName, wm 
   const handleConfirm = () => {
     if (!selectedId || !suspect) return;
     const status = wm.getWorkflowStatus('hcc-confirmation', patientId);
-    if (status === 'idle') wm.startWorkflow('hcc-confirmation', patientId, userName, 'Care Manager');
-    else if (status === 'in-progress') wm.advanceStep('hcc-confirmation', patientId, userName, 'Care Manager', notes);
+    if (status === 'idle') wm.startWorkflow('hcc-confirmation', patientId, userName, 'care_manager');
+    else if (status === 'in-progress') wm.advanceStep('hcc-confirmation', patientId, userName, 'care_manager', notes);
     toast.success('HCC Evidence Reviewed', { description: `Evidence for ${suspect.hccCode} reviewed. Ready for physician escalation.` });
     onClose();
   };
@@ -379,8 +379,8 @@ function AssignInterventionModal({ patientId, patientName, onClose, userName, wm
 
   const handleConfirm = () => {
     const status = wm.getWorkflowStatus('utilization-escalation', patientId);
-    if (status === 'in-progress') wm.advanceStep('utilization-escalation', patientId, userName, 'Care Manager', notes);
-    else if (status === 'idle') wm.startWorkflow('utilization-escalation', patientId, userName, 'Care Manager');
+    if (status === 'in-progress') wm.advanceStep('utilization-escalation', patientId, userName, 'care_manager', notes);
+    else if (status === 'idle') wm.startWorkflow('utilization-escalation', patientId, userName, 'care_manager');
     toast.success('Intervention Assigned', { description: `${interventionType} assigned to ${assignedTo} (${priority} priority).` });
     onClose();
   };
@@ -422,8 +422,8 @@ function EscalateHCCModal({ patientId, patientName, onClose, userName, wm }: { p
   const handleConfirm = () => {
     if (!selectedId || !suspect) return;
     const status = wm.getWorkflowStatus('hcc-confirmation', patientId);
-    if (status === 'in-progress') wm.advanceStep('hcc-confirmation', patientId, userName, 'Care Manager', notes);
-    else if (status === 'idle') wm.startWorkflow('hcc-confirmation', patientId, userName, 'Care Manager');
+    if (status === 'in-progress') wm.advanceStep('hcc-confirmation', patientId, userName, 'care_manager', notes);
+    else if (status === 'idle') wm.startWorkflow('hcc-confirmation', patientId, userName, 'care_manager');
     toast.success('HCC Escalated to Physician', { description: `${suspect.hccCode} routed to ${physician} for clinical review.` });
     onClose();
   };
@@ -464,8 +464,8 @@ function EscalateERRiskModal({ patientId, patientName, onClose, userName, wm }: 
 
   const handleConfirm = () => {
     const status = wm.getWorkflowStatus('utilization-escalation', patientId);
-    if (status === 'in-progress') wm.advanceStep('utilization-escalation', patientId, userName, 'Care Manager', notes);
-    else if (status === 'idle') wm.startWorkflow('utilization-escalation', patientId, userName, 'Care Manager');
+    if (status === 'in-progress') wm.advanceStep('utilization-escalation', patientId, userName, 'care_manager', notes);
+    else if (status === 'idle') wm.startWorkflow('utilization-escalation', patientId, userName, 'care_manager');
     toast.error('ER Risk Escalated', { description: `${protocol} protocol initiated for ${patientName}.` });
     onClose();
   };
@@ -506,7 +506,7 @@ function AssignCareGapModal({ patientId, patientName, onClose, userName, wm }: {
   const handleConfirm = () => {
     if (!selectedId || !gap) return;
     const status = wm.getWorkflowStatus('care-gap-closure', patientId);
-    if (status === 'idle') wm.startWorkflow('care-gap-closure', patientId, userName, 'Care Manager');
+    if (status === 'idle') wm.startWorkflow('care-gap-closure', patientId, userName, 'care_manager');
     toast.success('Care Gap Assigned', { description: `${gap.measureName} assigned to ${assignedTo} (${priority} priority).` });
     onClose();
   };
@@ -587,8 +587,8 @@ function InitiateOutreachModal({ patientId, patientName, onClose, userName, wm }
 
   const handleConfirm = () => {
     const status = wm.getWorkflowStatus('care-gap-closure', patientId);
-    if (status === 'in-progress') wm.advanceStep('care-gap-closure', patientId, userName, 'Care Manager', notes);
-    else if (status === 'idle') wm.startWorkflow('care-gap-closure', patientId, userName, 'Care Manager');
+    if (status === 'in-progress') wm.advanceStep('care-gap-closure', patientId, userName, 'care_manager', notes);
+    else if (status === 'idle') wm.startWorkflow('care-gap-closure', patientId, userName, 'care_manager');
     toast.success('Outreach Initiated', { description: `${outreachType} scheduled for ${patientName}. Assigned to ${assignedTo}.` });
     onClose();
   };
@@ -646,10 +646,10 @@ function CloseCareGapModal({ patientId, patientName, onClose, userName, wm }: { 
   const handleConfirm = () => {
     if (!selectedId || !gap) return;
     const status = wm.getWorkflowStatus('care-gap-closure', patientId);
-    if (status === 'in-progress') wm.completeWorkflow('care-gap-closure', patientId, userName, 'Care Manager', notes);
+    if (status === 'in-progress') wm.completeWorkflow('care-gap-closure', patientId, userName, 'care_manager', notes);
     else if (status === 'idle') {
-      wm.startWorkflow('care-gap-closure', patientId, userName, 'Care Manager');
-      wm.completeWorkflow('care-gap-closure', patientId, userName, 'Care Manager', notes);
+      wm.startWorkflow('care-gap-closure', patientId, userName, 'care_manager');
+      wm.completeWorkflow('care-gap-closure', patientId, userName, 'care_manager', notes);
     }
     toast.success('Care Gap Closed', { description: `${gap.measureName} closed via ${closureMethod}.` });
     onClose();
