@@ -1,0 +1,28 @@
+/**
+ * Feature flags (plan §7). Gates slices so incomplete work never ships hot.
+ * Reads NEXT_PUBLIC_* so flags are readable on client + server (they are not secrets).
+ */
+export type FeatureFlag =
+  'patientAccess' | 'providerAccess' | 'payerToPayer' | 'priorAuth' | 'aiDtrGeneration';
+
+const DEFAULTS: Record<FeatureFlag, boolean> = {
+  patientAccess: true,
+  providerAccess: true,
+  payerToPayer: true,
+  priorAuth: true,
+  aiDtrGeneration: false, // off until human-review gate is wired (Slice 5)
+};
+
+const ENV_KEY: Record<FeatureFlag, string> = {
+  patientAccess: 'NEXT_PUBLIC_FLAG_PATIENT_ACCESS',
+  providerAccess: 'NEXT_PUBLIC_FLAG_PROVIDER_ACCESS',
+  payerToPayer: 'NEXT_PUBLIC_FLAG_PAYER_TO_PAYER',
+  priorAuth: 'NEXT_PUBLIC_FLAG_PRIOR_AUTH',
+  aiDtrGeneration: 'NEXT_PUBLIC_FLAG_AI_DTR',
+};
+
+export function flag(name: FeatureFlag): boolean {
+  const raw = process.env[ENV_KEY[name]];
+  if (raw === undefined) return DEFAULTS[name];
+  return raw.toLowerCase() === 'true';
+}
