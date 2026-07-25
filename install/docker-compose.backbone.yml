@@ -1,0 +1,44 @@
+# Integrated dev backbone (Tier A) — a real FHIR R4 data tier + MySQL, so RHTP's
+# Patient Access / FHIR-read flows run end-to-end WITHOUT the full WSO2/Ballerina
+# stack. The full CMS provision operations ($member-match, CRD/DTR/PAS, bulk
+# export) require the reference backbone (Tier B) — see INTEGRATED_INSTALL.md.
+#
+# Ports are chosen to AVOID the :8080 collision (RHTP HAPI/WSO2 fhir-service).
+#   HAPI FHIR R4 : 8090  → FHIR_GATEWAY_BASE=http://localhost:8090/fhir
+#   MySQL        : 3306
+#
+# Usage: docker compose -f install/docker-compose.backbone.yml up -d
+
+services:
+  fhir:
+    image: hapiproject/hapi:latest
+    container_name: rhtp-fhir
+    ports:
+      - '8090:8080'
+    environment:
+      hapi.fhir.fhir_version: R4
+      hapi.fhir.allow_multiple_delete: 'true'
+    healthcheck:
+      test: ['CMD', 'sh', '-c', "wget -qO- http://localhost:8080/fhir/metadata || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8
+    container_name: rhtp-mysql
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: rhtp
+      MYSQL_DATABASE: cms0057f
+    volumes:
+      - rhtp-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-prhtp']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rhtp-mysql-data:

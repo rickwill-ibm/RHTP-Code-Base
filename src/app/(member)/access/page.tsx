@@ -21,8 +21,8 @@ import { OperationOutcomeView } from '@/components/fhir/OperationOutcomeView';
 import type { OperationOutcome } from '@/lib/fhir/operationOutcome';
 import { flag } from '@/lib/flags/flags';
 
-// TODO: derive from the SMART session patient context (F-3). Seeded demo member.
-const PATIENT_ID = 'MARIA_SD_001';
+// Patient id comes from the SMART session context; falls back to the seeded member.
+const DEFAULT_PATIENT = 'MARIA_SD_001';
 
 interface Bundle {
   entry?: { resource?: Record<string, unknown> }[];
@@ -36,12 +36,12 @@ export default function PatientAccessPage(): React.ReactElement {
   const [error, setError] = useState<OperationOutcome | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (patientId: string) => {
     setLoading(true);
     setError(null);
-    const cov = await fhirGet<Bundle>(`Coverage?beneficiary=Patient/${PATIENT_ID}`);
-    const cond = await fhirGet<Bundle>(`Condition?subject=Patient/${PATIENT_ID}`);
-    const pa = await fhirGet<Bundle>(`ClaimResponse?patient=Patient/${PATIENT_ID}`);
+    const cov = await fhirGet<Bundle>(`Coverage?beneficiary=Patient/${patientId}`);
+    const cond = await fhirGet<Bundle>(`Condition?subject=Patient/${patientId}`);
+    const pa = await fhirGet<Bundle>(`ClaimResponse?patient=Patient/${patientId}`);
     if (cov.data) setCoverage((cov.data.entry ?? []).map((e) => toCoverageVM(e.resource ?? {})));
     if (cond.data)
       setConditions((cond.data.entry ?? []).map((e) => toConditionVM(e.resource ?? {})));
@@ -52,10 +52,10 @@ export default function PatientAccessPage(): React.ReactElement {
   }, []);
 
   useEffect(() => {
-    getJson<{ authenticated: boolean }>('/api/auth/session').then((r) => {
+    getJson<{ authenticated: boolean; patient?: string }>('/api/auth/session').then((r) => {
       const ok = !!r.data?.authenticated;
       setAuthed(ok);
-      if (ok) void load();
+      if (ok) void load(r.data?.patient ?? DEFAULT_PATIENT);
     });
   }, [load]);
 

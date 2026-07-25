@@ -179,6 +179,40 @@ export async function logout(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
+/** The launch/patient context of the current session (safe: an id, not a token). */
+export async function getSessionPatient(): Promise<string | null> {
+  const env = serverEnv();
+  const jar = await cookies();
+  const session = open<SessionData>(jar.get(SESSION_COOKIE)?.value ?? '', env);
+  return session?.patient ?? null;
+}
+
+/**
+ * DEV ONLY — establish a local session WITHOUT WSO2 so the integrated offline
+ * install renders real FHIR data. Only works when WSO2 is unconfigured AND
+ * ALLOW_DEV_MOCK_AUTH=true. Never fires in production.
+ */
+export async function startDevSession(patient = 'MARIA_SD_001'): Promise<boolean> {
+  const env = serverEnv();
+  if (env.tokenUrl || !env.allowDevMockAuth) return false;
+  const jar = await cookies();
+  const session: SessionData = {
+    accessToken: 'dev-mock-access-token',
+    scope: env.scope,
+    patient,
+    fhirUser: 'Practitioner/dev',
+    expiresAt: Date.now() + 8 * 60 * 60 * 1000,
+  };
+  jar.set(SESSION_COOKIE, seal(session, env), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 8,
+  });
+  return true;
+}
+
 // ---- internals --------------------------------------------------------------
 
 interface TokenResponse {
