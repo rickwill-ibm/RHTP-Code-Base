@@ -46,7 +46,12 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:contract": "newman run tools/contract/cms0057f.postman_collection.json -e tools/contract/local.postman_environment.json",
+    "test:e2e": "playwright test",
+    "seed:maria": "node tools/seed/load-maria.mjs"
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.15",
@@ -83,6 +88,10 @@
     "prettier": "^3.5.3",
     "tailwindcss": "3.4.6",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.9"
   }
 }

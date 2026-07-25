@@ -1,0 +1,76 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:maria-patient",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "MARIA_SD_001",
+        "identifier": [{ "system": "https://rhtp.example/mrn", "value": "MARIA_SD_001" }],
+        "name": [{ "family": "Redhawk", "given": ["Maria"] }],
+        "gender": "female",
+        "birthDate": "1992-03-14",
+        "address": [{ "city": "Martin", "state": "SD", "postalCode": "57551", "country": "US" }]
+      },
+      "request": { "method": "PUT", "url": "Patient/MARIA_SD_001" }
+    },
+    {
+      "resource": {
+        "resourceType": "Coverage",
+        "id": "MARIA_COV_001",
+        "status": "active",
+        "beneficiary": { "reference": "Patient/MARIA_SD_001" },
+        "payor": [{ "display": "SD Medicaid" }],
+        "type": { "text": "Medicaid Managed Care" }
+      },
+      "request": { "method": "PUT", "url": "Coverage/MARIA_COV_001" }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "MARIA_CND_T2DM",
+        "subject": { "reference": "Patient/MARIA_SD_001" },
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }] },
+        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "44054006", "display": "Type 2 diabetes mellitus" }] }
+      },
+      "request": { "method": "PUT", "url": "Condition/MARIA_CND_T2DM" }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "MARIA_CND_HTN",
+        "subject": { "reference": "Patient/MARIA_SD_001" },
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }] },
+        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "38341003", "display": "Hypertension" }] }
+      },
+      "request": { "method": "PUT", "url": "Condition/MARIA_CND_HTN" }
+    },
+    {
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "MARIA_SR_MRI",
+        "status": "draft",
+        "intent": "order",
+        "priority": "urgent",
+        "subject": { "reference": "Patient/MARIA_SD_001" },
+        "code": {
+          "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "72148", "display": "MRI lumbar spine without contrast" }],
+          "text": "MRI lumbar spine w/o contrast (CPT 72148)"
+        },
+        "note": [{ "text": "Aligns with the reference implementation prior-authorization example so CRD/DTR/PAS match in Slice 4." }]
+      },
+      "request": { "method": "PUT", "url": "ServiceRequest/MARIA_SR_MRI" }
+    },
+    {
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "MARIA_DR_A1C",
+        "status": "final",
+        "subject": { "reference": "Patient/MARIA_SD_001" },
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "4548-4", "display": "Hemoglobin A1c" }] }
+      },
+      "request": { "method": "PUT", "url": "DiagnosticReport/MARIA_DR_A1C" }
+    }
+  ]
+}
