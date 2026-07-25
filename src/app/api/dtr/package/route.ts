@@ -7,6 +7,7 @@ import { isAuthenticated } from '@/lib/server/smartSession';
 import { fhirRead } from '@/lib/server/fhirServer';
 import { correlationFrom } from '@/lib/server/correlation';
 import { ooError } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devQuestionnairePackage } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(ooError('questionnaire canonical required', 'required'), {
       status: 400,
     });
+  }
+  if (devMockEnabled()) {
+    return NextResponse.json(devQuestionnairePackage());
   }
   // $questionnaire-package is a FHIR operation served by fhir-service.
   const path = `Questionnaire/$questionnaire-package?questionnaire=${encodeURIComponent(questionnaire)}`;

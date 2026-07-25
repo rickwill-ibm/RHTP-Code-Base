@@ -6,6 +6,7 @@ import { isAuthenticated } from '@/lib/server/smartSession';
 import { memberMatch } from '@/lib/server/memberMatch';
 import { correlationFrom } from '@/lib/server/correlation';
 import { ooError } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devMemberMatch } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +14,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const correlationId = correlationFrom(req.headers);
   if (!(await isAuthenticated().catch(() => false))) {
     return NextResponse.json(ooError('Not authenticated', 'login'), { status: 401 });
+  }
+  if (devMockEnabled()) {
+    return NextResponse.json(devMemberMatch());
   }
   const parameters = await req.json().catch(() => null);
   if (!parameters) {

@@ -7,6 +7,7 @@ import { isAuthenticated } from '@/lib/server/smartSession';
 import { invokeCrd } from '@/lib/server/cdsClient';
 import { correlationFrom } from '@/lib/server/correlation';
 import { ooError } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devCrdCards } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const correlationId = correlationFrom(req.headers);
   if (!(await isAuthenticated().catch(() => false))) {
     return NextResponse.json(ooError('Not authenticated', 'login'), { status: 401 });
+  }
+  if (devMockEnabled()) {
+    return NextResponse.json({ cards: devCrdCards(), correlationId });
   }
   const body = (await req.json().catch(() => null)) as {
     hookId?: string;

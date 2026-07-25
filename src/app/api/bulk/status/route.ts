@@ -7,6 +7,7 @@ import { isAuthenticated } from '@/lib/server/smartSession';
 import { exportStatus } from '@/lib/server/bulkClient';
 import { correlationFrom } from '@/lib/server/correlation';
 import { ooError } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devBulkStatus } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const jobId = req.nextUrl.searchParams.get('jobId');
   if (!jobId) {
     return NextResponse.json(ooError('jobId required', 'required'), { status: 400 });
+  }
+  if (devMockEnabled()) {
+    return NextResponse.json(devBulkStatus());
   }
   const s = await exportStatus(jobId, { correlationId });
   return NextResponse.json(

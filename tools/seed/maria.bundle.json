@@ -3,7 +3,50 @@
   "type": "transaction",
   "entry": [
     {
-      "fullUrl": "urn:uuid:maria-patient",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "ORG_SDMEDICAID",
+        "name": "South Dakota Medicaid",
+        "type": [{ "text": "Payer" }]
+      },
+      "request": { "method": "PUT", "url": "Organization/ORG_SDMEDICAID" }
+    },
+    {
+      "resource": {
+        "resourceType": "Organization",
+        "id": "ORG_BENNETT",
+        "name": "Bennett County Health",
+        "type": [{ "text": "Healthcare Provider" }]
+      },
+      "request": { "method": "PUT", "url": "Organization/ORG_BENNETT" }
+    },
+    {
+      "resource": {
+        "resourceType": "Practitioner",
+        "id": "PRAC_PCP",
+        "name": [{ "family": "Whitfield", "given": ["James"], "prefix": ["Dr."] }]
+      },
+      "request": { "method": "PUT", "url": "Practitioner/PRAC_PCP" }
+    },
+    {
+      "resource": {
+        "resourceType": "Practitioner",
+        "id": "PRAC_CM",
+        "name": [{ "family": "Johnson", "given": ["Sarah"] }]
+      },
+      "request": { "method": "PUT", "url": "Practitioner/PRAC_CM" }
+    },
+    {
+      "resource": {
+        "resourceType": "PractitionerRole",
+        "id": "PROLE_PCP",
+        "practitioner": { "reference": "Practitioner/PRAC_PCP" },
+        "organization": { "reference": "Organization/ORG_BENNETT" },
+        "code": [{ "text": "Primary Care Physician" }]
+      },
+      "request": { "method": "PUT", "url": "PractitionerRole/PROLE_PCP" }
+    },
+    {
       "resource": {
         "resourceType": "Patient",
         "id": "MARIA_SD_001",
@@ -11,7 +54,9 @@
         "name": [{ "family": "Redhawk", "given": ["Maria"] }],
         "gender": "female",
         "birthDate": "1992-03-14",
-        "address": [{ "city": "Martin", "state": "SD", "postalCode": "57551", "country": "US" }]
+        "address": [{ "city": "Martin", "state": "SD", "postalCode": "57551", "country": "US" }],
+        "managingOrganization": { "reference": "Organization/ORG_BENNETT" },
+        "generalPractitioner": [{ "reference": "Practitioner/PRAC_PCP" }]
       },
       "request": { "method": "PUT", "url": "Patient/MARIA_SD_001" }
     },
@@ -21,7 +66,9 @@
         "id": "MARIA_COV_001",
         "status": "active",
         "beneficiary": { "reference": "Patient/MARIA_SD_001" },
-        "payor": [{ "display": "SD Medicaid" }],
+        "payor": [
+          { "reference": "Organization/ORG_SDMEDICAID", "display": "South Dakota Medicaid" }
+        ],
         "type": { "text": "Medicaid Managed Care" }
       },
       "request": { "method": "PUT", "url": "Coverage/MARIA_COV_001" }
@@ -31,8 +78,24 @@
         "resourceType": "Condition",
         "id": "MARIA_CND_T2DM",
         "subject": { "reference": "Patient/MARIA_SD_001" },
-        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }] },
-        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "44054006", "display": "Type 2 diabetes mellitus" }] }
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "44054006",
+              "display": "Type 2 diabetes mellitus"
+            }
+          ],
+          "text": "Type 2 diabetes mellitus"
+        }
       },
       "request": { "method": "PUT", "url": "Condition/MARIA_CND_T2DM" }
     },
@@ -41,36 +104,313 @@
         "resourceType": "Condition",
         "id": "MARIA_CND_HTN",
         "subject": { "reference": "Patient/MARIA_SD_001" },
-        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }] },
-        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "38341003", "display": "Hypertension" }] }
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            { "system": "http://snomed.info/sct", "code": "38341003", "display": "Hypertension" }
+          ],
+          "text": "Hypertension"
+        }
       },
       "request": { "method": "PUT", "url": "Condition/MARIA_CND_HTN" }
     },
     {
       "resource": {
-        "resourceType": "ServiceRequest",
-        "id": "MARIA_SR_MRI",
-        "status": "draft",
-        "intent": "order",
-        "priority": "urgent",
+        "resourceType": "Condition",
+        "id": "MARIA_CND_CKD",
         "subject": { "reference": "Patient/MARIA_SD_001" },
-        "code": {
-          "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "72148", "display": "MRI lumbar spine without contrast" }],
-          "text": "MRI lumbar spine w/o contrast (CPT 72148)"
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
         },
-        "note": [{ "text": "Aligns with the reference implementation prior-authorization example so CRD/DTR/PAS match in Slice 4." }]
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "700379002",
+              "display": "Chronic kidney disease stage 3b"
+            }
+          ],
+          "text": "CKD stage 3b"
+        }
       },
-      "request": { "method": "PUT", "url": "ServiceRequest/MARIA_SR_MRI" }
+      "request": { "method": "PUT", "url": "Condition/MARIA_CND_CKD" }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "MARIA_OBS_A1C",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            { "system": "http://loinc.org", "code": "4548-4", "display": "Hemoglobin A1c" }
+          ],
+          "text": "Hemoglobin A1c"
+        },
+        "subject": { "reference": "Patient/MARIA_SD_001" },
+        "valueQuantity": {
+          "value": 8.2,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        }
+      },
+      "request": { "method": "PUT", "url": "Observation/MARIA_OBS_A1C" }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "MARIA_MR_METFORMIN",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "860975",
+              "display": "Metformin 500 MG"
+            }
+          ],
+          "text": "Metformin 500 mg"
+        },
+        "subject": { "reference": "Patient/MARIA_SD_001" }
+      },
+      "request": { "method": "PUT", "url": "MedicationRequest/MARIA_MR_METFORMIN" }
     },
     {
       "resource": {
         "resourceType": "DiagnosticReport",
         "id": "MARIA_DR_A1C",
         "status": "final",
+        "code": {
+          "coding": [
+            { "system": "http://loinc.org", "code": "4548-4", "display": "Hemoglobin A1c" }
+          ]
+        },
         "subject": { "reference": "Patient/MARIA_SD_001" },
-        "code": { "coding": [{ "system": "http://loinc.org", "code": "4548-4", "display": "Hemoglobin A1c" }] }
+        "result": [{ "reference": "Observation/MARIA_OBS_A1C" }]
       },
       "request": { "method": "PUT", "url": "DiagnosticReport/MARIA_DR_A1C" }
+    },
+    {
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "MARIA_SR_MRI",
+        "status": "active",
+        "intent": "order",
+        "priority": "urgent",
+        "subject": { "reference": "Patient/MARIA_SD_001" },
+        "requester": { "reference": "Practitioner/PRAC_PCP" },
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.ama-assn.org/go/cpt",
+              "code": "72148",
+              "display": "MRI lumbar spine without contrast"
+            }
+          ],
+          "text": "MRI lumbar spine w/o contrast (CPT 72148)"
+        },
+        "note": [
+          {
+            "text": "Aligns with the reference implementation prior-authorization example (CRD/DTR/PAS)."
+          }
+        ]
+      },
+      "request": { "method": "PUT", "url": "ServiceRequest/MARIA_SR_MRI" }
+    },
+    {
+      "resource": {
+        "resourceType": "Claim",
+        "id": "MARIA_CLAIM_MRI",
+        "status": "active",
+        "type": {
+          "coding": [
+            { "system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional" }
+          ]
+        },
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/MARIA_SD_001" },
+        "created": "2026-06-10",
+        "provider": { "reference": "Organization/ORG_BENNETT" },
+        "priority": {
+          "coding": [
+            { "system": "http://terminology.hl7.org/CodeSystem/processpriority", "code": "stat" }
+          ]
+        },
+        "insurance": [
+          { "sequence": 1, "focal": true, "coverage": { "reference": "Coverage/MARIA_COV_001" } }
+        ],
+        "item": [
+          {
+            "sequence": 1,
+            "productOrService": {
+              "coding": [
+                {
+                  "system": "http://www.ama-assn.org/go/cpt",
+                  "code": "72148",
+                  "display": "MRI lumbar spine w/o contrast"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "request": { "method": "PUT", "url": "Claim/MARIA_CLAIM_MRI" }
+    },
+    {
+      "resource": {
+        "resourceType": "ClaimResponse",
+        "id": "MARIA_CR_MRI_APPROVED",
+        "status": "active",
+        "type": {
+          "coding": [
+            { "system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional" }
+          ],
+          "text": "MRI lumbar spine w/o contrast"
+        },
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/MARIA_SD_001" },
+        "created": "2026-06-11",
+        "insurer": { "reference": "Organization/ORG_SDMEDICAID" },
+        "request": { "reference": "Claim/MARIA_CLAIM_MRI" },
+        "outcome": "complete",
+        "disposition": "Prior authorization approved. Expedited decision within 72 hours."
+      },
+      "request": { "method": "PUT", "url": "ClaimResponse/MARIA_CR_MRI_APPROVED" }
+    },
+    {
+      "resource": {
+        "resourceType": "ClaimResponse",
+        "id": "MARIA_CR_ECHO_DENIED",
+        "status": "active",
+        "type": {
+          "coding": [
+            { "system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional" }
+          ],
+          "text": "Echocardiogram (TTE)"
+        },
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/MARIA_SD_001" },
+        "created": "2026-05-28",
+        "insurer": { "reference": "Organization/ORG_SDMEDICAID" },
+        "outcome": "error",
+        "disposition": "Prior authorization denied.",
+        "error": [
+          {
+            "code": {
+              "text": "Medical necessity not established — conservative therapy not documented"
+            }
+          },
+          { "code": { "text": "Missing recent cardiology consult note" } }
+        ]
+      },
+      "request": { "method": "PUT", "url": "ClaimResponse/MARIA_CR_ECHO_DENIED" }
+    },
+    {
+      "resource": {
+        "resourceType": "ExplanationOfBenefit",
+        "id": "MARIA_EOB_VISIT",
+        "status": "active",
+        "type": {
+          "coding": [
+            { "system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional" }
+          ],
+          "text": "Office visit"
+        },
+        "use": "claim",
+        "patient": { "reference": "Patient/MARIA_SD_001" },
+        "created": "2026-05-02",
+        "insurer": { "reference": "Organization/ORG_SDMEDICAID" },
+        "provider": { "reference": "Organization/ORG_BENNETT" },
+        "outcome": "complete",
+        "insurance": [{ "focal": true, "coverage": { "reference": "Coverage/MARIA_COV_001" } }],
+        "item": [
+          {
+            "sequence": 1,
+            "productOrService": {
+              "coding": [
+                {
+                  "system": "http://www.ama-assn.org/go/cpt",
+                  "code": "99214",
+                  "display": "Office/outpatient visit, established"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "request": { "method": "PUT", "url": "ExplanationOfBenefit/MARIA_EOB_VISIT" }
+    },
+    {
+      "resource": {
+        "resourceType": "Consent",
+        "id": "MARIA_CONSENT",
+        "status": "active",
+        "scope": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/consentscope",
+              "code": "patient-privacy"
+            }
+          ]
+        },
+        "category": [
+          {
+            "coding": [
+              { "system": "http://loinc.org", "code": "59284-0", "display": "Consent Document" }
+            ]
+          }
+        ],
+        "patient": { "reference": "Patient/MARIA_SD_001" }
+      },
+      "request": { "method": "PUT", "url": "Consent/MARIA_CONSENT" }
+    },
+    {
+      "resource": {
+        "resourceType": "Questionnaire",
+        "id": "Q_MRI_LUMBAR",
+        "url": "http://example.org/Questionnaire/mri-lumbar",
+        "status": "active",
+        "title": "MRI Lumbar Spine — Documentation Requirements (DTR)",
+        "item": [
+          {
+            "linkId": "q1",
+            "text": "Conservative therapy attempted (>= 6 weeks)?",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "linkId": "q2",
+            "text": "Neurological deficit present?",
+            "type": "boolean",
+            "required": true
+          },
+          { "linkId": "q3", "text": "Relevant clinical notes", "type": "string" }
+        ]
+      },
+      "request": { "method": "PUT", "url": "Questionnaire/Q_MRI_LUMBAR" }
     }
   ]
 }

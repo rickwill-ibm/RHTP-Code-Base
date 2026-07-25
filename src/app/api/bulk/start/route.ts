@@ -6,6 +6,7 @@ import { isAuthenticated } from '@/lib/server/smartSession';
 import { startExport } from '@/lib/server/bulkClient';
 import { correlationFrom } from '@/lib/server/correlation';
 import { ooError } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devBulkStart } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } | null;
   if (!body?.priorPayer) {
     return NextResponse.json(ooError('priorPayer required', 'required'), { status: 400 });
+  }
+  if (devMockEnabled()) {
+    return NextResponse.json({ ...devBulkStart(), correlationId }, { status: 202 });
   }
   const result = await startExport(body.priorPayer, body.memberMatch ?? {}, {
     actor: 'session-user',

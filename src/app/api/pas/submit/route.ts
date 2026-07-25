@@ -10,6 +10,7 @@ import { isAuthenticated } from '@/lib/server/smartSession';
 import { submitPas } from '@/lib/server/pasClient';
 import { correlationFrom, newCorrelationId } from '@/lib/server/correlation';
 import { ooError, operationOutcome } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devClaimResponseApproved } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -41,6 +42,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ]),
       { status: 202 }
     );
+  }
+
+  // Dev demo: return a canned approved decision (human gate above still enforced).
+  if (devMockEnabled()) {
+    return NextResponse.json(devClaimResponseApproved(approvedBy), { status: 200 });
   }
 
   const idempotencyKey = req.headers.get('idempotency-key') || newCorrelationId();
