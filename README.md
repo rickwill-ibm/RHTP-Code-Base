@@ -4,8 +4,9 @@ A Next.js application that delivers a **native, CMS-0057-F-aligned prior-authori
 and financial-clearance experience** for a rural health / total-cost-of-care payer
 program, on top of a FHIR back-end. It combines the four CMS-0057-F interoperability
 provisions with a connected "Golden Thread" workflow (Eligibility → Medical Necessity
-→ Prior Authorization → Patient Estimation), a generalized payer **Policy Engine**, and
-**gold carding**, all demonstrable offline on mock data.
+→ Prior Authorization → Patient Estimation), a generalized payer **Policy Engine**,
+**gold carding**, and a **Network Adequacy** capability with an interactive analyst
+copilot — all demonstrable offline on mock data.
 
 ## What it does
 
@@ -28,6 +29,14 @@ provisions with a connected "Golden Thread" workflow (Eligibility → Medical Ne
   flags, and an **Evidence Record viewer** (the auditable Coverage Determination Record).
   When PA is required, a **stage-3 handoff** continues the same thread into the existing
   Prior-Authorization (CRD → DTR → PAS) screens.
+- **Network Adequacy + analyst copilot** — measure, monitor, and **validate** provider
+  network adequacy by specialty × county × line of business against CMS standards
+  (time/distance, in-network %, wait-time, ratio), with prioritized gaps and augmentation.
+  An **interactive assistant** lets a payer or state analyst analyze *and* validate
+  conversationally — grounded in the engine, so it works offline with no API key. Seeded
+  for Georgia (storyboard) and **South Dakota (Maria's state)**, including the Pine
+  Ridge / Rosebud reservation counties. Maps to MA §422.116, Medicaid §438.68 + the 2024
+  Access rule, and QHP §156.230.
 
 ## Prerequisites
 
@@ -67,12 +76,14 @@ Then open:
   to Prior Authorization or view the Evidence Record
 - `/work-queue` — the reviewer inbox (queues by disposition + SLA), which drills into
   `/evidence/:id`
+- `/network-adequacy` — adequacy analytics + the analyst copilot (switch between GA and
+  SD/Maria; ask it to analyze or validate)
 
 Validate:
 
 ```bash
 npx tsc --noEmit     # type-check (0 errors)
-npx vitest run       # unit/behavior tests (129 passing)
+npx vitest run       # unit/behavior tests (145 passing)
 npm run lint         # next lint
 
 # optional end-to-end smoke tests (Playwright, not installed by default)
@@ -102,21 +113,26 @@ npx playwright test  # runs e2e/ against the dev server (port 4029)
 | `docs/IMPLEMENTED_TODAY.md` | The most recent build increment — Policy Engine, Golden Thread, gold carding, productionization — with the file map and test counts. |
 | `docs/golden-thread-plan.md` | The living Golden Thread improvement plan and roadmap (§6A engine, §9 increments). |
 | `docs/conformance-plan.md` | Tier-B cutover + Inferno / Da Vinci conformance test plan. |
+| `docs/network-adequacy-plan.md` | Network Adequacy integration plan — CMS mandate mapping, analyst copilot, NA-0…NA-8 increments. |
+| `docs/remaining-work-and-test-plan.md` | What's left to build across the platform + the test plan to prove it. |
 | `docs/current-state.md`, `docs/integration-endpoints.md`, `docs/traceability.md`, `docs/sample-data-coverage.md` | Build state, endpoint map, standards traceability, and mock-data coverage. |
 | `docs/archive/` | Superseded planning documents, retained for history. |
 
 ## Status
 
-The full offline experience is implemented, hardened, and green (`tsc` 0, **129 vitest
+The full offline experience is implemented, hardened, and green (`tsc` 0, **145 vitest
 passing**, `next lint` clean on the app code): the four CMS-0057-F provisions, the complete
 Golden Thread (Policy Engine, gold carding, propensity, persisted Evidence Record, the four
 stages, work queue), the reviewer UI (interactive runner, work-queue inbox, evidence
-viewer, stage-3 handoff), and the productionization seams. The BFF routes are input-validated,
-authorized, audited, and error-wrapped; e2e smoke tests are provided (Playwright).
+viewer, stage-3 handoff), the **Network Adequacy engine + analyst copilot** (GA + SD/Maria),
+and the productionization seams. The BFF routes are input-validated, authorized, audited,
+and error-wrapped; e2e smoke tests are provided (Playwright).
 
-What remains needs external services or people: live AI-assisted DTR generation (Docker +
-key), clinical SME review of executable CQL criteria, and standing up the Tier-B backbone
-(the WSO2 reference implementation above) for live, conformance-tested adjudication.
+What remains is captured in `docs/remaining-work-and-test-plan.md`. The larger items need
+external services or people: live AI-assisted DTR + network-adequacy narration (Docker +
+key), clinical SME review of executable CQL criteria, standing up the Tier-B backbone (the
+WSO2 reference implementation above) for live conformance-tested adjudication, and wiring
+real provider-directory / geography / membership data for authoritative adequacy.
 
 > Decision-support outputs (propensity-to-deny, cost estimates) are **not** coverage
 > determinations. The payer `ClaimResponse` is authoritative.
