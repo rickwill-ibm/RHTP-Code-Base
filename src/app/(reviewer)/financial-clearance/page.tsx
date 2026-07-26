@@ -1,42 +1,40 @@
 /**
- * Golden Thread — Financial Clearance (increments GT-3/5/6/7).
+ * Golden Thread — Financial Clearance (increments GT-3/5/6/7 + #1 wiring).
  *
- * A server-rendered demonstration that runs the four-stage thread on mock data
- * (real parsed policy library + mock gold-card roster), for two providers of the
- * same lumbar-MRI order: one gold-carded (PA waived) and one not. Shows the
- * stage rail, eligibility, the Medical Necessity panel, patient estimate, and
- * work-queue routing — all from the pure stage services, no backend required.
+ * Server-rendered. Reads the SMART session patient (when launched) and runs the
+ * production thread **orchestrator** (`runFinancialClearance`) — the same path
+ * the `/api/financial-clearance` BFF route uses — for two providers of the same
+ * lumbar-MRI order (one gold-carded, one not), threading + persisting an
+ * Evidence Record. In a real launch the member+order come from FHIR via the BFF;
+ * here they come from the seed so the page is self-contained offline.
  */
 import { flag } from '@/lib/flags/flags';
-import { loadMockLibrary, MOCK_GOLD_CARD_CONTEXT, type MemberContext } from '@/lib/policy';
-import {
-  runMedicalNecessity,
-  runEligibility,
-  estimatePatientCost,
-  routeToQueue,
-  MOCK_ALLOWED_AMOUNTS,
-  type StageOrder,
-  type FcStage,
-} from '@/lib/goldenThread';
+import { getSessionPatient } from '@/lib/server/smartSession';
+import { loadMockLibrary, type MemberContext } from '@/lib/policy';
+import { mockGoldCardDataSource } from '@/lib/policy/goldCardSource';
+import { mockDenialRateProvider } from '@/lib/policy/denialRates';
+import { createInMemoryEvidenceStore } from '@/lib/evidence/evidenceStore';
+import { runFinancialClearance } from '@/lib/goldenThread/threadOrchestrator';
+import type { StageOrder } from '@/lib/goldenThread';
+import type { CoverageInfo } from '@/lib/goldenThread/eligibility';
+import type { ThreadInputs } from '@/lib/goldenThread/fromFhirBundle';
+import type { FcStage } from '@/lib/goldenThread';
 import { StageRail } from '@/components/goldenThread/StageRail';
 import { MedicalNecessityPanel } from '@/components/goldenThread/MedicalNecessityPanel';
 
 const TS = '2026-07-26T00:00:00.000Z';
 const PAYER = 'UnitedHealthcare Community Plan';
 
-interface Scenario {
-  heading: string;
-  providerNpi: string;
-}
-
-const SCENARIOS: Scenario[] = [
+const SCENARIOS = [
   { heading: 'Provider A — gold-carded for this service', providerNpi: '1730154783' },
   { heading: 'Provider B — not gold-carded', providerNpi: '1518998765' },
 ];
 
-function renderScenario(s: Scenario): React.ReactElement {
-  const library = loadMockLibrary();
-  const member: MemberContext = { memberId: 'MARIA_SD_001', diagnoses: [] };
+async function renderScenario(
+  s: { heading: string; providerNpi: string },
+  memberId: string
+): Promise<React.ReactElement> {
+  const member: MemberContext = { memberId, diagnoses: [] };
   const order: StageOrder = {
     code: '72148',
     codeSystem: 'CPT',
@@ -44,46 +42,39 @@ function renderScenario(s: Scenario): React.ReactElement {
     providerNpi: s.providerNpi,
     payer: PAYER,
   };
+  const coverage: CoverageInfo = {
+    status: 'active',
+    payer: PAYER,
+    plan: 'Texas STAR',
+    type: 'Medicaid managed care',
+  };
+  const inputs: ThreadInputs = { member, order, coverage };
 
-  const mn = runMedicalNecessity(member, order, {
-    library,
-    goldCard: { ...MOCK_GOLD_CARD_CONTEXT, asOf: TS },
-    ids: { determination: 'd', goldCard: 'g', propensity: 'p', evidence: `ev-${s.providerNpi}` },
+  const evId = `ev-${memberId}-${s.providerNpi}`;
+  const result = await runFinancialClearance(inputs, {
+    library: loadMockLibrary(),
+    goldCardSource: mockGoldCardDataSource,
+    denialRates: mockDenialRateProvider,
+    store: createInMemoryEvidenceStore(),
     ts: TS,
+    ids: {
+      evidence: evId,
+      determination: `${evId}-det`,
+      goldCard: `${evId}-gc`,
+      propensity: `${evId}-prop`,
+      eligibility: `${evId}-elig`,
+      estimation: `${evId}-est`,
+    },
   });
 
-  const eligibility = runEligibility(
-    { status: 'active', payer: PAYER, plan: 'Texas STAR', type: 'Medicaid managed care' },
-    { requiresPA: mn.determination.requiresPA, goldCardApplied: mn.goldCard.applied }
-  );
-
-  const estimate = estimatePatientCost({
-    code: order.code,
-    display: order.display,
-    allowedAmount: MOCK_ALLOWED_AMOUNTS[order.code] ?? 1000,
-    benefit: { deductibleRemaining: 300, coinsuranceRate: 0.2, outOfPocketRemaining: 5000 },
-  });
-
-  const workItem = routeToQueue({
-    netOutcome: mn.netOutcome,
-    requiresPA: mn.netRequiresPA,
-    propensity: { score: mn.propensity.score, band: mn.propensity.band },
-    priority: 'expedited',
-    submittedAt: TS,
-    evidenceId: mn.evidence.id,
-    memberId: member.memberId,
-    code: order.code,
-  });
-
-  const paSkipped = !mn.netRequiresPA;
+  const { eligibility, medicalNecessity: mn, estimate, workItem, evidence } = result;
+  const skipped: FcStage[] = result.netRequiresPA ? [] : ['PriorAuth'];
   const completed: FcStage[] = ['Eligibility', 'MedicalNecessity'];
-  const skipped: FcStage[] = paSkipped ? ['PriorAuth'] : [];
-  const current: FcStage = 'PatientEstimation';
 
   return (
     <section className="space-y-4 rounded-lg border border-slate-300 p-4">
       <h2 className="text-xl font-semibold">{s.heading}</h2>
-      <StageRail current={current} completed={completed} skipped={skipped} />
+      <StageRail current="PatientEstimation" completed={completed} skipped={skipped} />
 
       <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
         <span className="font-medium">Eligibility: </span>
@@ -112,13 +103,16 @@ function renderScenario(s: Scenario): React.ReactElement {
             SLA {workItem.slaHours}h (due {workItem.dueBy.slice(0, 10)}).
           </p>
           <p className="text-xs text-slate-500">{workItem.note}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Evidence Record persisted: {evidence.id} ({evidence.entries.length} entries)
+          </p>
         </div>
       </div>
     </section>
   );
 }
 
-export default function FinancialClearancePage(): React.ReactElement {
+export default async function FinancialClearancePage(): Promise<React.ReactElement> {
   if (!flag('goldenThread')) {
     return (
       <main className="mx-auto max-w-3xl p-6">
@@ -126,23 +120,31 @@ export default function FinancialClearancePage(): React.ReactElement {
       </main>
     );
   }
+  const sessionPatient = await getSessionPatient().catch(() => null);
+  const memberId = sessionPatient ?? 'MARIA_SD_001';
+  const scenarios = await Promise.all(SCENARIOS.map((s) => renderScenario(s, memberId)));
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Golden Thread — Financial Clearance</h1>
         <p className="mt-1 text-sm text-slate-600">
           SMART-launched: Eligibility → Medical Necessity → Prior Auth → Patient Estimation, unified
-          by the Evidence Record. Gold carding, propensity-to-deny, and work-queue routing shown on
-          mock data.
+          by a persisted Evidence Record. Gold carding, propensity-to-deny, and work-queue routing.
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          {sessionPatient
+            ? `Launched for member ${sessionPatient} (SMART session).`
+            : 'No SMART session — showing the seed member. Launch from the EHR to run on a live patient.'}
         </p>
       </header>
-      {SCENARIOS.map((s) => (
-        <div key={s.providerNpi}>{renderScenario(s)}</div>
+      {scenarios.map((el, i) => (
+        <div key={SCENARIOS[i].providerNpi}>{el}</div>
       ))}
       <p className="text-xs italic text-slate-500">
-        Demonstration on mock data (real parsed Aetna/UHC policy library + mock gold-card roster).
-        Propensity and estimates are decision-support only; the payer ClaimResponse is
-        authoritative.
+        Runs the production `runFinancialClearance` orchestrator (same path as
+        `/api/financial-clearance`). Propensity and estimates are decision-support only; the payer
+        ClaimResponse is authoritative.
       </p>
     </main>
   );

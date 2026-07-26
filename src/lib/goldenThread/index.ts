@@ -40,3 +40,23 @@ export {
   type FcTransition,
 } from './financialClearanceMachine';
 export { generateQuestionnaireFromPolicy, type GeneratedQuestionnaire } from './dtrFromPolicy';
+export {
+  runFinancialClearance,
+  type OrchestratorDeps,
+  type ThreadResult,
+} from './threadOrchestrator';
+export {
+  projectThreadInputs,
+  coverageToInfo,
+  providerNpiFrom,
+  type ThreadInputs,
+} from './fromFhirBundle';
+export {
+  selectDtrGenerator,
+  deterministicDtrGenerator,
+  aiDtrGenerator,
+  aiDtrConfigFromEnv,
+  DtrNotConfiguredError,
+  type DtrGenerator,
+  type AiDtrConfig,
+} from './dtr/generator';

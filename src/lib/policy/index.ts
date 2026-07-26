@@ -43,3 +43,23 @@ export {
   type ProviderPaHistory,
 } from './goldCarding';
 export { toMemberContext, serviceRequestToOrder, conditionToDiagnosis } from './fromFhir';
+export {
+  evaluateCriteria,
+  evaluatePredicate,
+  CARDIAC_MRI_0520_CRITERIA,
+  type Predicate,
+  type CriteriaRule,
+  type CriteriaSet,
+  type CriteriaMemberFacts,
+  type CriteriaEvaluation,
+} from './criteria';
+export {
+  mockDenialRateProvider,
+  nullDenialRateProvider,
+  type DenialRateProvider,
+} from './denialRates';
+export {
+  mockGoldCardDataSource,
+  emptyGoldCardDataSource,
+  type GoldCardDataSource,
+} from './goldCardSource';
