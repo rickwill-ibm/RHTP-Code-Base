@@ -22,7 +22,12 @@ provisions with a connected "Golden Thread" workflow (Eligibility → Medical Ne
   (requires-PA · criteria met · deficiencies · propensity). Ships with the real parsed
   Aetna Cardiac CPBs and UnitedHealthcare PA-requirement lists as a seed library.
 - **Gold carding** — exempts high-performing providers (≥ approval-rate threshold over a
-  look-back window, per NPP × procedure × payer) from PA, recorded auditably.
+  look-back window, per NPI × procedure × payer) from PA, recorded auditably.
+- **Reviewer experience** — an interactive Financial Clearance runner (run a member's
+  order live), a **work-queue inbox** routed by disposition with SLA timers and breach
+  flags, and an **Evidence Record viewer** (the auditable Coverage Determination Record).
+  When PA is required, a **stage-3 handoff** continues the same thread into the existing
+  Prior-Authorization (CRD → DTR → PAS) screens.
 
 ## Prerequisites
 
@@ -58,14 +63,21 @@ npm run dev                   # http://localhost:4029
 Then open:
 
 - `/cms` — the CMS-0057-F hub (links to all provision surfaces)
-- `/financial-clearance` — the Golden Thread demonstration (runs on the seed member)
+- `/financial-clearance` — the Golden Thread: run a clearance interactively, then hand off
+  to Prior Authorization or view the Evidence Record
+- `/work-queue` — the reviewer inbox (queues by disposition + SLA), which drills into
+  `/evidence/:id`
 
 Validate:
 
 ```bash
 npx tsc --noEmit     # type-check (0 errors)
-npx vitest run       # unit/behavior tests
+npx vitest run       # unit/behavior tests (129 passing)
 npm run lint         # next lint
+
+# optional end-to-end smoke tests (Playwright, not installed by default)
+npm i -D @playwright/test && npx playwright install chromium
+npx playwright test  # runs e2e/ against the dev server (port 4029)
 ```
 
 ## How it's built
@@ -95,11 +107,16 @@ npm run lint         # next lint
 
 ## Status
 
-The full offline experience — four CMS-0057-F provisions and the complete Golden Thread
-— is implemented and green (`tsc` 0, all vitest passing, `next lint` clean). What remains
-needs external services: live AI-assisted DTR generation (Docker + key), clinical SME
-review of executable CQL criteria, and standing up the Tier-B backbone for live,
-conformance-tested adjudication.
+The full offline experience is implemented, hardened, and green (`tsc` 0, **129 vitest
+passing**, `next lint` clean on the app code): the four CMS-0057-F provisions, the complete
+Golden Thread (Policy Engine, gold carding, propensity, persisted Evidence Record, the four
+stages, work queue), the reviewer UI (interactive runner, work-queue inbox, evidence
+viewer, stage-3 handoff), and the productionization seams. The BFF routes are input-validated,
+authorized, audited, and error-wrapped; e2e smoke tests are provided (Playwright).
+
+What remains needs external services or people: live AI-assisted DTR generation (Docker +
+key), clinical SME review of executable CQL criteria, and standing up the Tier-B backbone
+(the WSO2 reference implementation above) for live, conformance-tested adjudication.
 
 > Decision-support outputs (propensity-to-deny, cost estimates) are **not** coverage
 > determinations. The payer `ClaimResponse` is authoritative.
