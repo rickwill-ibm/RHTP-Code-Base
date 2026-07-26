@@ -30,6 +30,7 @@ export {
   type WorkItem,
   type RouteInput,
 } from './workQueue';
+export { workItemFromEvidence, listWorkItems, groupByQueue } from './workQueueView';
 export {
   advance,
   FC_INITIAL,

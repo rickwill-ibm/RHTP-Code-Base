@@ -18,6 +18,7 @@ import {
 import type { QuestionnaireItemDef, QuestionnaireResponse } from '@/lib/dtr/questionnaireResponse';
 import type { CdsCard } from '@/lib/server/cdsClient';
 import { flag } from '@/lib/flags/flags';
+import { PaHandoffBanner } from '@/components/goldenThread/PaHandoffBanner';
 
 // Representative DTR items (real flow loads these from $questionnaire-package).
 const ITEMS: QuestionnaireItemDef[] = [
@@ -95,6 +96,7 @@ export default function PriorAuthPage(): React.ReactElement {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-6">
+      <PaHandoffBanner />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Prior authorization</h1>
         <span className="rounded bg-slate-100 px-2 py-1 text-xs">

@@ -21,6 +21,7 @@ import type { ThreadInputs } from '@/lib/goldenThread/fromFhirBundle';
 import type { FcStage } from '@/lib/goldenThread';
 import { StageRail } from '@/components/goldenThread/StageRail';
 import { MedicalNecessityPanel } from '@/components/goldenThread/MedicalNecessityPanel';
+import { FinancialClearanceRunner } from '@/components/goldenThread/FinancialClearanceRunner';
 
 const TS = '2026-07-26T00:00:00.000Z';
 const PAYER = 'UnitedHealthcare Community Plan';
@@ -137,7 +138,16 @@ export default async function FinancialClearancePage(): Promise<React.ReactEleme
             ? `Launched for member ${sessionPatient} (SMART session).`
             : 'No SMART session — showing the seed member. Launch from the EHR to run on a live patient.'}
         </p>
+        <p className="mt-2 text-sm">
+          <a className="text-blue-700 hover:underline" href="/work-queue">
+            → Open the reviewer work queue
+          </a>
+        </p>
       </header>
+
+      <FinancialClearanceRunner />
+
+      <h2 className="pt-2 text-lg font-semibold">Pre-computed scenarios</h2>
       {scenarios.map((el, i) => (
         <div key={SCENARIOS[i].providerNpi}>{el}</div>
       ))}
