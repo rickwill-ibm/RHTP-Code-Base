@@ -24,6 +24,28 @@ provisions with a connected "Golden Thread" workflow (Eligibility → Medical Ne
 - **Gold carding** — exempts high-performing providers (≥ approval-rate threshold over a
   look-back window, per NPP × procedure × payer) from PA, recorded auditably.
 
+## Prerequisites
+
+**Offline (Tier A) — nothing external required.** The dev stack runs all four provisions
+and the full Golden Thread on mock data using dev stubs + a seeded HAPI FHIR server. Just
+`npm install` and follow Quick start below.
+
+**Live / standards-conformant (Tier B) — requires the CMS-0057-F reference implementation.**
+RHTP is the *application* layer. Live eligibility (X12 270/271), real Da Vinci CRD → DTR →
+PAS, and X12 278/275 conversion are provided by the **WSO2 CMS-0057-F reference
+implementation** (WSO2 API Manager + Identity Server + Open Healthcare accelerator +
+Ballerina services + FHIR server + ITX), deployed and operated **as its own separate
+stack** — it is not vendored into this repo.
+
+- **Reference implementation (prerequisite for Tier B):** https://github.com/wso2/reference-implementation-cms0057f
+- **Regulation:** [CMS Interoperability and Prior Authorization Final Rule (CMS-0057-F)](https://www.cms.gov/priorities/key-initiatives/burden-reduction/interoperability/policies-and-regulations/cms-interoperability-and-prior-authorization-final-rule-cms-0057-f)
+
+RHTP connects to it purely through **configuration** — set the `BACKBONE_*` endpoints in
+`src/lib/backbone/config.ts`, and the live client seams in `src/lib/backbone/clients.ts`
+switch from dev stubs to the live services. No application code change is needed to move
+Tier A → Tier B. See `docs/conformance-plan.md` for the cutover + Inferno / Da Vinci
+conformance steps and `docs/ARCHITECTURE.md` §5 for how the seam works.
+
 ## Quick start (Tier A — offline dev stack)
 
 ```bash
@@ -55,9 +77,10 @@ npm run lint         # next lint
 - **Offline-first** — dev stubs (`ALLOW_DEV_MOCK_AUTH=true`) and a seeded FHIR bundle
   make all four provisions and the whole Golden Thread demonstrable with no external
   services. Live, standards-conformant operation uses the Tier-B backbone (below).
-- **Tier-B backbone (optional)** — WSO2 APIM/IS + Open Health accelerator + Ballerina
-  services + FHIR server + ITX (X12), gated by `BACKBONE_*` config and exercised via
-  the client seams in `src/lib/backbone/`. See `docs/conformance-plan.md`.
+- **Tier-B backbone (prerequisite for live operation)** — the WSO2 CMS-0057-F reference
+  implementation (see **Prerequisites** above), gated by `BACKBONE_*` config and exercised
+  via the client seams in `src/lib/backbone/`. Kept as a separate stack; RHTP connects by
+  configuration only. See `docs/conformance-plan.md`.
 
 ## Documentation
 
