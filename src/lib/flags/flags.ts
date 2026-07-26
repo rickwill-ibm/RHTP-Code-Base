@@ -3,7 +3,12 @@
  * Reads NEXT_PUBLIC_* so flags are readable on client + server (they are not secrets).
  */
 export type FeatureFlag =
-  'patientAccess' | 'providerAccess' | 'payerToPayer' | 'priorAuth' | 'aiDtrGeneration';
+  | 'patientAccess'
+  | 'providerAccess'
+  | 'payerToPayer'
+  | 'priorAuth'
+  | 'aiDtrGeneration'
+  | 'goldenThread';
 
 const DEFAULTS: Record<FeatureFlag, boolean> = {
   patientAccess: true,
@@ -11,6 +16,7 @@ const DEFAULTS: Record<FeatureFlag, boolean> = {
   payerToPayer: true,
   priorAuth: true,
   aiDtrGeneration: false, // off until human-review gate is wired (Slice 5)
+  goldenThread: true, // Financial Clearance thread (GT-*) — demoable on mock data
 };
 
 const ENV_KEY: Record<FeatureFlag, string> = {
@@ -19,6 +25,7 @@ const ENV_KEY: Record<FeatureFlag, string> = {
   payerToPayer: 'NEXT_PUBLIC_FLAG_PAYER_TO_PAYER',
   priorAuth: 'NEXT_PUBLIC_FLAG_PRIOR_AUTH',
   aiDtrGeneration: 'NEXT_PUBLIC_FLAG_AI_DTR',
+  goldenThread: 'NEXT_PUBLIC_FLAG_GOLDEN_THREAD',
 };
 
 export function flag(name: FeatureFlag): boolean {

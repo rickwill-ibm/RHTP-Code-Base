@@ -34,6 +34,12 @@ const LINKS = [
     desc: 'CRD → DTR → PAS (human-gated)',
     flag: 'priorAuth' as const,
   },
+  {
+    href: '/financial-clearance',
+    title: 'Golden Thread',
+    desc: 'Eligibility · Med-Necessity · PA · Estimation (gold carding)',
+    flag: 'goldenThread' as const,
+  },
 ];
 
 export default function CmsHubPage(): React.ReactElement {
