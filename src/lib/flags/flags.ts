@@ -8,7 +8,8 @@ export type FeatureFlag =
   | 'payerToPayer'
   | 'priorAuth'
   | 'aiDtrGeneration'
-  | 'goldenThread';
+  | 'goldenThread'
+  | 'networkAdequacy';
 
 const DEFAULTS: Record<FeatureFlag, boolean> = {
   patientAccess: true,
@@ -17,6 +18,7 @@ const DEFAULTS: Record<FeatureFlag, boolean> = {
   priorAuth: true,
   aiDtrGeneration: false, // off until human-review gate is wired (Slice 5)
   goldenThread: true, // Financial Clearance thread (GT-*) — demoable on mock data
+  networkAdequacy: true, // Network adequacy analytics + analyst copilot (NA-*)
 };
 
 const ENV_KEY: Record<FeatureFlag, string> = {
@@ -26,6 +28,7 @@ const ENV_KEY: Record<FeatureFlag, string> = {
   priorAuth: 'NEXT_PUBLIC_FLAG_PRIOR_AUTH',
   aiDtrGeneration: 'NEXT_PUBLIC_FLAG_AI_DTR',
   goldenThread: 'NEXT_PUBLIC_FLAG_GOLDEN_THREAD',
+  networkAdequacy: 'NEXT_PUBLIC_FLAG_NETWORK_ADEQUACY',
 };
 
 export function flag(name: FeatureFlag): boolean {

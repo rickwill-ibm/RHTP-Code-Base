@@ -1,0 +1,2560 @@
+{
+  "version": "1.0",
+  "states": [
+    "GA",
+    "SD"
+  ],
+  "generator": "gen_network_adequacy_seed.py",
+  "geo": [
+    {
+      "fips": "13121",
+      "name": "Fulton",
+      "state": "GA",
+      "countyType": "large-metro",
+      "lat": 33.79,
+      "lng": -84.47,
+      "population": 1066000,
+      "members": {
+        "Medicaid": 20000,
+        "Medicare": 12000,
+        "Commercial": 45000
+      }
+    },
+    {
+      "fips": "13089",
+      "name": "DeKalb",
+      "state": "GA",
+      "countyType": "large-metro",
+      "lat": 33.77,
+      "lng": -84.23,
+      "population": 764000,
+      "members": {
+        "Medicaid": 18000,
+        "Medicare": 10000,
+        "Commercial": 38000
+      }
+    },
+    {
+      "fips": "13135",
+      "name": "Gwinnett",
+      "state": "GA",
+      "countyType": "large-metro",
+      "lat": 33.96,
+      "lng": -84.02,
+      "population": 957000,
+      "members": {
+        "Medicaid": 19000,
+        "Medicare": 9000,
+        "Commercial": 42000
+      }
+    },
+    {
+      "fips": "13067",
+      "name": "Cobb",
+      "state": "GA",
+      "countyType": "metro",
+      "lat": 33.94,
+      "lng": -84.58,
+      "population": 766000,
+      "members": {
+        "Medicaid": 14000,
+        "Medicare": 11000,
+        "Commercial": 40000
+      }
+    },
+    {
+      "fips": "13061",
+      "name": "Clay",
+      "state": "GA",
+      "countyType": "rural",
+      "lat": 31.62,
+      "lng": -84.98,
+      "population": 2900,
+      "members": {
+        "Medicaid": 1200,
+        "Medicare": 700,
+        "Commercial": 500
+      }
+    },
+    {
+      "fips": "46099",
+      "name": "Minnehaha",
+      "state": "SD",
+      "countyType": "metro",
+      "lat": 43.67,
+      "lng": -96.79,
+      "population": 197000,
+      "members": {
+        "Medicaid": 16000,
+        "Medicare": 14000,
+        "Commercial": 55000
+      }
+    },
+    {
+      "fips": "46103",
+      "name": "Pennington",
+      "state": "SD",
+      "countyType": "micro",
+      "lat": 44.0,
+      "lng": -102.82,
+      "population": 113000,
+      "members": {
+        "Medicaid": 11000,
+        "Medicare": 12000,
+        "Commercial": 38000
+      }
+    },
+    {
+      "fips": "46013",
+      "name": "Brown",
+      "state": "SD",
+      "countyType": "micro",
+      "lat": 45.59,
+      "lng": -98.35,
+      "population": 38000,
+      "members": {
+        "Medicaid": 5000,
+        "Medicare": 6000,
+        "Commercial": 15000
+      }
+    },
+    {
+      "fips": "46102",
+      "name": "Oglala Lakota",
+      "state": "SD",
+      "countyType": "ccn",
+      "lat": 43.33,
+      "lng": -102.55,
+      "population": 14000,
+      "members": {
+        "Medicaid": 8000,
+        "Medicare": 1200,
+        "Commercial": 800
+      }
+    },
+    {
+      "fips": "46121",
+      "name": "Todd",
+      "state": "SD",
+      "countyType": "rural",
+      "lat": 43.19,
+      "lng": -100.72,
+      "population": 10000,
+      "members": {
+        "Medicaid": 5500,
+        "Medicare": 900,
+        "Commercial": 600
+      }
+    }
+  ],
+  "standards": [
+    {
+      "specialty": "Pediatrics",
+      "maxDistanceMiles": 15,
+      "requiredPer100k": 15,
+      "maxWaitDays": 10,
+      "minInNetworkPct": 90,
+      "targetAdequacyPct": 85
+    },
+    {
+      "specialty": "Primary Care",
+      "maxDistanceMiles": 10,
+      "requiredPer100k": 25,
+      "maxWaitDays": 10,
+      "minInNetworkPct": 90,
+      "targetAdequacyPct": 85
+    },
+    {
+      "specialty": "Mental Health",
+      "maxDistanceMiles": 15,
+      "requiredPer100k": 12,
+      "maxWaitDays": 10,
+      "minInNetworkPct": 90,
+      "targetAdequacyPct": 85
+    },
+    {
+      "specialty": "Cardiology",
+      "maxDistanceMiles": 20,
+      "requiredPer100k": 5,
+      "maxWaitDays": 20,
+      "minInNetworkPct": 90,
+      "targetAdequacyPct": 85
+    },
+    {
+      "specialty": "OB/GYN",
+      "maxDistanceMiles": 15,
+      "requiredPer100k": 8,
+      "maxWaitDays": 15,
+      "minInNetworkPct": 90,
+      "targetAdequacyPct": 85
+    }
+  ],
+  "providers": [
+    {
+      "npi": "1000000001",
+      "name": "Dr. Sarah Johnson",
+      "specialty": "Pediatrics",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000002",
+      "name": "Dr. Michael Johnson",
+      "specialty": "Pediatrics",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000003",
+      "name": "Dr. Emily Johnson",
+      "specialty": "Pediatrics",
+      "county": "Fulton",
+      "lat": 33.814,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000004",
+      "name": "Dr. James Chen",
+      "specialty": "Pediatrics",
+      "county": "Fulton",
+      "lat": 33.826,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000005",
+      "name": "Dr. Maria Chen",
+      "specialty": "Pediatrics",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.458,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000006",
+      "name": "Dr. David Chen",
+      "specialty": "Pediatrics",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.458,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000007",
+      "name": "Dr. Aisha Rodriguez",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000008",
+      "name": "Dr. John Rodriguez",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000009",
+      "name": "Dr. Priya Rodriguez",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.814,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000010",
+      "name": "Dr. Robert Wilson",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.826,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000011",
+      "name": "Dr. Lena Wilson",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.458,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000012",
+      "name": "Dr. Carlos Wilson",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.458,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000013",
+      "name": "Dr. Nina Patel",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.814,
+      "lng": -84.458,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000014",
+      "name": "Dr. Omar Patel",
+      "specialty": "Primary Care",
+      "county": "Fulton",
+      "lat": 33.826,
+      "lng": -84.458,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000015",
+      "name": "Dr. Grace Patel",
+      "specialty": "Mental Health",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000016",
+      "name": "Dr. Tom Nguyen",
+      "specialty": "Mental Health",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000017",
+      "name": "Dr. Dawn Nguyen",
+      "specialty": "Mental Health",
+      "county": "Fulton",
+      "lat": 33.814,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000018",
+      "name": "Dr. Elk Nguyen",
+      "specialty": "Mental Health",
+      "county": "Fulton",
+      "lat": 33.826,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000019",
+      "name": "Dr. Rose Smith",
+      "specialty": "Cardiology",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000020",
+      "name": "Dr. Joseph Smith",
+      "specialty": "Cardiology",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000021",
+      "name": "Dr. Sarah Smith",
+      "specialty": "Cardiology",
+      "county": "Fulton",
+      "lat": 33.814,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000022",
+      "name": "Dr. Michael Garcia",
+      "specialty": "OB/GYN",
+      "county": "Fulton",
+      "lat": 33.79,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000023",
+      "name": "Dr. Emily Garcia",
+      "specialty": "OB/GYN",
+      "county": "Fulton",
+      "lat": 33.802,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000024",
+      "name": "Dr. James Garcia",
+      "specialty": "OB/GYN",
+      "county": "Fulton",
+      "lat": 33.814,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000025",
+      "name": "Dr. Maria Brown",
+      "specialty": "OB/GYN",
+      "county": "Fulton",
+      "lat": 33.826,
+      "lng": -84.47,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000026",
+      "name": "Dr. David Brown",
+      "specialty": "Pediatrics",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000027",
+      "name": "Dr. Aisha Brown",
+      "specialty": "Pediatrics",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000028",
+      "name": "Dr. John Davis",
+      "specialty": "Pediatrics",
+      "county": "DeKalb",
+      "lat": 33.794,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000029",
+      "name": "Dr. Priya Davis",
+      "specialty": "Pediatrics",
+      "county": "DeKalb",
+      "lat": 33.806,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000030",
+      "name": "Dr. Robert Davis",
+      "specialty": "Pediatrics",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.218,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000031",
+      "name": "Dr. Lena Lee",
+      "specialty": "Pediatrics",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.218,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000032",
+      "name": "Dr. Carlos Lee",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000033",
+      "name": "Dr. Nina Lee",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000034",
+      "name": "Dr. Omar Martin",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.794,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000035",
+      "name": "Dr. Grace Martin",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.806,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000036",
+      "name": "Dr. Tom Martin",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.218,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000037",
+      "name": "Dr. Dawn Clark",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.218,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000038",
+      "name": "Dr. Elk Clark",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.794,
+      "lng": -84.218,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000039",
+      "name": "Dr. Rose Clark",
+      "specialty": "Primary Care",
+      "county": "DeKalb",
+      "lat": 33.806,
+      "lng": -84.218,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000040",
+      "name": "Dr. Joseph Lewis",
+      "specialty": "Mental Health",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000041",
+      "name": "Dr. Sarah Lewis",
+      "specialty": "Mental Health",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000042",
+      "name": "Dr. Michael Lewis",
+      "specialty": "Mental Health",
+      "county": "DeKalb",
+      "lat": 33.794,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000043",
+      "name": "Dr. Emily Walker",
+      "specialty": "Mental Health",
+      "county": "DeKalb",
+      "lat": 33.806,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000044",
+      "name": "Dr. James Walker",
+      "specialty": "Cardiology",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000045",
+      "name": "Dr. Maria Walker",
+      "specialty": "Cardiology",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000046",
+      "name": "Dr. David Hall",
+      "specialty": "Cardiology",
+      "county": "DeKalb",
+      "lat": 33.794,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000047",
+      "name": "Dr. Aisha Hall",
+      "specialty": "OB/GYN",
+      "county": "DeKalb",
+      "lat": 33.77,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000048",
+      "name": "Dr. John Hall",
+      "specialty": "OB/GYN",
+      "county": "DeKalb",
+      "lat": 33.782,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000049",
+      "name": "Dr. Priya Yellow Hawk",
+      "specialty": "OB/GYN",
+      "county": "DeKalb",
+      "lat": 33.794,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000050",
+      "name": "Dr. Robert Yellow Hawk",
+      "specialty": "OB/GYN",
+      "county": "DeKalb",
+      "lat": 33.806,
+      "lng": -84.23,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000051",
+      "name": "Dr. Lena Yellow Hawk",
+      "specialty": "Pediatrics",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000052",
+      "name": "Dr. Carlos Two Bulls",
+      "specialty": "Pediatrics",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000053",
+      "name": "Dr. Nina Two Bulls",
+      "specialty": "Pediatrics",
+      "county": "Gwinnett",
+      "lat": 33.984,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000054",
+      "name": "Dr. Omar Two Bulls",
+      "specialty": "Pediatrics",
+      "county": "Gwinnett",
+      "lat": 33.996,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000055",
+      "name": "Dr. Grace Bordeaux",
+      "specialty": "Pediatrics",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.008,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000056",
+      "name": "Dr. Tom Bordeaux",
+      "specialty": "Pediatrics",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.008,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000057",
+      "name": "Dr. Dawn Bordeaux",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000058",
+      "name": "Dr. Elk Standing Bear",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000059",
+      "name": "Dr. Rose Standing Bear",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.984,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000060",
+      "name": "Dr. Joseph Standing Bear",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.996,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000061",
+      "name": "Dr. Sarah Johnson",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.008,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000062",
+      "name": "Dr. Michael Johnson",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.008,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000063",
+      "name": "Dr. Emily Johnson",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.984,
+      "lng": -84.008,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000064",
+      "name": "Dr. James Chen",
+      "specialty": "Primary Care",
+      "county": "Gwinnett",
+      "lat": 33.996,
+      "lng": -84.008,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000065",
+      "name": "Dr. Maria Chen",
+      "specialty": "Mental Health",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000066",
+      "name": "Dr. David Chen",
+      "specialty": "Mental Health",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000067",
+      "name": "Dr. Aisha Rodriguez",
+      "specialty": "Mental Health",
+      "county": "Gwinnett",
+      "lat": 33.984,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000068",
+      "name": "Dr. John Rodriguez",
+      "specialty": "Mental Health",
+      "county": "Gwinnett",
+      "lat": 33.996,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000069",
+      "name": "Dr. Priya Rodriguez",
+      "specialty": "Cardiology",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000070",
+      "name": "Dr. Robert Wilson",
+      "specialty": "Cardiology",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000071",
+      "name": "Dr. Lena Wilson",
+      "specialty": "Cardiology",
+      "county": "Gwinnett",
+      "lat": 33.984,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000072",
+      "name": "Dr. Carlos Wilson",
+      "specialty": "OB/GYN",
+      "county": "Gwinnett",
+      "lat": 33.96,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000073",
+      "name": "Dr. Nina Patel",
+      "specialty": "OB/GYN",
+      "county": "Gwinnett",
+      "lat": 33.972,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000074",
+      "name": "Dr. Omar Patel",
+      "specialty": "OB/GYN",
+      "county": "Gwinnett",
+      "lat": 33.984,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000075",
+      "name": "Dr. Grace Patel",
+      "specialty": "OB/GYN",
+      "county": "Gwinnett",
+      "lat": 33.996,
+      "lng": -84.02,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000076",
+      "name": "Dr. Tom Nguyen",
+      "specialty": "Pediatrics",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000077",
+      "name": "Dr. Dawn Nguyen",
+      "specialty": "Pediatrics",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000078",
+      "name": "Dr. Elk Nguyen",
+      "specialty": "Pediatrics",
+      "county": "Cobb",
+      "lat": 33.964,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000079",
+      "name": "Dr. Rose Smith",
+      "specialty": "Pediatrics",
+      "county": "Cobb",
+      "lat": 33.976,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000080",
+      "name": "Dr. Joseph Smith",
+      "specialty": "Pediatrics",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.568,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000081",
+      "name": "Dr. Sarah Smith",
+      "specialty": "Pediatrics",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.568,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000082",
+      "name": "Dr. Michael Garcia",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000083",
+      "name": "Dr. Emily Garcia",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000084",
+      "name": "Dr. James Garcia",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.964,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000085",
+      "name": "Dr. Maria Brown",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.976,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000086",
+      "name": "Dr. David Brown",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.568,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000087",
+      "name": "Dr. Aisha Brown",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.568,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000088",
+      "name": "Dr. John Davis",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.964,
+      "lng": -84.568,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000089",
+      "name": "Dr. Priya Davis",
+      "specialty": "Primary Care",
+      "county": "Cobb",
+      "lat": 33.976,
+      "lng": -84.568,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000090",
+      "name": "Dr. Robert Davis",
+      "specialty": "Mental Health",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000091",
+      "name": "Dr. Lena Lee",
+      "specialty": "Mental Health",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000092",
+      "name": "Dr. Carlos Lee",
+      "specialty": "Mental Health",
+      "county": "Cobb",
+      "lat": 33.964,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000093",
+      "name": "Dr. Nina Lee",
+      "specialty": "Mental Health",
+      "county": "Cobb",
+      "lat": 33.976,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000094",
+      "name": "Dr. Omar Martin",
+      "specialty": "Cardiology",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000095",
+      "name": "Dr. Grace Martin",
+      "specialty": "Cardiology",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000096",
+      "name": "Dr. Tom Martin",
+      "specialty": "Cardiology",
+      "county": "Cobb",
+      "lat": 33.964,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000097",
+      "name": "Dr. Dawn Clark",
+      "specialty": "OB/GYN",
+      "county": "Cobb",
+      "lat": 33.94,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000098",
+      "name": "Dr. Elk Clark",
+      "specialty": "OB/GYN",
+      "county": "Cobb",
+      "lat": 33.952,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000099",
+      "name": "Dr. Rose Clark",
+      "specialty": "OB/GYN",
+      "county": "Cobb",
+      "lat": 33.964,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000100",
+      "name": "Dr. Joseph Lewis",
+      "specialty": "OB/GYN",
+      "county": "Cobb",
+      "lat": 33.976,
+      "lng": -84.58,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000101",
+      "name": "Dr. Sarah Lewis",
+      "specialty": "Pediatrics",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000102",
+      "name": "Dr. Michael Lewis",
+      "specialty": "Pediatrics",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000103",
+      "name": "Dr. Emily Walker",
+      "specialty": "Primary Care",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000104",
+      "name": "Dr. James Walker",
+      "specialty": "Primary Care",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000105",
+      "name": "Dr. Maria Walker",
+      "specialty": "Mental Health",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000106",
+      "name": "Dr. David Hall",
+      "specialty": "Cardiology",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000107",
+      "name": "Dr. Aisha Hall",
+      "specialty": "OB/GYN",
+      "county": "Clay",
+      "lat": 31.98,
+      "lng": -84.93,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000108",
+      "name": "Dr. John Hall",
+      "specialty": "Pediatrics",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000109",
+      "name": "Dr. Priya Yellow Hawk",
+      "specialty": "Pediatrics",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000110",
+      "name": "Dr. Robert Yellow Hawk",
+      "specialty": "Pediatrics",
+      "county": "Minnehaha",
+      "lat": 43.694,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000111",
+      "name": "Dr. Lena Yellow Hawk",
+      "specialty": "Pediatrics",
+      "county": "Minnehaha",
+      "lat": 43.706,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000112",
+      "name": "Dr. Carlos Two Bulls",
+      "specialty": "Pediatrics",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.778,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000113",
+      "name": "Dr. Nina Two Bulls",
+      "specialty": "Pediatrics",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.778,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000114",
+      "name": "Dr. Omar Two Bulls",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000115",
+      "name": "Dr. Grace Bordeaux",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000116",
+      "name": "Dr. Tom Bordeaux",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.694,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000117",
+      "name": "Dr. Dawn Bordeaux",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.706,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000118",
+      "name": "Dr. Elk Standing Bear",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.778,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000119",
+      "name": "Dr. Rose Standing Bear",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.778,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000120",
+      "name": "Dr. Joseph Standing Bear",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.694,
+      "lng": -96.778,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000121",
+      "name": "Dr. Sarah Johnson",
+      "specialty": "Primary Care",
+      "county": "Minnehaha",
+      "lat": 43.706,
+      "lng": -96.778,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000122",
+      "name": "Dr. Michael Johnson",
+      "specialty": "Mental Health",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000123",
+      "name": "Dr. Emily Johnson",
+      "specialty": "Mental Health",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000124",
+      "name": "Dr. James Chen",
+      "specialty": "Mental Health",
+      "county": "Minnehaha",
+      "lat": 43.694,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000125",
+      "name": "Dr. Maria Chen",
+      "specialty": "Mental Health",
+      "county": "Minnehaha",
+      "lat": 43.706,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000126",
+      "name": "Dr. David Chen",
+      "specialty": "Cardiology",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000127",
+      "name": "Dr. Aisha Rodriguez",
+      "specialty": "Cardiology",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000128",
+      "name": "Dr. John Rodriguez",
+      "specialty": "Cardiology",
+      "county": "Minnehaha",
+      "lat": 43.694,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000129",
+      "name": "Dr. Priya Rodriguez",
+      "specialty": "OB/GYN",
+      "county": "Minnehaha",
+      "lat": 43.67,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000130",
+      "name": "Dr. Robert Wilson",
+      "specialty": "OB/GYN",
+      "county": "Minnehaha",
+      "lat": 43.682,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000131",
+      "name": "Dr. Lena Wilson",
+      "specialty": "OB/GYN",
+      "county": "Minnehaha",
+      "lat": 43.694,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000132",
+      "name": "Dr. Carlos Wilson",
+      "specialty": "OB/GYN",
+      "county": "Minnehaha",
+      "lat": 43.706,
+      "lng": -96.79,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000133",
+      "name": "Dr. Nina Patel",
+      "specialty": "Pediatrics",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000134",
+      "name": "Dr. Omar Patel",
+      "specialty": "Pediatrics",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000135",
+      "name": "Dr. Grace Patel",
+      "specialty": "Pediatrics",
+      "county": "Pennington",
+      "lat": 44.024,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000136",
+      "name": "Dr. Tom Nguyen",
+      "specialty": "Pediatrics",
+      "county": "Pennington",
+      "lat": 44.036,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000137",
+      "name": "Dr. Dawn Nguyen",
+      "specialty": "Pediatrics",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.808,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000138",
+      "name": "Dr. Elk Nguyen",
+      "specialty": "Pediatrics",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.808,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000139",
+      "name": "Dr. Rose Smith",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000140",
+      "name": "Dr. Joseph Smith",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000141",
+      "name": "Dr. Sarah Smith",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.024,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000142",
+      "name": "Dr. Michael Garcia",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.036,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000143",
+      "name": "Dr. Emily Garcia",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.808,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000144",
+      "name": "Dr. James Garcia",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.808,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000145",
+      "name": "Dr. Maria Brown",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.024,
+      "lng": -102.808,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000146",
+      "name": "Dr. David Brown",
+      "specialty": "Primary Care",
+      "county": "Pennington",
+      "lat": 44.036,
+      "lng": -102.808,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000147",
+      "name": "Dr. Aisha Brown",
+      "specialty": "Mental Health",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000148",
+      "name": "Dr. John Davis",
+      "specialty": "Mental Health",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000149",
+      "name": "Dr. Priya Davis",
+      "specialty": "Mental Health",
+      "county": "Pennington",
+      "lat": 44.024,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000150",
+      "name": "Dr. Robert Davis",
+      "specialty": "Mental Health",
+      "county": "Pennington",
+      "lat": 44.036,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000151",
+      "name": "Dr. Lena Lee",
+      "specialty": "Cardiology",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000152",
+      "name": "Dr. Carlos Lee",
+      "specialty": "Cardiology",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000153",
+      "name": "Dr. Nina Lee",
+      "specialty": "Cardiology",
+      "county": "Pennington",
+      "lat": 44.024,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000154",
+      "name": "Dr. Omar Martin",
+      "specialty": "OB/GYN",
+      "county": "Pennington",
+      "lat": 44.0,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000155",
+      "name": "Dr. Grace Martin",
+      "specialty": "OB/GYN",
+      "county": "Pennington",
+      "lat": 44.012,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial",
+        "Medicare",
+        "Medicaid"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000156",
+      "name": "Dr. Tom Martin",
+      "specialty": "OB/GYN",
+      "county": "Pennington",
+      "lat": 44.024,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000157",
+      "name": "Dr. Dawn Clark",
+      "specialty": "OB/GYN",
+      "county": "Pennington",
+      "lat": 44.036,
+      "lng": -102.82,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000158",
+      "name": "Dr. Elk Clark",
+      "specialty": "Pediatrics",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000159",
+      "name": "Dr. Rose Clark",
+      "specialty": "Pediatrics",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000160",
+      "name": "Dr. Joseph Lewis",
+      "specialty": "Primary Care",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000161",
+      "name": "Dr. Sarah Lewis",
+      "specialty": "Primary Care",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    },
+    {
+      "npi": "1000000162",
+      "name": "Dr. Michael Lewis",
+      "specialty": "Mental Health",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000163",
+      "name": "Dr. Emily Walker",
+      "specialty": "Cardiology",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000164",
+      "name": "Dr. James Walker",
+      "specialty": "OB/GYN",
+      "county": "Brown",
+      "lat": 45.95,
+      "lng": -98.3,
+      "lobs": [
+        "Commercial",
+        "Medicare"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000165",
+      "name": "Dr. Maria Walker",
+      "specialty": "Primary Care",
+      "county": "Oglala Lakota",
+      "lat": 43.35,
+      "lng": -102.53,
+      "lobs": [
+        "Medicaid",
+        "Medicare",
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "active"
+    },
+    {
+      "npi": "1000000166",
+      "name": "Dr. David Hall",
+      "specialty": "Primary Care",
+      "county": "Todd",
+      "lat": 43.21,
+      "lng": -100.7,
+      "lobs": [
+        "Medicaid",
+        "Medicare",
+        "Commercial"
+      ],
+      "acceptingNewPatients": true,
+      "status": "credentialing"
+    }
+  ],
+  "waitTimes": [
+    {
+      "county": "Fulton",
+      "specialty": "Mental Health",
+      "lob": "Medicaid",
+      "avgWaitDays": 18
+    },
+    {
+      "county": "Fulton",
+      "specialty": "Pediatrics",
+      "lob": "Medicaid",
+      "avgWaitDays": 12
+    },
+    {
+      "county": "DeKalb",
+      "specialty": "Mental Health",
+      "lob": "Medicaid",
+      "avgWaitDays": 15
+    },
+    {
+      "county": "Oglala Lakota",
+      "specialty": "Mental Health",
+      "lob": "Medicaid",
+      "avgWaitDays": 34
+    },
+    {
+      "county": "Todd",
+      "specialty": "Primary Care",
+      "lob": "Medicaid",
+      "avgWaitDays": 21
+    },
+    {
+      "county": "Minnehaha",
+      "specialty": "Primary Care",
+      "lob": "Commercial",
+      "avgWaitDays": 7
+    }
+  ]
+}

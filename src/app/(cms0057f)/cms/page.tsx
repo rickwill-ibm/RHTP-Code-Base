@@ -40,6 +40,12 @@ const LINKS = [
     desc: 'Eligibility · Med-Necessity · PA · Estimation (gold carding)',
     flag: 'goldenThread' as const,
   },
+  {
+    href: '/network-adequacy',
+    title: 'Network Adequacy',
+    desc: 'Adequacy analytics + analyst copilot (GA + SD/Maria)',
+    flag: 'networkAdequacy' as const,
+  },
 ];
 
 export default function CmsHubPage(): React.ReactElement {
