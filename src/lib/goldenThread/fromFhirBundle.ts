@@ -58,7 +58,9 @@ export function projectThreadInputs(args: {
   providerNpi?: string;
 }): ThreadInputs {
   const coverageInfo = coverageToInfo(args.coverage);
-  const orderBase = serviceRequestToOrder(args.serviceRequest);
+  // defensive: tolerate a malformed/absent conditions list and service request
+  const conditions = Array.isArray(args.conditions) ? args.conditions : [];
+  const orderBase = serviceRequestToOrder(args.serviceRequest ?? {});
   const order: StageOrder = {
     code: orderBase.code,
     codeSystem: orderBase.codeSystem,
@@ -67,7 +69,7 @@ export function projectThreadInputs(args: {
     payer: coverageInfo.payer,
   };
   return {
-    member: toMemberContext(args.memberId, args.conditions, {
+    member: toMemberContext(args.memberId, conditions, {
       payer: coverageInfo.payer,
       plan: coverageInfo.plan,
     }),

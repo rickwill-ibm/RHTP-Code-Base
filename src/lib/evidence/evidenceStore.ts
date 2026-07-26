@@ -33,18 +33,31 @@ export function createInMemoryEvidenceStore(): EvidenceStore {
   };
 }
 
+/** True when a parsed value has the shape of an EvidenceRecord. */
+function isEvidenceRecord(v: unknown): v is EvidenceRecord {
+  const r = v as Record<string, unknown> | null;
+  return (
+    !!r && typeof r.id === 'string' && typeof r.memberId === 'string' && Array.isArray(r.entries)
+  );
+}
+
 /** File-backed store: one JSON file per record under EVIDENCE_DIR. */
 export function createFileEvidenceStore(dir?: string): EvidenceStore {
   const baseDir = dir || process.env.EVIDENCE_DIR || path.join(process.cwd(), '.evidence');
-  const file = (id: string) => path.join(baseDir, `${id.replace(/[^a-zA-Z0-9_.-]/g, '_')}.json`);
+  const safe = (id: string) => id.replace(/[^a-zA-Z0-9_.-]/g, '_');
+  const file = (id: string) => path.join(baseDir, `${safe(id)}.json`);
   return {
     async save(record) {
       await fs.mkdir(baseDir, { recursive: true });
-      await fs.writeFile(file(record.id), JSON.stringify(record), 'utf8');
+      // atomic write: write to a temp file, then rename into place
+      const tmp = path.join(baseDir, `.${safe(record.id)}.${process.pid}.tmp`);
+      await fs.writeFile(tmp, JSON.stringify(record), 'utf8');
+      await fs.rename(tmp, file(record.id));
     },
     async get(id) {
       try {
-        return JSON.parse(await fs.readFile(file(id), 'utf8')) as EvidenceRecord;
+        const parsed = JSON.parse(await fs.readFile(file(id), 'utf8')) as unknown;
+        return isEvidenceRecord(parsed) ? parsed : null; // reject corrupt/foreign files
       } catch {
         return null;
       }
@@ -52,7 +65,9 @@ export function createFileEvidenceStore(dir?: string): EvidenceStore {
     async list() {
       try {
         const names = await fs.readdir(baseDir);
-        return names.filter((n) => n.endsWith('.json')).map((n) => n.replace(/\.json$/, ''));
+        return names
+          .filter((n) => n.endsWith('.json') && !n.startsWith('.'))
+          .map((n) => n.replace(/\.json$/, ''));
       } catch {
         return [];
       }
