@@ -108,6 +108,21 @@ Prior authorization turns on two questions — *does this require PA?* and *is i
 
 We parsed **all 17 supplied policies** — 15 Aetna Cardiac Clinical Policy Bulletins and 2 UnitedHealthcare prior-authorization lists — into a seed library, validated **19/19 against known source anchors** (e.g., the Cardiac MRI CPB's exact covered CPT set and indications). `evaluate(member, order, library)` returns a Coverage Determination: criteria-gated medical necessity (with the member's diagnoses checked against the covered set), experimental/not-covered (likely denial), or code-on-PA-list (PA required). A **CQL-style structured-criteria** model and an SME-review gate are in place for the deeper clinical logic that follows.
 
+### 6.1 How the Policy Engine is consumed in prior authorization
+
+The engine is consumed in the **Medical Necessity stage of the Golden Thread**, *not* inside the CRD → DTR → PAS screens. For one request the path is:
+
+`/api/financial-clearance` → `fromFhirBundle.projectThreadInputs()` (reads the FHIR **ServiceRequest** → order code) → `threadOrchestrator.runFinancialClearance()` → `medicalNecessity.runMedicalNecessity()` → **`evaluate(member, { code }, library)`** (`src/lib/policy/policyEngine.ts`).
+
+**Worked example — the demo order.** The ServiceRequest carries **CPT 72148 — MRI lumbar spine w/o contrast**. `evaluate()` looks 72148 up in the loaded library (the parsed UnitedHealthcare Texas STAR PA-required list), returns outcome **`pa-required-list`**, and the stage records the determination + gold-card + propensity into the Evidence Record. Change the code and the engine takes a different branch:
+
+- **Criteria-gated** (e.g. CPT 75561, cardiac MRI, governed by Aetna CPB #0520): the engine checks the member's **ICD-10** diagnoses against the CPB's covered set — *criteria met* if a supporting diagnosis is present, otherwise a **missing-diagnosis deficiency**. (Note: the seed member's conditions are SNOMED-coded, so for her this branch resolves to the *deficiency* variant; the criteria-met variant is exercised in tests with an ICD-10 cardiac diagnosis.)
+- **Experimental / not-covered** (e.g. a CPT on an Aetna "not covered" list such as CCM #0930): outcome **`likely-denial-experimental`**.
+
+**The honest seam.** The `/prior-auth` CRD → DTR → PAS screens do **not** call the engine. In the offline demo the CRD "requires PA?" card is a **dev stub** (`devCrdCards()`); under Tier-B it comes from the live CDS Hooks / CRD service (`invokeCrd`). So today the engine drives the *medical-necessity* determination in stage 2, while the CRD hook is stub/backbone-driven. Wiring `evaluate()` behind the CRD response — so the CRD card itself is engine-backed — is a bounded, valuable next increment.
+
+**BFF endpoints.** `/api/fhir/[...path]` · `/api/cds` + `/api/cds-hooks/{order-sign,patient-view}` · `/api/dtr/package` · `/api/pas/submit` · `/api/financial-clearance` · `/api/evidence/[id]` · `/api/work-queue` · `/api/network-adequacy` · `/api/match` · `/api/bulk/{start,status}` · `/api/webhooks/claim-response` · `/api/auth/*`.
+
 ---
 
 ## 7. Capability 4 — Network Adequacy + the analyst copilot

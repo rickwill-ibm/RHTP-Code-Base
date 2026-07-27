@@ -57,6 +57,15 @@ Everything runs offline. Decision-support outputs (propensity, adequacy recommen
 - **Expected:** a persisted Evidence Record timeline (determination → gold-card → propensity → eligibility → estimation).
 - **Talking points:** "The propensity score is transparent — every point is attributable — and it's decision-support, never the determination. The Evidence Record *is* the Da Vinci Coverage Determination Record and our audit spine."
 
+### S3b · Policy Engine branches — criteria-gated & experimental (the sharp version)
+- **Audience:** clinical / technical. **Mandate:** Da Vinci CRD medical-necessity logic. **Route:** the `/financial-clearance` **Run a clearance** box (type different order codes; Provider B).
+- **Steps:**
+  1. Change the order code to **`75561`** (cardiac MRI, governed by Aetna CPB **#0520**); **Run**. The engine takes the **criteria-gated** branch: because the seed member's diagnoses are **SNOMED-coded** and the CPB's criteria read **ICD-10**, you see a **criteria review with a missing-diagnosis deficiency** + remediation.
+  2. Change the code to **`0408T`** (a CCM code Aetna lists as *not covered*, CPB #0930); **Run**. Outcome flips to **likely-denial-experimental**.
+- **Expected:** one runner, three engine branches by code — `72148` → PA-list, `75561` → criteria review/deficiency, `0408T` → experimental.
+- **Talking points:** "This is the engine reading *real parsed payer policy*: a PA-list hit, a criteria-gated medical-necessity check against the CPB's covered diagnoses, and an experimental denial — from one `evaluate()` call. The **criteria-*met* (approve)** variant needs a member carrying a matching ICD-10 diagnosis; that path is proven in the automated tests, not shown here because the seed member's conditions are SNOMED-coded."
+- **Accuracy note:** the engine's determination lives in *this* Medical Necessity stage; the CRD card in S5 is a **dev stub**, not engine-driven (see S5).
+
 ### S4 · Reviewer work queue → evidence drill-down
 - **Audience:** PA reviewers / ops leadership. **Mandate:** CMS-0057-F 72h/7d SLAs. **Route:** `/financial-clearance` → "**Open the reviewer work queue**" (`/work-queue`).
 - **Steps:** 1) Show items grouped by **disposition** (auto-cleared, ready-to-submit, high-risk, etc.) with **SLA due dates** and breach flags. 2) Click **View evidence** on an item → the Evidence Record viewer.
@@ -68,6 +77,7 @@ Everything runs offline. Decision-support outputs (propensity, adequacy recommen
 - **Steps:** 1) Click the stage-3 handoff. 2) Note the **banner** showing the incoming order + Evidence Record (the thread continues). 3) Walk CRD cards → the DTR questionnaire → the **human-gated** submit (no `approvedBy`, no submission).
 - **Expected:** the handoff carries context; submission refuses without a human approver.
 - **Talking points:** "Prior Auth isn't a dead end — it's *stage 3 of the same thread*. And an agent can prepare the claim, but only a human submits; the LLM never sets Approved or Denied."
+- **Accuracy note (be transparent):** in the offline demo these **CRD cards are dev-stubbed**, not engine-driven; under the Tier-B backbone they come from the live CDS Hooks / CRD service. The engine's "requires PA / medical necessity" determination is the one shown in stages 2 / S3–S3b. Wiring `evaluate()` behind the CRD card is a bounded next increment.
 
 *(Optional S2b — Provider/Payer surfaces: `/provider-access` shows `$member-match` + treatment-relationship data; `/payer-to-payer` shows the async bulk import. Include if the audience wants all four provisions.)*
 
@@ -113,7 +123,9 @@ Anticipated Q&A: *Is the AI making decisions?* No — decision-support only, hum
 | Thing | Value |
 |---|---|
 | Member | `MARIA_SD_001` (South Dakota Medicaid) |
-| Demo order | CPT **`72148`** (MRI lumbar spine w/o contrast) |
+| Demo order (PA-list path) | CPT **`72148`** (MRI lumbar spine w/o contrast) → `pa-required-list` |
+| Criteria-gated code | CPT **`75561`** (cardiac MRI, Aetna CPB **#0520**) → criteria review / deficiency for Maria |
+| Experimental code | CPT **`0408T`** (CCM, Aetna CPB **#0930**, not covered) → likely-denial-experimental |
 | Provider A (gold-carded) | NPI **`1730154783`** → PA-exempt |
 | Provider B (not gold-carded) | NPI **`1518998765`** → PA required |
 | Payer (Golden Thread) | UnitedHealthcare Community Plan |
@@ -122,3 +134,9 @@ Anticipated Q&A: *Is the AI making decisions?* No — decision-support only, hum
 | Copilot prompts | "Prioritize the worst behavioral-health gaps in South Dakota" · "Show the Medicaid pediatric baseline for Maria's state" · "Validate Oglala Lakota Pediatrics Medicaid against CMS standards" · "Recommend augmentation for Fulton Mental Health Medicaid" |
 | Routes | `/cms` · `/access` · `/provider-access` · `/payer-to-payer` · `/financial-clearance` · `/work-queue` · `/evidence/:id` · `/prior-auth` · `/network-adequacy` |
 | Validation gate | `npx tsc --noEmit` (0) · `npx vitest run` (145) · `npm run lint` |
+
+### Known demo simplifications (state these if asked — don't get caught)
+
+- **CRD cards are dev-stubbed** in the offline demo (`devCrdCards()`), not engine-driven; the engine's determination is shown in the Medical Necessity stage (S3/S3b). Live CRD comes from the Tier-B backbone.
+- **The criteria-*met* (approve) path** isn't shown in the UI because the seed member's conditions are **SNOMED-coded** while the criteria read **ICD-10**; that path is proven in the automated tests (with an ICD-10 cardiac diagnosis).
+- **The gold-carding / PA-list data** is UnitedHealthcare **Texas STAR**, labelled "UnitedHealthcare Community Plan" for a South Dakota member — a deliberate demo simplification so one seed exercises both mandates. Real operation uses the member's own plan documents.
