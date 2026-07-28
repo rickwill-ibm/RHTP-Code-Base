@@ -170,6 +170,25 @@ const DEMO_PERSONAS: DemoPersona[] = [
       { stepNum: 44, route: '/uhg-orchestrate/reporting-dashboard', label: 'Agent Impact — Reporting', storyBeat: 'Closed loop — Maria\'s case as proof-point for enterprise agentic ROI', activePatient: 'MARIA_SD_001' },
     ],
   },
+  {
+    id: 'watsonx-demo',
+    role: 'P8',
+    title: 'watsonx 3-Minute Demo',
+    color: '#007d79',
+    bgLight: '#d9fbfb',
+    textColor: '#004144',
+    initials: 'WX',
+    steps: [
+      { stepNum: 45, route: '/uhg-orchestrate/cdp-assembly-split', label: '1 · CDP Assembly', storyBeat: '4 systems, 4 records → one unified identity — knowledge graph assembly (0:50)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 46, route: '/whole-person-care-summary', label: '2 · Whole Person Care View', storyBeat: 'Knowledge graph — 52 dimensions of Maria\'s life; caregiver burden is the root cause (1:10)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 47, route: '/patient-detail', label: '3 · Patient Detail — 360°', storyBeat: 'Whole Person Care Plan tab — every dimension of her life (1:30)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 48, route: '/md-smart-launch', label: '4 · MD Smart Launch — Care Plan', storyBeat: 'Cerner SmartApp — tiered care plan, respite first → click Approve (1:55)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 49, route: '/cbo-directory', label: '5 · CBO Directory', storyBeat: 'Community referrals — digital, tracked, closed-loop (2:10)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 50, route: '/care-gap-closure-verification', label: '6 · Gap Closure Verification', storyBeat: 'All 3 gaps CLOSED — evidence chain verified (2:25)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 51, route: '/executive-outcomes-dashboard', label: '7 · Executive Outcomes', storyBeat: '6,842 gaps closed · ED ↓18% · $1.1M reinvested — close here (2:45)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 52, route: '/md-smart-launch', label: '8 · MD SmartApp — Encore', storyBeat: 'Cerner PowerChart view — FHIR-native, write-back orders (3:00)', activePatient: 'MARIA_SD_001' },
+    ],
+  },
 ];
 
 // Flat list of all steps for prev/next navigation
