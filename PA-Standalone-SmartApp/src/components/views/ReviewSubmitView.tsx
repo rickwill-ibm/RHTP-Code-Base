@@ -34,7 +34,7 @@ export default function ReviewSubmitView() {
         checklist: Object.values(crdResult).map((c) => ({ label: c.label, detail: c.detail, pass: c.pass, source: c.source })),
         dtr: dtrResult.groups.map((g) => ({
           title: g.title,
-          status: g.status,
+          status: (g.status === "pending" ? "gap" : g.status) as "met" | "gap",
           evidence: g.uploadedEvidence ?? g.leaf?.evidence ?? "",
           source: g.status === "met" && !g.leaf ? "upload" : (g.leaf?.source ?? null),
         })),
