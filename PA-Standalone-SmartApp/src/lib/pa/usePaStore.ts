@@ -79,93 +79,7 @@ interface PaStore {
   resetWorkflow: () => void;
 }
 
-export const usePaStore = create<PaStore>((set, get) => ({
-  // Navigation
-  view: "order",
-  setView: (v) => set({ view: v }),
-
-  // Order
-  order: null,
-  patient: null,
-  setOrder: (o) => set({ order: o }),
-  setPatient: (p) => set({ patient: p }),
-
-  // CRD
-  crdLoading: false,
-  crdResult: null,
-  crdError: null,
-  setCrdLoading: (v) => set({ crdLoading: v }),
-  setCrdResult: (r) => set({ crdResult: r, crdError: null }),
-  setCrdError: (e) => set({ crdError: e, crdLoading: false }),
-
-  // DTR
-  dtrLoading: false,
-  dtrResult: null,
-  dtrError: null,
-  setDtrLoading: (v) => set({ dtrLoading: v }),
-  setDtrResult: (r) => set({ dtrResult: r, dtrError: null }),
-  setDtrError: (e) => set({ dtrError: e, dtrLoading: false }),
-  resolveDtrGap: (groupId, evidence) =>
-    set((s) => {
-      if (!s.dtrResult) return {};
-      const groups: DtrGroup[] = s.dtrResult.groups.map((g) =>
-        g.id === groupId
-          ? { ...g, status: "met" as const, uploadedEvidence: evidence }
-          : g
-      );
-      const allMet = groups.every((g) => g.status === "met");
-      return { dtrResult: { ...s.dtrResult, groups, allMet } };
-    }),
-
-  // Submission
-  channel: "fhir",
-  setChannel: (c) => set({ channel: c }),
-  submitLoading: false,
-  setSubmitLoading: (v) => set({ submitLoading: v }),
-  submittedCase: null,
-  setSubmittedCase: (c) =>
-    set((s) => ({
-      submittedCase: c,
-      cases: [c, ...s.cases.filter((x) => x.authId !== c.authId)],
-    })),
-
-  // PA Portal
-  cases: MOCK_CASES,
-  addCase: (c) =>
-    set((s) => ({
-      cases: [c, ...s.cases.filter((x) => x.authId !== c.authId)],
-    })),
-  updateCaseStatus: (authId, status) =>
-    set((s) => ({
-      cases: s.cases.map((c) => (c.authId === authId ? { ...c, status } : c)),
-    })),
-  activePortalTab: "All",
-  setActivePortalTab: (t) => set({ activePortalTab: t }),
-
-  // Case Detail
-  activeCaseId: "AUTH-88213",
-  setActiveCaseId: (id) => set({ activeCaseId: id }),
-  activeCaseTab: "checklist",
-  setActiveCaseTab: (t) => set({ activeCaseTab: t }),
-
-  // Reset
-  resetWorkflow: () =>
-    set({
-      view: "order",
-      order: null,
-      crdLoading: false,
-      crdResult: null,
-      crdError: null,
-      dtrLoading: false,
-      dtrResult: null,
-      dtrError: null,
-      channel: "fhir",
-      submitLoading: false,
-      submittedCase: null,
-    }),
-}));
-
-// ── Seed mock cases ────────────────────────────────────────────────────────────
+// ── Seed mock cases (must be declared before create() to avoid TDZ) ───────────
 
 const MOCK_CASES: PaCase[] = [
   {
@@ -274,3 +188,90 @@ const MOCK_CASES: PaCase[] = [
     ],
   },
 ];
+
+export const usePaStore = create<PaStore>((set, get) => ({
+  // Navigation
+  view: "order",
+  setView: (v) => set({ view: v }),
+
+  // Order
+  order: null,
+  patient: null,
+  setOrder: (o) => set({ order: o }),
+  setPatient: (p) => set({ patient: p }),
+
+  // CRD
+  crdLoading: false,
+  crdResult: null,
+  crdError: null,
+  setCrdLoading: (v) => set({ crdLoading: v }),
+  setCrdResult: (r) => set({ crdResult: r, crdError: null }),
+  setCrdError: (e) => set({ crdError: e, crdLoading: false }),
+
+  // DTR
+  dtrLoading: false,
+  dtrResult: null,
+  dtrError: null,
+  setDtrLoading: (v) => set({ dtrLoading: v }),
+  setDtrResult: (r) => set({ dtrResult: r, dtrError: null }),
+  setDtrError: (e) => set({ dtrError: e, dtrLoading: false }),
+  resolveDtrGap: (groupId, evidence) =>
+    set((s) => {
+      if (!s.dtrResult) return {};
+      const groups: DtrGroup[] = s.dtrResult.groups.map((g) =>
+        g.id === groupId
+          ? { ...g, status: "met" as const, uploadedEvidence: evidence }
+          : g
+      );
+      const allMet = groups.every((g) => g.status === "met");
+      return { dtrResult: { ...s.dtrResult, groups, allMet } };
+    }),
+
+  // Submission
+  channel: "fhir",
+  setChannel: (c) => set({ channel: c }),
+  submitLoading: false,
+  setSubmitLoading: (v) => set({ submitLoading: v }),
+  submittedCase: null,
+  setSubmittedCase: (c) =>
+    set((s) => ({
+      submittedCase: c,
+      cases: [c, ...s.cases.filter((x) => x.authId !== c.authId)],
+    })),
+
+  // PA Portal
+  cases: MOCK_CASES,
+  addCase: (c) =>
+    set((s) => ({
+      cases: [c, ...s.cases.filter((x) => x.authId !== c.authId)],
+    })),
+  updateCaseStatus: (authId, status) =>
+    set((s) => ({
+      cases: s.cases.map((c) => (c.authId === authId ? { ...c, status } : c)),
+    })),
+  activePortalTab: "All",
+  setActivePortalTab: (t) => set({ activePortalTab: t }),
+
+  // Case Detail
+  activeCaseId: "AUTH-88213",
+  setActiveCaseId: (id) => set({ activeCaseId: id }),
+  activeCaseTab: "checklist",
+  setActiveCaseTab: (t) => set({ activeCaseTab: t }),
+
+  // Reset
+  resetWorkflow: () =>
+    set({
+      view: "order",
+      order: null,
+      crdLoading: false,
+      crdResult: null,
+      crdError: null,
+      dtrLoading: false,
+      dtrResult: null,
+      dtrError: null,
+      channel: "fhir",
+      submitLoading: false,
+      submittedCase: null,
+    }),
+}));
+
