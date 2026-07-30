@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pa-header: #5d7a94;
+  --pa-header-dark: #4a6580;
+  --pa-primary: #1669c1;
+  --pa-primary-dark: #0f52a0;
+  --pa-primary-light: #e7f0fb;
+  --pa-green: #1e8e5a;
+  --pa-green-bg: #e6f4ec;
+  --pa-amber: #b06a00;
+  --pa-amber-bg: #fdf1de;
+  --pa-red: #d0281d;
+  --pa-red-bg: #fdeae8;
+  --pa-teal: #0f8a86;
+  --pa-teal-bg: #e3f5f4;
+}
+
+/* Smooth focus ring for all interactive elements */
+*:focus-visible {
+  outline: 2px solid var(--pa-primary);
+  outline-offset: 2px;
+}
