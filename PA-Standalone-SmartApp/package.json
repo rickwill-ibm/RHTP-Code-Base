@@ -4,9 +4,9 @@
   "private": true,
   "description": "Prior Authorization SMART on FHIR standalone app — CRD · DTR · PAS (Da Vinci / CMS-0057-F)",
   "scripts": {
-    "dev": "next dev -p 4030",
+    "dev": "next dev -p 4032",
     "build": "next build",
-    "start": "next start -p 4030",
+    "start": "next start -p 4032",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
