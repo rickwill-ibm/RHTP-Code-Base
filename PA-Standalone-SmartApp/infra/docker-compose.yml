@@ -1,0 +1,91 @@
+version: "3.8"
+
+# ─── PA Standalone — FHIR Infrastructure ─────────────────────────────────────
+#
+# Services:
+#   hapi-fhir-emr    → EMR FHIR R4       :8080  (clinical data — same as RHTP)
+#   hapi-fhir-payer  → Payer FHIR R4     :8082  (PDex Patient Access API)
+#   cds-hooks        → CDS Hooks server  :8081  (order-sign hook for CRD)
+#   policy-engine    → Policy Engine     :8083  (DTR criteria matching)
+#
+# Usage:
+#   docker compose -f PA-Standalone-SmartApp/infra/docker-compose.yml up -d
+#
+# Quick seed after startup:
+#   node PA-Standalone-SmartApp/infra/seed/seed-all.mjs
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── EMR FHIR server (same container already running as tcoc-hapi-fhir) ──────
+  # NOTE: Do NOT start this if tcoc-hapi-fhir is already running on :8080.
+  # This entry is here for fresh installs only. Use the existing container.
+  #
+  # hapi-fhir-emr:
+  #   image: hapiproject/hapi:latest
+  #   container_name: pa-hapi-emr
+  #   ports: ["8080:8080"]
+  #   ...
+
+  # ── Payer FHIR server (new — PDex Patient Access API simulation) ─────────────
+  hapi-fhir-payer:
+    image: hapiproject/hapi:latest
+    container_name: pa-hapi-payer
+    ports:
+      - "8082:8080"
+    environment:
+      hapi.fhir.default_encoding: JSON
+      hapi.fhir.fhir_version: R4
+      spring.datasource.url: jdbc:h2:mem:hapi-payer;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      spring.datasource.driverClassName: org.h2.Driver
+      spring.datasource.username: sa
+      spring.datasource.password: ""
+      spring.jpa.hibernate.ddl-auto: update
+      hapi.fhir.allow_external_references: "true"
+      hapi.fhir.allow_multiple_delete: "true"
+      hapi.fhir.cors.allowed_origin: "*"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/fhir/metadata"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    volumes:
+      - hapi-payer-data:/data/hapi
+
+  # ── CDS Hooks server (Track 3) ───────────────────────────────────────────────
+  cds-hooks:
+    build:
+      context: ./services/cds-hooks-server
+      dockerfile: Dockerfile
+    container_name: pa-cds-hooks
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      EMR_FHIR_BASE: "http://host.docker.internal:8080/fhir"
+      PAYER_FHIR_BASE: "http://host.docker.internal:8082/fhir"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - services
+
+  # ── Policy Engine (Track 4A) ─────────────────────────────────────────────────
+  policy-engine:
+    build:
+      context: ./services/policy-engine
+      dockerfile: Dockerfile
+    container_name: pa-policy-engine
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: "8083"
+      EMR_FHIR_BASE: "http://host.docker.internal:8080/fhir"
+      PAYER_FHIR_BASE: "http://host.docker.internal:8082/fhir"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - services
+
+volumes:
+  hapi-payer-data:

@@ -1,0 +1,97 @@
+{
+  "resourceType": "Bundle",
+  "id": "rachel-green-payer-seed",
+  "type": "transaction",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-rachel-green-payer",
+        "identifier": [
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MB" }], "text": "Member ID" }, "system": "urn:bluecross:member", "value": "1234567" }
+        ],
+        "name": [{ "use": "official", "family": "Green", "given": ["Rachel"] }],
+        "gender": "female",
+        "birthDate": "1957-12-19"
+      },
+      "request": { "method": "PUT", "url": "Patient/patient-rachel-green-payer" }
+    },
+    {
+      "resource": {
+        "resourceType": "Organization",
+        "id": "org-blue-cross-payer",
+        "name": "Blue Cross Prior Authorization",
+        "type": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/organization-type", "code": "ins" }] }],
+        "identifier": [{ "system": "http://hl7.org/fhir/sid/us-npi", "value": "9876543210" }]
+      },
+      "request": { "method": "PUT", "url": "Organization/org-blue-cross-payer" }
+    },
+    {
+      "resource": {
+        "resourceType": "Coverage",
+        "id": "coverage-rachel-payer-001",
+        "status": "active",
+        "subscriber": { "reference": "Patient/patient-rachel-green-payer" },
+        "subscriberId": "1234567",
+        "beneficiary": { "reference": "Patient/patient-rachel-green-payer" },
+        "relationship": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/subscriber-relationship", "code": "self" }] },
+        "period": { "start": "2024-01-01", "end": "2026-12-31" },
+        "payor": [{ "reference": "Organization/org-blue-cross-payer" }],
+        "class": [
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/coverage-class", "code": "plan" }] }, "value": "BC-PA-GOLD", "name": "Blue Cross Gold PA Plan" },
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/coverage-class", "code": "group" }] }, "value": "GRP-10045", "name": "Employer Group 10045" }
+        ],
+        "network": "In-Network Blue Cross PA",
+        "costToBeneficiary": [
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/coverage-copay-type", "code": "copay" }] }, "valueMoney": { "value": 30, "currency": "USD" } },
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/coverage-copay-type", "code": "deductible" }] }, "valueMoney": { "value": 1500, "currency": "USD" } }
+        ]
+      },
+      "request": { "method": "PUT", "url": "Coverage/coverage-rachel-payer-001" }
+    },
+    {
+      "resource": {
+        "resourceType": "ExplanationOfBenefit",
+        "id": "eob-rachel-primary-care-2026",
+        "status": "active",
+        "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional" }] },
+        "use": "claim",
+        "patient": { "reference": "Patient/patient-rachel-green-payer" },
+        "created": "2026-04-15",
+        "insurer": { "reference": "Organization/org-blue-cross-payer" },
+        "provider": { "display": "Primary Care Associates" },
+        "outcome": "complete",
+        "insurance": [{ "focal": true, "coverage": { "reference": "Coverage/coverage-rachel-payer-001" } }],
+        "item": [{
+          "sequence": 1,
+          "productOrService": { "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99213", "display": "Office visit, established patient" }] },
+          "servicedDate": "2026-04-10",
+          "adjudication": [{ "category": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/adjudication", "code": "eligible" }] }, "amount": { "value": 150, "currency": "USD" } }]
+        }]
+      },
+      "request": { "method": "PUT", "url": "ExplanationOfBenefit/eob-rachel-primary-care-2026" }
+    },
+    {
+      "resource": {
+        "resourceType": "ExplanationOfBenefit",
+        "id": "eob-rachel-bariatric-consult-2026",
+        "status": "active",
+        "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/claim-type", "code": "professional" }] },
+        "use": "claim",
+        "patient": { "reference": "Patient/patient-rachel-green-payer" },
+        "created": "2026-07-01",
+        "insurer": { "reference": "Organization/org-blue-cross-payer" },
+        "provider": { "display": "Metro General Surgical Associates" },
+        "outcome": "complete",
+        "insurance": [{ "focal": true, "coverage": { "reference": "Coverage/coverage-rachel-payer-001" } }],
+        "item": [{
+          "sequence": 1,
+          "productOrService": { "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99245", "display": "Office consultation, comprehensive" }] },
+          "servicedDate": "2026-06-28",
+          "adjudication": [{ "category": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/adjudication", "code": "eligible" }] }, "amount": { "value": 320, "currency": "USD" } }]
+        }]
+      },
+      "request": { "method": "PUT", "url": "ExplanationOfBenefit/eob-rachel-bariatric-consult-2026" }
+    }
+  ]
+}

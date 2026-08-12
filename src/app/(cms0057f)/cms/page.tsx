@@ -9,6 +9,12 @@ import { useEffect, useState } from 'react';
 import { getJson } from '@/lib/client/bff';
 import { flag } from '@/lib/flags/flags';
 
+// Real SMART App Launch — a SMART app is a separate application/origin by
+// spec, so this opens in a new tab rather than being embedded. Configurable
+// via env since the standalone app's port may differ per environment; see
+// PA-Standalone-SmartApp/README.md for how to run it.
+const PA_SMARTAPP_URL = process.env.NEXT_PUBLIC_PA_SMARTAPP_URL ?? 'http://localhost:4032/launch';
+
 const LINKS = [
   {
     href: '/access',
@@ -29,10 +35,11 @@ const LINKS = [
     flag: 'payerToPayer' as const,
   },
   {
-    href: '/prior-auth',
+    href: PA_SMARTAPP_URL,
     title: 'Prior Authorization',
-    desc: 'CRD → DTR → PAS (human-gated)',
+    desc: 'Real SMART app — full CRD → DTR → PAS against live FHIR (opens in a new tab)',
     flag: 'priorAuth' as const,
+    external: true,
   },
   {
     href: '/financial-clearance',
@@ -86,9 +93,14 @@ export default function CmsHubPage(): React.ReactElement {
             key={l.href}
             href={l.href}
             aria-disabled={!flag(l.flag)}
+            target={'external' in l && l.external ? '_blank' : undefined}
+            rel={'external' in l && l.external ? 'noopener noreferrer' : undefined}
             className={`block rounded border p-4 transition ${flag(l.flag) ? 'border-slate-200 hover:border-blue-400' : 'border-slate-100 opacity-50'}`}
           >
-            <div className="font-semibold">{l.title}</div>
+            <div className="font-semibold flex items-center gap-1.5">
+              {l.title}
+              {'external' in l && l.external ? <span className="text-xs text-slate-400">↗</span> : null}
+            </div>
             <div className="mt-1 text-sm text-slate-600">{l.desc}</div>
             {!flag(l.flag) ? <div className="mt-1 text-xs text-amber-700">disabled</div> : null}
           </a>

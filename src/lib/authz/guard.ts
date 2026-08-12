@@ -20,6 +20,14 @@ export interface AccessContext {
   targetPatientId?: string;
   /** Break-glass must be explicit + is always audited. */
   breakGlass?: boolean;
+  /**
+   * True when the member has opted out of Provider Access data sharing
+   * (lib/consent/providerAccessOptOut.ts). This is a distinct, member-controlled
+   * gate that overrides an otherwise-valid treatment relationship — CMS-0057-F
+   * requires the opt-out to be honored regardless of authorization basis, except
+   * for break-glass emergency access.
+   */
+  providerAccessOptedOut?: boolean;
 }
 
 export interface AccessDecision {
@@ -61,6 +69,13 @@ export function canReadMemberData(ctx: AccessContext): AccessDecision {
   if (ctx.role === 'provider') {
     if (ctx.breakGlass) {
       return { allow: true, reason: 'break-glass emergency access', elevatedAudit: true };
+    }
+    if (ctx.providerAccessOptedOut === true) {
+      return {
+        allow: false,
+        reason: 'member has opted out of Provider Access data sharing',
+        elevatedAudit: false,
+      };
     }
     const ok = ctx.treatmentRelationship === true;
     return {

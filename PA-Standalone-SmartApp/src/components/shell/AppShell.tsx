@@ -9,6 +9,10 @@ import ReviewSubmitView from "@/components/views/ReviewSubmitView";
 import PaPortalView from "@/components/views/PaPortalView";
 import CaseDetailView from "@/components/views/CaseDetailView";
 import WorklistView from "@/components/views/WorklistView";
+import PolicyIngestView from "@/components/views/PolicyIngestView";
+import PolicyReviewView from "@/components/views/PolicyReviewView";
+import AuditLogView from "@/components/views/AuditLogView";
+import PatientRecordDrawer from "@/components/shared/PatientRecordDrawer";
 
 const NAV_STEPS: { view: AppView; label: string; step: number }[] = [
   { view: "order", label: "Order & CRD Trigger", step: 1 },
@@ -18,6 +22,9 @@ const NAV_STEPS: { view: AppView; label: string; step: number }[] = [
   { view: "portal", label: "PA Portal", step: 5 },
   { view: "case", label: "Case Detail", step: 6 },
   { view: "worklist", label: "Worklist", step: 7 },
+  { view: "policies", label: "Ingest Policy", step: 8 },
+  { view: "policyReview", label: "Review Policy Logic", step: 9 },
+  { view: "auditLog", label: "Audit Log", step: 10 },
 ];
 
 const VIEW_COMPONENT: Record<AppView, React.ComponentType> = {
@@ -28,6 +35,9 @@ const VIEW_COMPONENT: Record<AppView, React.ComponentType> = {
   portal: PaPortalView,
   case: CaseDetailView,
   worklist: WorklistView,
+  policies: PolicyIngestView,
+  policyReview: PolicyReviewView,
+  auditLog: AuditLogView,
 };
 
 export default function AppShell() {
@@ -77,6 +87,10 @@ export default function AppShell() {
       <main className="mx-auto max-w-[1180px] px-6 py-8 pb-20">
         <Active />
       </main>
+
+      {/* Mounted once at the shell level, not per-view, so opening it never
+          disturbs `view`/navigation state or re-triggers a CRD/DTR fetch. */}
+      <PatientRecordDrawer />
     </div>
   );
 }

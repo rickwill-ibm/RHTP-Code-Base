@@ -10,8 +10,8 @@ import type { SmartContext } from "@/lib/smart/smartLaunch";
 import type {
   PasSubmission,
   SubmissionChannel,
-  CrdCheckResult,
-  DtrMatchResult,
+  CrdResultEntry,
+  DtrResultEntry,
   PaOrder,
   PatientBanner,
 } from "@/lib/pa/pa-types";
@@ -22,8 +22,10 @@ export interface SubmitPaInput {
   channel: SubmissionChannel;
   order: PaOrder;
   patient: PatientBanner;
-  crd: CrdCheckResult;
-  dtr: DtrMatchResult;
+  /** One CRD result per procedure on the order. */
+  crd: CrdResultEntry[];
+  /** One DTR match result per procedure on the order. */
+  dtr: DtrResultEntry[];
 }
 
 export async function submitPriorAuth(
@@ -150,20 +152,21 @@ function buildPasBundle(input: SubmitPaInput): object {
           priority: {
             coding: [{ code: "normal" }],
           },
-          item: [
-            {
-              sequence: 1,
-              productOrService: {
-                coding: [
-                  {
-                    system: "http://www.ama-assn.org/go/cpt",
-                    code: input.order.cpt,
-                    display: input.order.procedure,
-                  },
-                ],
-              },
+          // One item per procedure on the order — a multi-procedure prior-auth
+          // request is one Claim with multiple line items, not N separate
+          // submissions, matching how Da Vinci PAS models a single request.
+          item: input.order.procedures.map((proc, i) => ({
+            sequence: i + 1,
+            productOrService: {
+              coding: [
+                {
+                  system: proc.cptSystem,
+                  code: proc.cpt,
+                  display: proc.cptDesc,
+                },
+              ],
             },
-          ],
+          })),
         },
       },
     ],

@@ -7,8 +7,8 @@
 
 import { create } from "zustand";
 import type {
-  CrdCheckResult,
-  DtrMatchResult,
+  CrdResultEntry,
+  DtrResultEntry,
   DtrGroup,
   PaCase,
   PaOrder,
@@ -16,6 +16,11 @@ import type {
   SubmissionChannel,
   PaStatus,
 } from "@/lib/pa/pa-types";
+import {
+  buildCdexDocumentReference,
+  summarizeDocumentReference,
+  type UploadedFileMeta,
+} from "@/lib/dtr/cdexDocumentReference";
 
 export type AppView =
   | "order"
@@ -24,35 +29,67 @@ export type AppView =
   | "review"
   | "portal"
   | "case"
-  | "worklist";
+  | "worklist"
+  | "policies"
+  | "policyReview"
+  | "auditLog";
 
 interface PaStore {
   // ── Navigation ──────────────────────────────────────────────────────────
   view: AppView;
   setView: (v: AppView) => void;
+  /**
+   * When set, PolicyReviewView opens directly on this policy's logic-tree
+   * detail (instead of the queue landing list) the next time it mounts, then
+   * clears itself. Lets the Ingest screen's "Review before it goes live →"
+   * button deep-link straight to the policy it just extracted.
+   */
+  reviewFocusPolicyId: string | null;
+  setReviewFocusPolicyId: (id: string | null) => void;
+  goToPolicyReview: (policyId: string) => void;
+  /**
+   * Full patient chart drawer — deliberately independent of `view`. Opening
+   * it must not navigate away from whatever step (Order, DTR, etc.) the
+   * reviewer is currently on, since the whole point is cross-referencing the
+   * chart without losing your place in the CRD/DTR pipeline.
+   */
+  patientRecordOpen: boolean;
+  openPatientRecord: () => void;
+  closePatientRecord: () => void;
 
   // ── Order ───────────────────────────────────────────────────────────────
   order: PaOrder | null;
   patient: PatientBanner | null;
+  patientLoading: boolean;
+  patientError: string | null;
   setOrder: (o: PaOrder) => void;
   setPatient: (p: PatientBanner) => void;
+  setPatientLoading: (v: boolean) => void;
+  setPatientError: (e: string | null) => void;
 
-  // ── CRD ─────────────────────────────────────────────────────────────────
+  // ── CRD (one result per procedure on the order) ────────────────────────
   crdLoading: boolean;
-  crdResult: CrdCheckResult | null;
+  crdResults: CrdResultEntry[] | null;
   crdError: string | null;
   setCrdLoading: (v: boolean) => void;
-  setCrdResult: (r: CrdCheckResult) => void;
+  setCrdResults: (r: CrdResultEntry[]) => void;
   setCrdError: (e: string) => void;
 
-  // ── DTR ─────────────────────────────────────────────────────────────────
+  // ── DTR (one match result per procedure on the order) ──────────────────
   dtrLoading: boolean;
-  dtrResult: DtrMatchResult | null;
+  dtrResults: DtrResultEntry[] | null;
   dtrError: string | null;
   setDtrLoading: (v: boolean) => void;
-  setDtrResult: (r: DtrMatchResult) => void;
+  setDtrResults: (r: DtrResultEntry[]) => void;
   setDtrError: (e: string) => void;
-  resolveDtrGap: (groupId: number, evidence: string) => void;
+  /**
+   * Resolve a DTR requirement-group gap (for a specific procedure's policy
+   * tree, identified by cptCode) with an uploaded file. Builds a Da Vinci
+   * CDex-conformant DocumentReference from the file metadata (Dev Plan
+   * Workstream B) — the group's displayed evidence text is always derived
+   * from that resource, not a bare filename string.
+   */
+  resolveDtrGap: (cptCode: string, groupId: number, file: UploadedFileMeta) => void;
 
   // ── Submission ───────────────────────────────────────────────────────────
   channel: SubmissionChannel;
@@ -193,38 +230,61 @@ export const usePaStore = create<PaStore>((set, get) => ({
   // Navigation
   view: "order",
   setView: (v) => set({ view: v }),
+  reviewFocusPolicyId: null,
+  setReviewFocusPolicyId: (id) => set({ reviewFocusPolicyId: id }),
+  goToPolicyReview: (policyId) => set({ view: "policyReview", reviewFocusPolicyId: policyId }),
+  patientRecordOpen: false,
+  openPatientRecord: () => set({ patientRecordOpen: true }),
+  closePatientRecord: () => set({ patientRecordOpen: false }),
 
   // Order
   order: null,
   patient: null,
+  patientLoading: false,
+  patientError: null,
   setOrder: (o) => set({ order: o }),
-  setPatient: (p) => set({ patient: p }),
+  setPatient: (p) => set({ patient: p, patientError: null }),
+  setPatientLoading: (v) => set({ patientLoading: v }),
+  setPatientError: (e) => set({ patientError: e, patientLoading: false }),
 
-  // CRD
+  // CRD — one result entry per procedure on the order
   crdLoading: false,
-  crdResult: null,
+  crdResults: null,
   crdError: null,
   setCrdLoading: (v) => set({ crdLoading: v }),
-  setCrdResult: (r) => set({ crdResult: r, crdError: null }),
+  setCrdResults: (r) => set({ crdResults: r, crdError: null }),
   setCrdError: (e) => set({ crdError: e, crdLoading: false }),
 
-  // DTR
+  // DTR — one match result per procedure on the order
   dtrLoading: false,
-  dtrResult: null,
+  dtrResults: null,
   dtrError: null,
   setDtrLoading: (v) => set({ dtrLoading: v }),
-  setDtrResult: (r) => set({ dtrResult: r, dtrError: null }),
+  setDtrResults: (r) => set({ dtrResults: r, dtrError: null }),
   setDtrError: (e) => set({ dtrError: e, dtrLoading: false }),
-  resolveDtrGap: (groupId, evidence) =>
+  resolveDtrGap: (cptCode, groupId, file) =>
     set((s) => {
-      if (!s.dtrResult) return {};
-      const groups: DtrGroup[] = s.dtrResult.groups.map((g) =>
-        g.id === groupId
-          ? { ...g, status: "met" as const, uploadedEvidence: evidence }
-          : g
-      );
-      const allMet = groups.every((g) => g.status === "met");
-      return { dtrResult: { ...s.dtrResult, groups, allMet } };
+      if (!s.dtrResults) return {};
+      const dtrResults = s.dtrResults.map((dtr) => {
+        if (dtr.cptCode !== cptCode) return dtr;
+        const groups: DtrGroup[] = dtr.groups.map((g) => {
+          if (g.id !== groupId) return g;
+          const documentReference = buildCdexDocumentReference(file, {
+            patientId: s.patient?.memberId ?? "unknown",
+            groupId: g.id,
+            groupTitle: g.title,
+          });
+          return {
+            ...g,
+            status: "met" as const,
+            uploadedDocumentReference: documentReference,
+            uploadedEvidence: summarizeDocumentReference(documentReference),
+          };
+        });
+        const allMet = groups.every((g) => g.status === "met");
+        return { ...dtr, groups, allMet };
+      });
+      return { dtrResults };
     }),
 
   // Submission
@@ -263,11 +323,13 @@ export const usePaStore = create<PaStore>((set, get) => ({
     set({
       view: "order",
       order: null,
+      patientLoading: false,
+      patientError: null,
       crdLoading: false,
-      crdResult: null,
+      crdResults: null,
       crdError: null,
       dtrLoading: false,
-      dtrResult: null,
+      dtrResults: null,
       dtrError: null,
       channel: "fhir",
       submitLoading: false,

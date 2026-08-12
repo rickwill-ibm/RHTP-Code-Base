@@ -1,0 +1,174 @@
+{
+  "policyId": "bariatric-surgery-cpt-43644",
+  "policyTitle": "Bariatric Surgery (Surgical Treatment of Morbid Obesity)",
+  "payer": "Blue Cross Prior Authorization",
+  "effectiveDate": "2026-01-01",
+  "governedCptCodes": [
+    "43644",
+    "43645",
+    "43770",
+    "43771",
+    "43772",
+    "43773",
+    "43774",
+    "43775"
+  ],
+  "paRequired": true,
+  "criteriaGroups": [
+    {
+      "id": 1,
+      "title": "Primary Obesity Diagnosis",
+      "required": true,
+      "description": "Documented diagnosis of morbid (severe) obesity on the problem list, confirmed by the treating physician.",
+      "fhirQuery": {
+        "resourceType": "Condition",
+        "searchParam": "code",
+        "system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "codes": [
+          "E66.01",
+          "E66.09",
+          "E66.1"
+        ]
+      },
+      "candidateCodes": [
+        {
+          "code": "E66.01",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Morbid (severe) obesity due to excess calories"
+        },
+        {
+          "code": "E66.09",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Other obesity due to excess calories"
+        },
+        {
+          "code": "E66.1",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Drug-induced obesity"
+        }
+      ],
+      "documentationRequired": "Problem-list diagnosis of morbid obesity confirmed by the treating physician."
+    },
+    {
+      "id": 2,
+      "title": "Body Mass Index (BMI) ≥ 35",
+      "required": true,
+      "description": "Documented BMI of 35 kg/m² or greater within the past 12 months, supported by current weight and height measurements.",
+      "fhirQuery": {
+        "resourceType": "Observation",
+        "searchParam": "code",
+        "system": "http://loinc.org",
+        "codes": [
+          "39156-5"
+        ],
+        "valueComparison": ">=35"
+      },
+      "candidateCodes": [],
+      "documentationRequired": "Current height, weight, and calculated BMI ≥ 35 kg/m², recorded within the past 12 months."
+    },
+    {
+      "id": 3,
+      "title": "Qualifying Comorbidity",
+      "required": true,
+      "description": "At least one obesity-related comorbid condition documented as an active diagnosis.",
+      "fhirQuery": {
+        "resourceType": "Condition",
+        "searchParam": "code",
+        "system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "codes": [
+          "E11.9",
+          "I10",
+          "G47.33",
+          "E66.2",
+          "I27.20",
+          "K76.0",
+          "K21.9",
+          "M17.9",
+          "E78.5",
+          "E28.2",
+          "N39.3",
+          "I87.2",
+          "G93.2"
+        ]
+      },
+      "candidateCodes": [
+        {
+          "code": "E11.9",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Type 2 diabetes mellitus without complications"
+        },
+        {
+          "code": "I10",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Essential (primary) hypertension"
+        },
+        {
+          "code": "G47.33",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Obstructive sleep apnea (adult) (pediatric)"
+        },
+        {
+          "code": "I27.20",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Pulmonary hypertension, unspecified"
+        },
+        {
+          "code": "K76.0",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Non-alcoholic fatty liver disease"
+        },
+        {
+          "code": "K21.9",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Gastroesophageal reflux disease without esophagitis"
+        },
+        {
+          "code": "M17.9",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Osteoarthritis of knee, unspecified"
+        },
+        {
+          "code": "E78.5",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Hyperlipidemia, unspecified"
+        }
+      ],
+      "documentationRequired": "Active diagnosis of an obesity-related comorbidity (type 2 diabetes, hypertension, obstructive sleep apnea, obesity hypoventilation syndrome, pulmonary hypertension, NAFLD/NASH, GERD, weight-bearing osteoarthritis, dyslipidemia, PCOS, stress urinary incontinence, venous stasis disease, or pseudotumor cerebri)."
+    },
+    {
+      "id": 4,
+      "title": "Conservative Treatment Attempted (supportive)",
+      "required": false,
+      "description": "Supervised medical weight management attempted for at least 6 months in the preceding 2 years. Supportive documentation — not required for all plans.",
+      "fhirQuery": {
+        "resourceType": "Condition",
+        "searchParam": "code",
+        "system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "codes": [
+          "Z71.3"
+        ]
+      },
+      "candidateCodes": [
+        {
+          "code": "Z71.3",
+          "system": "http://hl7.org/fhir/sid/icd-10-cm",
+          "display": "Dietary counseling and surveillance"
+        }
+      ],
+      "documentationRequired": "Records of a physician-supervised diet, behavioral therapy, or pharmacotherapy program of at least 6 months within the past 2 years."
+    }
+  ],
+  "notes": "Surgical readiness (age >= 18, pre-surgical psychological evaluation, no active substance use disorder, no uncontrolled psychiatric illness) is required per policy but is not derivable from structured Condition/Observation codes alone — verify via chart review and the psychological evaluation report rather than automated FHIR matching.",
+  "status": "approved",
+  "reviewCadenceDays": 180,
+  "lastApprovedSourceMtime": null,
+  "reviewHistory": [
+    {
+      "action": "approved",
+      "reviewerName": "Dr. Jacob P. Aagaard MD",
+      "comment": null,
+      "timestamp": "2026-08-10T21:07:54.828Z",
+      "reviewCadenceDays": 180
+    }
+  ]
+}

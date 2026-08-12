@@ -1,0 +1,14 @@
+{
+  "name": "pa-mock-fhir-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "No-Docker, in-memory FHIR R4 substitute for local dev. Implements exactly the operations PA-Standalone-SmartApp's own services use against HAPI (read, patient/code search, transaction-bundle seed, Claim/$submit) — not a general FHIR server.",
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

@@ -6,7 +6,7 @@
  * Authorization basis differs from member access (see lib/authz/guard).
  */
 import { useState } from 'react';
-import { postJson, fhirGet } from '@/lib/client/bff';
+import { postJson, fhirGet, getJson } from '@/lib/client/bff';
 import { canReadMemberData } from '@/lib/authz/guard';
 import { toConditionVM, type ConditionVM } from '@/lib/fhir/viewModels';
 import { flag } from '@/lib/flags/flags';
@@ -15,19 +15,40 @@ interface Bundle {
   entry?: { resource?: Record<string, unknown> }[];
 }
 
+interface ConsentStatus {
+  memberId: string;
+  optedOut: boolean;
+}
+
 export default function ProviderAccessPage(): React.ReactElement {
   const [memberId, setMemberId] = useState('');
   const [matched, setMatched] = useState<string | null>(null);
   const [conditions, setConditions] = useState<ConditionVM[]>([]);
   const [msg, setMsg] = useState('');
+  const [consent, setConsent] = useState<ConsentStatus | null>(null);
 
   const decision = canReadMemberData({
     role: 'provider',
     purpose: 'treatment',
     treatmentRelationship: true,
+    providerAccessOptedOut: consent?.optedOut ?? false,
   });
 
   async function match(): Promise<void> {
+    setMsg('Checking consent…');
+    const consentRes = await getJson<ConsentStatus>(
+      `/api/consent/provider-access?memberId=${encodeURIComponent(memberId)}`
+    );
+    const optedOut = consentRes.data?.optedOut ?? false;
+    setConsent({ memberId, optedOut });
+
+    if (optedOut) {
+      setMsg('Member has opted out of Provider Access data sharing. Access denied.');
+      setMatched(null);
+      setConditions([]);
+      return;
+    }
+
     setMsg('Matching…');
     const params = {
       resourceType: 'Parameters',
@@ -69,6 +90,21 @@ export default function ProviderAccessPage(): React.ReactElement {
         </button>
       </div>
       {msg ? <p className="text-sm text-slate-600">{msg}</p> : null}
+      {consent?.optedOut ? (
+        <section
+          aria-label="Provider Access opt-out"
+          className="rounded border border-amber-300 bg-amber-50 p-3 text-sm"
+        >
+          <p className="font-medium text-amber-900">
+            Member {consent.memberId} has opted out of Provider Access data sharing.
+          </p>
+          <p className="mt-1 text-xs text-amber-700">
+            Access is blocked (Authorization basis: {decision.reason}). The member — or an
+            authorized delegate — can revoke this opt-out via the consent API
+            (POST /api/consent/provider-access, action: &quot;revoke&quot;).
+          </p>
+        </section>
+      ) : null}
       {matched ? (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-slate-500">Conditions for {matched}</h2>

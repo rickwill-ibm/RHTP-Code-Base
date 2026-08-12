@@ -39,7 +39,7 @@ const CLIENT_ID =
   process.env.NEXT_PUBLIC_SMART_CLIENT_ID ?? "pa-smart-app";
 const REDIRECT_URI =
   process.env.NEXT_PUBLIC_SMART_REDIRECT_URI ??
-  "http://localhost:4030/app";
+  "http://localhost:4032/app"; // must match the app's actual port (package.json: next dev -p 4032)
 const SCOPE =
   process.env.NEXT_PUBLIC_SMART_SCOPE ??
   "launch launch/patient launch/encounter patient/*.read openid fhirUser offline_access";

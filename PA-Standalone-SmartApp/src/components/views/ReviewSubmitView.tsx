@@ -9,7 +9,7 @@ import { toast } from "sonner";
 export default function ReviewSubmitView() {
   const { context } = useSmartContext();
   const {
-    order, patient, crdResult, dtrResult,
+    order, patient, crdResults, dtrResults,
     channel, setChannel,
     submitLoading, setSubmitLoading,
     submittedCase, setSubmittedCase,
@@ -17,27 +17,41 @@ export default function ReviewSubmitView() {
   } = usePaStore();
 
   async function handleSubmit() {
-    if (!context || !order || !patient || !crdResult || !dtrResult) return;
+    if (!context || !order || !patient || !crdResults || !dtrResults) return;
     setSubmitLoading(true);
     try {
-      const submission = await submitPriorAuth({ ctx: context, channel, order, patient, crd: crdResult, dtr: dtrResult });
+      const submission = await submitPriorAuth({ ctx: context, channel, order, patient, crd: crdResults, dtr: dtrResults });
+
+      const serviceSummary = order.procedures.map((p) => p.cptDesc).join("; ");
+      const cptSummary = order.procedures.map((p) => p.cpt).join(", ");
+      const multi = order.procedures.length > 1;
 
       const newCase: PaCase = {
         authId: submission.paNumber,
         patient: patient.name,
         memberId: patient.memberId,
-        service: order.procedure,
-        cpt: order.cpt,
+        service: serviceSummary,
+        cpt: cptSummary,
+        procedures: order.procedures,
         dateRequested: new Date().toLocaleDateString("en-US"),
         channel: channel === "fhir" ? "FHIR" : "EDI",
         status: "Submitted",
-        checklist: Object.values(crdResult).map((c) => ({ label: c.label, detail: c.detail, pass: c.pass, source: c.source })),
-        dtr: dtrResult.groups.map((g) => ({
-          title: g.title,
-          status: (g.status === "pending" ? "gap" : g.status) as "met" | "gap",
-          evidence: g.uploadedEvidence ?? g.leaf?.evidence ?? "",
-          source: g.status === "met" && !g.leaf ? "upload" : (g.leaf?.source ?? null),
-        })),
+        checklist: crdResults.flatMap((entry) =>
+          Object.values(entry.result).map((c) => ({
+            label: multi ? `${c.label} (CPT ${entry.cpt})` : c.label,
+            detail: c.detail,
+            pass: c.pass,
+            source: c.source,
+          }))
+        ),
+        dtr: dtrResults.flatMap((dtr) =>
+          dtr.groups.map((g) => ({
+            title: multi ? `${g.title} (CPT ${dtr.cptCode})` : g.title,
+            status: (g.status === "pending" ? "gap" : g.status) as "met" | "gap",
+            evidence: g.uploadedEvidence ?? g.leaf?.evidence ?? "",
+            source: g.status === "met" && !g.leaf ? "upload" : (g.leaf?.source ?? null),
+          }))
+        ),
         submission,
         timeline: [{ status: "Submitted", ts: submission.timestamp, color: "blue" as const }] as TimelineEntry[],
       };
@@ -51,7 +65,30 @@ export default function ReviewSubmitView() {
     }
   }
 
-  if (!order || !crdResult || !dtrResult) return null;
+  if (!order || !crdResults || !dtrResults) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-5">Review &amp; Submit</h1>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+          <p className="mb-4">
+            Nothing to review yet — complete Steps 1–3 (Order, CRD, DTR) first. Jumping to this tab directly skips
+            those fetches.
+          </p>
+          <button
+            onClick={() => setView("order")}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#1669c1] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#0f52a0] transition-colors"
+          >
+            ← Back to Order &amp; CRD Trigger
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalCrdChecks = crdResults.reduce((n, e) => n + Object.keys(e.result).length, 0);
+  const passedCrdChecks = crdResults.reduce((n, e) => n + Object.values(e.result).filter((c) => c.pass).length, 0);
+  const totalDtrGroups = dtrResults.reduce((n, d) => n + d.groups.length, 0);
+  const metDtrGroups = dtrResults.reduce((n, d) => n + d.groups.filter((g) => g.status === "met").length, 0);
 
   return (
     <div>
@@ -60,24 +97,29 @@ export default function ReviewSubmitView() {
         <p className="text-sm text-gray-500 mt-1">Confirm details and choose a submission channel before sending the prior authorization request.</p>
       </div>
 
-      {/* Patient banner */}
+      {/* Patient + procedures banner */}
       {patient && (
-        <div className="mb-4 flex flex-wrap gap-6 items-center rounded-xl border border-l-[5px] border-l-[#5d7a94] border-gray-200 bg-gradient-to-b from-gray-50 to-blue-50/30 px-5 py-4">
-          <div className="font-bold text-gray-900">{patient.name}</div>
-          <div className="text-sm text-gray-500"><span className="font-semibold text-gray-700">DOB:</span> {patient.dob}</div>
-          <div className="text-sm text-gray-500"><span className="font-semibold text-gray-700">Member ID:</span> {patient.memberId}</div>
-          <div className="text-sm text-gray-500"><span className="font-semibold text-gray-700">Procedure:</span> {order.procedure} (CPT {order.cpt})</div>
+        <div className="mb-4 rounded-xl border border-l-[5px] border-l-[#5d7a94] border-gray-200 bg-gradient-to-b from-gray-50 to-blue-50/30 px-5 py-4">
+          <div className="flex flex-wrap gap-6 items-center mb-2">
+            <div className="font-bold text-gray-900">{patient.name}</div>
+            <div className="text-sm text-gray-500"><span className="font-semibold text-gray-700">DOB:</span> {patient.dob}</div>
+            <div className="text-sm text-gray-500"><span className="font-semibold text-gray-700">Member ID:</span> {patient.memberId}</div>
+          </div>
+          <div className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-700">Procedures:</span>{" "}
+            {order.procedures.map((p) => `${p.cptDesc} (CPT ${p.cpt})`).join("; ")}
+          </div>
         </div>
       )}
 
       {/* CRD summary */}
-      <SummaryCard title="Part I · CRD Checklist" pill={`${Object.values(crdResult).filter(c => c.pass).length} of ${Object.keys(crdResult).length}`} pillGreen>
-        <p className="text-xs text-gray-400">All coverage checks passed.</p>
+      <SummaryCard title="Part I · CRD Checklist" pill={`${passedCrdChecks} of ${totalCrdChecks}`} pillGreen>
+        <p className="text-xs text-gray-400">All coverage checks passed across {crdResults.length} procedure{crdResults.length > 1 ? "s" : ""}.</p>
       </SummaryCard>
 
       {/* DTR summary */}
-      <SummaryCard title="Part II · DTR Match Results" pill={`${dtrResult.groups.filter(g => g.status === "met").length} of ${dtrResult.groups.length}`} pillGreen>
-        <p className="text-xs text-gray-400">All medical necessity requirement groups met.</p>
+      <SummaryCard title="Part II · DTR Match Results" pill={`${metDtrGroups} of ${totalDtrGroups}`} pillGreen>
+        <p className="text-xs text-gray-400">All medical necessity requirement groups met across {dtrResults.length} procedure{dtrResults.length > 1 ? "s" : ""}.</p>
       </SummaryCard>
 
       {/* Channel selection */}
@@ -123,7 +165,10 @@ export default function ReviewSubmitView() {
           </div>
         ) : (
           <div>
-            <p className="text-sm text-gray-500 mb-5">Ready to submit. This will generate a Prior Authorization number and route the request to the payer.</p>
+            <p className="text-sm text-gray-500 mb-5">
+              Ready to submit. This will generate a Prior Authorization number and route
+              {order.procedures.length > 1 ? ` all ${order.procedures.length} procedures in one request` : " the request"} to the payer.
+            </p>
             <button onClick={handleSubmit} className="inline-flex items-center gap-2 rounded-lg bg-[#1669c1] px-7 py-3.5 text-sm font-bold text-white hover:bg-[#0f52a0] transition-colors">
               Submit Prior Authorization
             </button>

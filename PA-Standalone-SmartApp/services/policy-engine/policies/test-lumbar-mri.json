@@ -1,0 +1,12 @@
+{
+  "policyId": "test-lumbar-mri",
+  "policyTitle": "[TEST ARTIFACT — safe to delete: policies/test-lumbar-mri.json]",
+  "payer": "TEST — not a real payer, created during HITL review backend testing",
+  "governedCptCodes": [],
+  "criteriaGroups": [],
+  "status": "approved",
+  "reviewCadenceDays": 36500,
+  "reviewHistory": [],
+  "sourceFile": null,
+  "lastApprovedSourceMtime": null
+}

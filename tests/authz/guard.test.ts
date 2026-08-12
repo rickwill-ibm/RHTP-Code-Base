@@ -38,6 +38,38 @@ describe('Access guard (Slice 2)', () => {
     expect(d.elevatedAudit).toBe(true);
   });
 
+  it('provider is denied when the member has opted out of Provider Access, even with a treatment relationship (Dev Plan Workstream A)', () => {
+    const d = canReadMemberData({
+      role: 'provider',
+      purpose: 'treatment',
+      treatmentRelationship: true,
+      providerAccessOptedOut: true,
+    });
+    expect(d.allow).toBe(false);
+    expect(d.reason).toMatch(/opted out/);
+  });
+
+  it('provider is allowed when the member has not opted out', () => {
+    const d = canReadMemberData({
+      role: 'provider',
+      purpose: 'treatment',
+      treatmentRelationship: true,
+      providerAccessOptedOut: false,
+    });
+    expect(d.allow).toBe(true);
+  });
+
+  it('break-glass overrides an opt-out (emergency access remains available, always elevated-audit)', () => {
+    const d = canReadMemberData({
+      role: 'provider',
+      purpose: 'treatment',
+      breakGlass: true,
+      providerAccessOptedOut: true,
+    });
+    expect(d.allow).toBe(true);
+    expect(d.elevatedAudit).toBe(true);
+  });
+
   it('rejects a purpose not permitted for the role', () => {
     expect(canReadMemberData({ role: 'member', purpose: 'operations' }).allow).toBe(false);
   });

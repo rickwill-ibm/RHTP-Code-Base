@@ -40,6 +40,9 @@ const navItems: NavItem[] = [
   { key: 'nav-stars', label: 'Care Manager Attribution', icon: 'StarIcon', href: '/stars-hedis-mips', group: 'RHTP Program' },
   { key: 'nav-social-dashboard-rhtp', label: 'Social Needs Dashboard', icon: 'ChartBarIcon', href: '/social-needs-dashboard', group: 'RHTP Program' },
   { key: 'nav-outcomes-linkage-rhtp', label: 'Outcomes Linkage', icon: 'ArrowTrendingDownIcon', href: '/outcomes-linkage', group: 'RHTP Program' },
+  // CMS-0057-F — hub for Patient Access, Provider Access, Payer-to-Payer,
+  // Prior Authorization (real SMART app launch), Golden Thread, Network Adequacy
+  { key: 'nav-cms0057f', label: 'CMS-0057-F', icon: 'ShieldCheckIcon', href: '/cms', group: 'CMS-0057-F' },
   // Care Team Workflows
   { key: 'nav-care-team-inbox', label: 'Care Team Inbox', icon: 'InboxIcon', href: '/care-team-inbox', badge: 5, group: 'Care Team Workflows' },
   { key: 'nav-care-manager', label: 'Care Manager Dashboard', icon: 'ClipboardDocumentListIcon', href: '/care-manager', group: 'Care Team Workflows' },
@@ -107,7 +110,7 @@ const navItems: NavItem[] = [
   { key: 'nav-patient-episode-summary', label: 'Patient Episode Summary', icon: 'DocumentTextIcon', href: '/patient-episode-summary', group: 'Backup' },
 ];
 
-const groupOrder = ['RHTP Program', 'Care Team Workflows', 'Whole Person Care', 'Agentic_Orchestrate-Screens', 'Admin Console', 'System', 'Backup'];
+const groupOrder = ['RHTP Program', 'CMS-0057-F', 'Care Team Workflows', 'Whole Person Care', 'Agentic_Orchestrate-Screens', 'Admin Console', 'System', 'Backup'];
 
 interface AppLayoutProps {
   children: React.ReactNode;

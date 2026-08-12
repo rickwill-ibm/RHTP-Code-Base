@@ -18,11 +18,11 @@ function summarizeEntry(e: EvidenceEntry): string {
     case 'eligibility':
       return `Coverage ${e.requiresPA ? 'requires PA' : 'no PA required'}${e.note ? ` — ${e.note}` : ''}`;
     case 'coverage-determination':
-      return `Determination: ${e.determination.outcome} (requiresPA=${e.determination.requiresPA}, propensity ${e.determination.propensityToDeny})`;
+      return `Determination: ${e.determination.outcome} (requiresPA=${e.determination.requiresPA}, submission-readiness score ${e.determination.propensityToDeny})`;
     case 'gold-card':
       return `Gold card ${e.exemption.applied ? 'APPLIED — PA waived' : 'not applied'} — ${e.exemption.reason}`;
     case 'propensity':
-      return `Propensity-to-deny ${e.score}/100 (${e.band})`;
+      return `Submission-readiness (completeness) score ${e.score}/100 (${e.band})`;
     case 'dtr-response':
       return `DTR response (${e.itemCount} items)`;
     case 'pas-submission':

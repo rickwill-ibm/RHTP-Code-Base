@@ -54,7 +54,7 @@ export function MedicalNecessityPanel({ vm }: { vm: MedicalNecessityVM }): React
       <div className={`rounded border p-3 text-sm ${bandColor(vm.propensity.band)}`}>
         <div className="flex items-center justify-between">
           <span className="font-medium">
-            Propensity-to-deny: {vm.propensity.score}/100 ({vm.propensity.band})
+            Submission-readiness (completeness) score: {vm.propensity.score}/100 ({vm.propensity.band})
           </span>
         </div>
         <ul className="mt-1 list-inside list-disc text-xs">

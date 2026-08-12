@@ -1,0 +1,61 @@
+MEDICAL POLICY: Bariatric Surgery (Surgical Treatment of Morbid Obesity)
+Policy ID: bariatric-surgery-cpt-43644
+Effective Date: 2026-01-01
+Payer: Blue Cross Prior Authorization
+Governed CPT Codes: 43644, 43645, 43770, 43771, 43772, 43773, 43774, 43775
+
+OVERVIEW
+Prior authorization is required for all bariatric surgical procedures. The following criteria must be met for coverage of bariatric surgery.
+
+MEDICAL NECESSITY CRITERIA
+
+All of the following criteria (I through III) must be met:
+
+I. Primary Obesity Diagnosis
+The member must have a documented diagnosis of morbid (severe) obesity with ICD-10-CM code E66.01 (Morbid (severe) obesity due to excess calories) OR E66.09 (Other obesity due to excess calories) OR E66.1 (Drug-induced obesity) on the problem list, confirmed by the treating physician.
+
+II. Body Mass Index (BMI) Requirement
+The member must have a documented BMI of 35 kg/m² or greater within the past 12 months, measured and recorded as a vital sign or observation. The BMI must be supported by current weight and height measurements.
+- BMI >= 35 with at least one qualifying comorbidity (see Criterion III), OR
+- BMI >= 40 without comorbidity requirement
+
+BMI is recorded using LOINC code 39156-5. Weight is recorded using LOINC code 29463-7. Height is recorded using LOINC code 8302-2.
+
+III. Qualifying Comorbidity
+At least one of the following obesity-related comorbid conditions must be documented as an active diagnosis:
+
+A. Type 2 diabetes mellitus (ICD-10: E11.0, E11.1, E11.2, E11.3, E11.4, E11.5, E11.6, E11.7, E11.8, E11.9, E11.65)
+B. Hypertension (ICD-10: I10, I11, I12, I13)
+C. Obstructive sleep apnea (ICD-10: G47.33, G47.30, G47.31, G47.39)
+D. Obesity hypoventilation syndrome (ICD-10: E66.2)
+E. Pulmonary hypertension (ICD-10: I27.0, I27.20, I27.21, I27.22, I27.23, I27.24, I27.29)
+F. Non-alcoholic fatty liver disease / NASH (ICD-10: K75.81, K76.0)
+G. Gastroesophageal reflux disease (ICD-10: K21.0, K21.9)
+H. Osteoarthritis of weight-bearing joints (ICD-10: M16.0, M16.1, M17.0, M17.1, M17.9)
+I. Dyslipidemia / hyperlipidemia (ICD-10: E78.00, E78.01, E78.1, E78.2, E78.3, E78.4, E78.5)
+J. Polycystic ovary syndrome (ICD-10: E28.2)
+K. Stress urinary incontinence (ICD-10: N39.3)
+L. Venous stasis disease (ICD-10: I87.2, I87.009, I87.019)
+M. Pseudotumor cerebri / idiopathic intracranial hypertension (ICD-10: G93.2)
+
+IV. Conservative Treatment Attempts (Supportive — not required for all plans)
+Documentation that the member has attempted and failed a supervised medical weight management program for at least 6 months in the preceding 2 years. This may include physician-supervised diet programs, behavioral therapy, or pharmacotherapy.
+
+V. Surgical Readiness
+A. The member must be 18 years of age or older.
+B. The member must have undergone a pre-surgical psychological evaluation.
+C. No active substance use disorder.
+D. No uncontrolled psychiatric illness that would impair ability to comply with post-operative requirements.
+
+DOCUMENTATION REQUIREMENTS
+- Current height and weight with calculated BMI
+- Operative note from bariatric surgeon
+- Letter of medical necessity from bariatric surgeon
+- Records of comorbid conditions with treatment history
+- Records of prior weight loss attempts (if applicable)
+- Psychological evaluation report
+
+EXCLUSIONS
+- Revision bariatric surgery requires separate review
+- Members under 18 require additional pediatric criteria
+- Experimental procedures are not covered

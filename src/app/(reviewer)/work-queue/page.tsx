@@ -35,7 +35,7 @@ function ItemRow({ item }: { item: WorkItem }): React.ReactElement {
       <div>
         <span className="font-medium">{item.code}</span> · member {item.memberId}
         {typeof item.propensityScore === 'number' ? (
-          <span className="ml-2 text-xs text-slate-500">propensity {item.propensityScore}</span>
+          <span className="ml-2 text-xs text-slate-500">submission-readiness {item.propensityScore}</span>
         ) : null}
         <span className="block text-xs text-slate-500">{item.note}</span>
       </div>

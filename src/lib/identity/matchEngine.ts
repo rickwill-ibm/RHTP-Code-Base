@@ -1,0 +1,121 @@
+/**
+ * Deterministic + probabilistic identity-matching rules (Dev Plan Workstream A1/A2).
+ *
+ * Pure, unit-testable, and deliberately dependency-free — runs entirely on the
+ * platform's own logic with no external matching service or AI model, so every
+ * match decision is reproducible and independently verifiable (same design
+ * principle already applied to network-adequacy analytics).
+ *
+ * Deterministic rules run first (in priority order) and short-circuit with 100%
+ * confidence on the first hit. If none fire, a weighted probabilistic score is
+ * computed across the remaining demographic traits.
+ */
+import type { IdentityTraits, MatchRuleHit, MatchTier } from './mpiTypes';
+
+function normalize(s: string | undefined): string {
+  return (s ?? '').trim().toLowerCase();
+}
+
+/** Levenshtein edit distance — no external dependency. */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0)
+  );
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+/** Normalized similarity in [0, 1]; 1 = identical. */
+function stringSimilarity(a: string, b: string): number {
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (!na && !nb) return 1;
+  if (!na || !nb) return 0;
+  const dist = levenshtein(na, nb);
+  const maxLen = Math.max(na.length, nb.length);
+  return maxLen === 0 ? 1 : 1 - dist / maxLen;
+}
+
+export interface DeterministicResult {
+  hit: boolean;
+  rule: string | null;
+}
+
+/** Deterministic rules, in priority order. Any hit is treated as a certain match. */
+export function runDeterministicRules(a: IdentityTraits, b: IdentityTraits): DeterministicResult {
+  if (a.medicaidId && b.medicaidId && normalize(a.medicaidId) === normalize(b.medicaidId)) {
+    return { hit: true, rule: 'medicaidId-exact' };
+  }
+  if (a.ssnLast4 && b.ssnLast4 && a.ssnLast4 === b.ssnLast4 && a.dob === b.dob) {
+    return { hit: true, rule: 'ssnLast4+dob-exact' };
+  }
+  if (
+    a.dob === b.dob &&
+    normalize(a.firstName) === normalize(b.firstName) &&
+    normalize(a.lastName) === normalize(b.lastName)
+  ) {
+    return { hit: true, rule: 'name+dob-exact' };
+  }
+  return { hit: false, rule: null };
+}
+
+export interface ProbabilisticResult {
+  score: number; // 0-100
+  ruleHits: MatchRuleHit[];
+}
+
+/** Weighted probabilistic scoring, used only when no deterministic rule fires. */
+export function scoreProbabilisticMatch(a: IdentityTraits, b: IdentityTraits): ProbabilisticResult {
+  const ruleHits: MatchRuleHit[] = [];
+
+  const lastNameSim = stringSimilarity(a.lastName, b.lastName);
+  const lastNameWeight = Math.round(lastNameSim * 30);
+  if (lastNameWeight > 0) ruleHits.push({ rule: 'lastName-similarity', weight: lastNameWeight });
+
+  const firstNameSim = stringSimilarity(a.firstName, b.firstName);
+  const firstNameWeight = Math.round(firstNameSim * 20);
+  if (firstNameWeight > 0) ruleHits.push({ rule: 'firstName-similarity', weight: firstNameWeight });
+
+  if (a.dob && b.dob && a.dob === b.dob) {
+    ruleHits.push({ rule: 'dob-exact', weight: 25 });
+  }
+
+  if (a.sex && b.sex && a.sex === b.sex && a.sex !== 'unknown') {
+    ruleHits.push({ rule: 'sex-match', weight: 5 });
+  }
+
+  if (a.zip && b.zip && normalize(a.zip) === normalize(b.zip)) {
+    ruleHits.push({ rule: 'zip-match', weight: 10 });
+  }
+
+  if (a.phone && b.phone && normalize(a.phone) === normalize(b.phone)) {
+    ruleHits.push({ rule: 'phone-match', weight: 10 });
+  }
+
+  const score = Math.min(100, ruleHits.reduce((sum, h) => sum + h.weight, 0));
+  return { score, ruleHits };
+}
+
+export const MATCH_THRESHOLDS = {
+  /** Probabilistic score at/above which the platform treats the match as high-confidence. */
+  autoLinkMin: 90,
+  /** Probabilistic score at/above which a match is surfaced for human review, but not auto-linked. */
+  possibleMatchMin: 60,
+} as const;
+
+export function tierForScore(score: number, deterministicHit: boolean): MatchTier {
+  if (deterministicHit) return 'deterministic';
+  if (score >= MATCH_THRESHOLDS.autoLinkMin) return 'probabilistic-auto';
+  if (score >= MATCH_THRESHOLDS.possibleMatchMin) return 'possible-match';
+  return 'no-match';
+}

@@ -1,0 +1,178 @@
+{
+  "resourceType": "Bundle",
+  "id": "rachel-green-emr-seed",
+  "type": "transaction",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-rachel-green",
+        "identifier": [
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR" }], "text": "MRN" }, "system": "urn:rhtp:mrn", "value": "RG-1234567" },
+          { "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MB" }], "text": "Member ID" }, "system": "urn:rhtp:member", "value": "1234567" }
+        ],
+        "name": [{ "use": "official", "family": "Green", "given": ["Rachel"] }],
+        "gender": "female",
+        "birthDate": "1957-12-19",
+        "telecom": [{ "system": "phone", "value": "617-555-0142", "use": "home" }],
+        "address": [{ "use": "home", "line": ["23 Bedford Street"], "city": "New York", "state": "NY", "postalCode": "10014" }]
+      },
+      "request": { "method": "PUT", "url": "Patient/patient-rachel-green" }
+    },
+    {
+      "resource": {
+        "resourceType": "Practitioner",
+        "id": "practitioner-aagaard",
+        "identifier": [{ "system": "http://hl7.org/fhir/sid/us-npi", "value": "1234567890" }],
+        "name": [{ "use": "official", "family": "Aagaard", "given": ["Jacob", "P"], "suffix": ["MD"] }],
+        "qualification": [{ "code": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0360", "code": "MD" }] } }]
+      },
+      "request": { "method": "PUT", "url": "Practitioner/practitioner-aagaard" }
+    },
+    {
+      "resource": {
+        "resourceType": "Organization",
+        "id": "org-metro-general",
+        "name": "Metro General Surgical Associates",
+        "type": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/organization-type", "code": "prov" }] }],
+        "address": [{ "line": ["100 Surgical Blvd"], "city": "New York", "state": "NY", "postalCode": "10001" }]
+      },
+      "request": { "method": "PUT", "url": "Organization/org-metro-general" }
+    },
+    {
+      "resource": {
+        "resourceType": "Organization",
+        "id": "org-blue-cross-pa",
+        "name": "Blue Cross Prior Authorization",
+        "type": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/organization-type", "code": "ins" }] }]
+      },
+      "request": { "method": "PUT", "url": "Organization/org-blue-cross-pa" }
+    },
+    {
+      "resource": {
+        "resourceType": "Coverage",
+        "id": "coverage-rachel-001",
+        "status": "active",
+        "subscriber": { "reference": "Patient/patient-rachel-green" },
+        "subscriberId": "1234567",
+        "beneficiary": { "reference": "Patient/patient-rachel-green" },
+        "relationship": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/subscriber-relationship", "code": "self" }] },
+        "period": { "start": "2024-01-01", "end": "2026-12-31" },
+        "payor": [{ "reference": "Organization/org-blue-cross-pa", "display": "Blue Cross Prior Authorization" }],
+        "class": [{ "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/coverage-class", "code": "plan" }] }, "value": "BC-PA-GOLD", "name": "Blue Cross Gold PA Plan" }],
+        "network": "In-Network Blue Cross PA"
+      },
+      "request": { "method": "PUT", "url": "Coverage/coverage-rachel-001" }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "encounter-rachel-current",
+        "status": "in-progress",
+        "class": { "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB", "display": "ambulatory" },
+        "type": [{ "coding": [{ "system": "http://snomed.info/sct", "code": "11429006", "display": "Consultation" }] }],
+        "subject": { "reference": "Patient/patient-rachel-green", "display": "Rachel Green" },
+        "participant": [{ "individual": { "reference": "Practitioner/practitioner-aagaard", "display": "Dr. Jacob P. Aagaard MD" } }],
+        "period": { "start": "2026-07-30" },
+        "serviceProvider": { "reference": "Organization/org-metro-general" }
+      },
+      "request": { "method": "PUT", "url": "Encounter/encounter-rachel-current" }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "condition-rachel-obesity",
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }] },
+        "verificationStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status", "code": "confirmed" }] },
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-category", "code": "problem-list-item" }] }],
+        "code": {
+          "coding": [{ "system": "http://hl7.org/fhir/sid/icd-10-cm", "code": "E66.01", "display": "Morbid (severe) obesity due to excess calories" }],
+          "text": "Morbid obesity due to excess calories"
+        },
+        "subject": { "reference": "Patient/patient-rachel-green" },
+        "onsetDateTime": "2022-10-01",
+        "recordedDate": "2022-10-01",
+        "recorder": { "reference": "Practitioner/practitioner-aagaard" }
+      },
+      "request": { "method": "PUT", "url": "Condition/condition-rachel-obesity" }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "condition-rachel-bmi-qualifier",
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active" }] },
+        "verificationStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status", "code": "confirmed" }] },
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-category", "code": "problem-list-item" }] }],
+        "code": {
+          "coding": [{ "system": "http://hl7.org/fhir/sid/icd-10-cm", "code": "Z68.37", "display": "Body mass index [BMI] 37.0-37.9, adult" }],
+          "text": "BMI 37.0-37.9, adult"
+        },
+        "subject": { "reference": "Patient/patient-rachel-green" },
+        "onsetDateTime": "2026-07-28",
+        "recordedDate": "2026-07-28"
+      },
+      "request": { "method": "PUT", "url": "Condition/condition-rachel-bmi-qualifier" }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-rachel-bmi",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "vital-signs" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "39156-5", "display": "Body mass index (BMI) [Ratio]" }], "text": "BMI" },
+        "subject": { "reference": "Patient/patient-rachel-green" },
+        "encounter": { "reference": "Encounter/encounter-rachel-current" },
+        "effectiveDateTime": "2026-07-28",
+        "valueQuantity": { "value": 37.1, "unit": "kg/m2", "system": "http://unitsofmeasure.org", "code": "kg/m2" }
+      },
+      "request": { "method": "PUT", "url": "Observation/obs-rachel-bmi" }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-rachel-weight",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "vital-signs" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "29463-7", "display": "Body weight" }] },
+        "subject": { "reference": "Patient/patient-rachel-green" },
+        "effectiveDateTime": "2026-07-28",
+        "valueQuantity": { "value": 105, "unit": "kg", "system": "http://unitsofmeasure.org", "code": "kg" }
+      },
+      "request": { "method": "PUT", "url": "Observation/obs-rachel-weight" }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-rachel-height",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "vital-signs" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "8302-2", "display": "Body height" }] },
+        "subject": { "reference": "Patient/patient-rachel-green" },
+        "effectiveDateTime": "2026-07-28",
+        "valueQuantity": { "value": 168, "unit": "cm", "system": "http://unitsofmeasure.org", "code": "cm" }
+      },
+      "request": { "method": "PUT", "url": "Observation/obs-rachel-height" }
+    },
+    {
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "sr-rachel-bariatric-001",
+        "status": "draft",
+        "intent": "order",
+        "category": [{ "coding": [{ "system": "http://snomed.info/sct", "code": "387713003", "display": "Surgical procedure" }] }],
+        "code": {
+          "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "43644", "display": "Laparoscopy, surgical, gastric restrictive procedure; with gastric bypass and Roux-en-Y gastroenterostomy" }],
+          "text": "Bariatric Surgery — Laparoscopic Roux-en-Y Gastric Bypass"
+        },
+        "subject": { "reference": "Patient/patient-rachel-green", "display": "Rachel Green" },
+        "encounter": { "reference": "Encounter/encounter-rachel-current" },
+        "requester": { "reference": "Practitioner/practitioner-aagaard", "display": "Dr. Jacob P. Aagaard MD" },
+        "performer": [{ "reference": "Organization/org-metro-general" }],
+        "authoredOn": "2026-07-30",
+        "insurance": [{ "reference": "Coverage/coverage-rachel-001" }],
+        "note": [{ "text": "Patient meets obesity criteria. PA required per payer policy." }]
+      },
+      "request": { "method": "PUT", "url": "ServiceRequest/sr-rachel-bariatric-001" }
+    }
+  ]
+}
