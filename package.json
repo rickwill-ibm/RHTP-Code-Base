@@ -64,8 +64,7 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "d3": "7.9.0",
-    "force": "^0.0.3",
-    "next": "15.1.11",
+    "next": "^15.3.9",
     "react": "19.0.3",
     "react-dom": "19.0.3",
     "react-hook-form": "^7.72.1",
@@ -87,16 +86,32 @@
     "@typescript-eslint/parser": "^8.29.0",
     "autoprefixer": "10.4.2",
     "eslint": "^9",
-    "eslint-config-next": "^15.2.4",
+    "eslint-config-next": "^15.3.9",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
     "jsdom": "^25.0.1",
-    "newman": "^6.2.1",
-    "postcss": "8.4.8",
+    "newman": "^6.2.2",
+    "postcss": "^8.5.26",
     "prettier": "^3.5.3",
     "tailwindcss": "3.4.6",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "^8.5.26",
+    "qs": "^6.13.0",
+    "flatted": "^3.3.2",
+    "lodash": "^4.17.21",
+    "handlebars": "^4.7.9",
+    "underscore": "^1.13.7",
+    "uuid": "^11.1.1",
+    "node-forge": "^1.4.0",
+    "jose": "^5.9.6",
+    "sharp": "^0.35.0",
+    "postman-runtime": {
+      "handlebars": "^4.7.9",
+      "node-forge": "^1.4.0"
+    }
   }
 }
