@@ -124,6 +124,31 @@ Location: `PA-Standalone-SmartApp/` · Port: 4032
 
 ---
 
+## Quick Start
+
+### Option 1 — Browser installer wizard (recommended)
+
+Double-click **`install.bat`** (Windows) or run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+A five-screen setup wizard opens at **http://localhost:9999**.
+It checks prerequisites, lets you choose components and mode, configures
+WSO2 / LLM keys for production, and streams live install progress.
+
+> **Full walkthrough:** [`docs/installer-guide.md`](docs/installer-guide.md)
+
+### Option 2 — Command line (demo mode only)
+
+```bash
+npm install
+npm run dev          # → http://localhost:4029
+```
+
+---
+
 ## Prerequisites
 
 ### Tier A — Offline / Demo (nothing external required)
@@ -179,7 +204,7 @@ for the Inferno / Da Vinci conformance steps and `docs/ARCHITECTURE.md` §5 for 
 
 ```bash
 npx tsc --noEmit     # type-check (0 errors)
-npx vitest run       # unit / behaviour tests (145 passing)
+npx vitest run       # unit / behaviour tests (178 passing)
 npm run lint         # next lint (clean)
 
 # Optional — end-to-end smoke tests (Playwright, not installed by default)
@@ -242,6 +267,7 @@ See `docs/ARCHITECTURE.md` for full detail.
 
 | Doc | What it covers |
 |-----|----------------|
+| [`docs/installer-guide.md`](docs/installer-guide.md) | **Browser installer wizard** — screen-by-screen user guide for the Configuration Assistant |
 | `docs/ARCHITECTURE.md` | Full architecture: BFF, CMS-0057-F provisions, Policy Engine, Golden Thread, backbone, standards |
 | `docs/remaining-work-and-test-plan.md` | What's done (145 tests), what's left to build, test plan, suggested order |
 | `docs/network-adequacy-plan.md` | Network Adequacy integration plan — CMS mandate mapping, copilot, NA-0…NA-8 increments |
@@ -262,7 +288,7 @@ See `docs/ARCHITECTURE.md` for full detail.
 
 **Offline experience: fully implemented, hardened, and green.**
 
-- `tsc` 0 errors · **145 vitest passing** · `next lint` clean
+- `tsc` 0 errors · **178 vitest passing** · `next lint` clean
 - 40+ application screens across all domains
 - 8 demo personas · 31 guided demo steps
 - All four CMS-0057-F provisions (offline via dev stubs)
