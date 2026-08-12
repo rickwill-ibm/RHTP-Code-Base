@@ -1,0 +1,38 @@
+﻿/**
+ * Feature flags (plan ┬º7). Gates slices so incomplete work never ships hot.
+ * Reads NEXT_PUBLIC_* so flags are readable on client + server (they are not secrets).
+ */
+export type FeatureFlag =
+  | 'patientAccess'
+  | 'providerAccess'
+  | 'payerToPayer'
+  | 'priorAuth'
+  | 'aiDtrGeneration'
+  | 'goldenThread'
+  | 'networkAdequacy';
+
+const DEFAULTS: Record<FeatureFlag, boolean> = {
+  patientAccess: true,
+  providerAccess: true,
+  payerToPayer: true,
+  priorAuth: true,
+  aiDtrGeneration: false, // off until human-review gate is wired (Slice 5)
+  goldenThread: true, // Financial Clearance thread (GT-*) ΓÇö demoable on mock data
+  networkAdequacy: true, // Network adequacy analytics + analyst copilot (NA-*)
+};
+
+const ENV_KEY: Record<FeatureFlag, string> = {
+  patientAccess: 'NEXT_PUBLIC_FLAG_PATIENT_ACCESS',
+  providerAccess: 'NEXT_PUBLIC_FLAG_PROVIDER_ACCESS',
+  payerToPayer: 'NEXT_PUBLIC_FLAG_PAYER_TO_PAYER',
+  priorAuth: 'NEXT_PUBLIC_FLAG_PRIOR_AUTH',
+  aiDtrGeneration: 'NEXT_PUBLIC_FLAG_AI_DTR',
+  goldenThread: 'NEXT_PUBLIC_FLAG_GOLDEN_THREAD',
+  networkAdequacy: 'NEXT_PUBLIC_FLAG_NETWORK_ADEQUACY',
+};
+
+export function flag(name: FeatureFlag): boolean {
+  const raw = process.env[ENV_KEY[name]];
+  if (raw === undefined) return DEFAULTS[name];
+  return raw.toLowerCase() === 'true';
+}
