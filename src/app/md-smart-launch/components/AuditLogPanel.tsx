@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 
 export type AuditEventType =
-  | 'smart-launch' |'cds-card-viewed' |'cds-card-dismissed' |'cds-card-snoozed' |'cds-card-acknowledged' |'cds-suggestion-accepted' |'order-added' |'order-removed' |'order-signed' |'team-assignment-confirmed' |'cerner-return-initiated';
+  | 'smart-launch' |'cds-card-viewed' |'cds-card-dismissed' |'cds-card-snoozed' |'cds-card-acknowledged' |'cds-suggestion-accepted' |'order-added' |'order-removed' |'order-signed' |'team-assignment-confirmed' |'cerner-return-initiated' |'patient-chart-viewed' |'care-gap-closed';
 
 export interface AuditEvent {
   id: string;
@@ -92,6 +92,20 @@ const EVENT_CONFIG: Record<AuditEventType, { label: string; icon: string; color:
   'cerner-return-initiated': {
     label: 'Return to Cerner',
     icon: 'ArrowRightOnRectangleIcon',
+    color: 'text-[#0e6027]',
+    bg: 'bg-[#defbe6]',
+    border: 'border-[#a7f0ba]',
+  },
+  'patient-chart-viewed': {
+    label: 'Chart Reviewed',
+    icon: 'EyeIcon',
+    color: 'text-[#0043ce]',
+    bg: 'bg-[#edf5ff]',
+    border: 'border-[#97c1ff]',
+  },
+  'care-gap-closed': {
+    label: 'Care Gap Addressed',
+    icon: 'CheckCircleIcon',
     color: 'text-[#0e6027]',
     bg: 'bg-[#defbe6]',
     border: 'border-[#a7f0ba]',

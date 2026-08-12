@@ -1,0 +1,243 @@
+{
+  "info": {
+    "name": "CMS-0057-F Contract Tests",
+    "_postman_id": "cms0057f-contract-2026",
+    "description": "Contract tests for the CMS-0057-F prior-authorization platform's core API surface (CDS Hooks discovery, DTR package retrieval, $member-match, PAS submission human-gate, bulk export, work queue, financial clearance). Run with: npm run test:contract (newman). Restored as part of Dev Plan Workstream E (risk-flag remediation) — this artifact previously did not exist despite being referenced by package.json's test:contract script.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "{{baseUrl}}" }
+  ],
+  "item": [
+    {
+      "name": "Establish Dev Session",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/login",
+        "header": [],
+        "description": "Must run first. In the offline install (ALLOW_DEV_MOCK_AUTH=true), this sets the rhtp_smart_session cookie every subsequent request in this collection needs. Newman's built-in cookie jar carries it forward automatically within a single run. Without this step every other request correctly 401s (auth is real, not skipped) but never exercises the authenticated path."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('redirects to /cms (dev session established) or is not applicable outside dev-mock', () => {",
+              "  pm.expect([200, 302, 307]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "CDS Hooks Discovery",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/cds-hooks",
+        "header": [{ "key": "Accept", "value": "application/json" }]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('returns a services array', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('services');",
+              "  pm.expect(body.services).to.be.an('array');",
+              "});",
+              "pm.test('advertises order-sign hook', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.services.some(s => s.hook === 'order-sign')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "DTR Package Retrieval",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/dtr/package?questionnaire=CPT-70551",
+        "header": [{ "key": "Accept", "value": "application/json" }]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns a Questionnaire bundle when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.resourceType).to.equal('Bundle');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Provider Access - Member Match",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/match",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resourceType\": \"Parameters\",\n  \"parameter\": [\n    { \"name\": \"MemberId\", \"valueString\": \"MARIA_SD_001\" },\n    { \"name\": \"MemberFirstName\", \"valueString\": \"Maria\" },\n    { \"name\": \"MemberLastName\", \"valueString\": \"Redhawk\" },\n    { \"name\": \"MemberBirthDate\", \"valueDate\": \"1985-04-12\" }\n  ]\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PAS Submit - Human Gate (no approvedBy)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/pas/submit",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"claimBundle\": { \"resourceType\": \"Bundle\", \"type\": \"collection\" }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 202 (requires human approval) or 401 (auth required)', () => {",
+              "  pm.expect([202, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('202 response does not silently submit', () => {",
+              "  if (pm.response.code === 202) {",
+              "    const body = pm.response.json();",
+              "    const text = JSON.stringify(body).toLowerCase();",
+              "    pm.expect(text).to.include('human approval');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PAS Submit - With Human Approver",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-approved-by", "value": "test-reviewer@example.org" }
+        ],
+        "url": "{{baseUrl}}/api/pas/submit",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"claimBundle\": { \"resourceType\": \"Bundle\", \"type\": \"collection\" },\n  \"approvedBy\": \"test-reviewer@example.org\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bulk Export - Start",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/bulk/start",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"priorPayer\": \"OldPayer Medicaid Plan\",\n  \"memberMatch\": { \"memberId\": \"MARIA_SD_001\" }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200/202 or 401 (auth required)', () => {",
+              "  pm.expect([200, 202, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('202 response includes a jobId when authenticated', () => {",
+              "  if (pm.response.code === 202) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('jobId');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviewer Work Queue",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/work-queue",
+        "header": [{ "key": "Accept", "value": "application/json" }]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Financial Clearance",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/financial-clearance",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": \"MARIA_SD_001\",\n  \"providerNpi\": \"1234567890\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

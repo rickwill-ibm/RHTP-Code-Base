@@ -10,6 +10,13 @@
  */
 
 import type { RegistryPatient } from '../patientRegistry';
+import {
+  storeRead,
+  storeSearch,
+  storeCreate,
+  storeUpdate,
+  storeDelete,
+} from '../fhir/store';
 
 const FHIR_BASE =
   process.env.NEXT_PUBLIC_FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
@@ -70,7 +77,9 @@ export class FhirClient {
   async read<T = unknown>(resourceType: string, id: string): Promise<T> {
     if (_useMock) {
       console.debug(`[FhirClient][mock] read ${resourceType}/${id}`);
-      return { resourceType, id } as T;
+      // Serve from the fixture store (same bundles that seed HAPI);
+      // fall back to the legacy stub shape if the fixture is absent.
+      return (storeRead<T>(resourceType, id) ?? ({ resourceType, id } as T));
     }
     return fhirFetch<T>(`${resourceType}/${id}`);
   }
@@ -79,7 +88,8 @@ export class FhirClient {
   async create<T = unknown>(resource: Record<string, unknown>): Promise<T> {
     if (_useMock) {
       console.debug(`[FhirClient][mock] create ${resource.resourceType}`);
-      return { ...resource, id: `mock-${Date.now()}` } as T;
+      // Persist to the in-memory fixture store so demo write-back flows work.
+      return storeCreate<T>(resource);
     }
     return fhirFetch<T>(`${resource.resourceType}`, {
       method: 'POST',
@@ -91,7 +101,7 @@ export class FhirClient {
   async update<T = unknown>(resource: Record<string, unknown> & { id: string }): Promise<T> {
     if (_useMock) {
       console.debug(`[FhirClient][mock] update ${resource.resourceType}/${resource.id}`);
-      return resource as T;
+      return storeUpdate<T>(resource);
     }
     return fhirFetch<T>(`${resource.resourceType}/${resource.id}`, {
       method: 'PUT',
@@ -106,7 +116,7 @@ export class FhirClient {
   ): Promise<T> {
     if (_useMock) {
       console.debug(`[FhirClient][mock] search ${resourceType}`, params);
-      return { resourceType: 'Bundle', entry: [] } as T;
+      return storeSearch<T>(resourceType, params);
     }
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
@@ -118,6 +128,7 @@ export class FhirClient {
   async delete(resourceType: string, id: string): Promise<void> {
     if (_useMock) {
       console.debug(`[FhirClient][mock] delete ${resourceType}/${id}`);
+      storeDelete(resourceType, id);
       return;
     }
     await fhirFetch<void>(`${resourceType}/${id}`, { method: 'DELETE' });

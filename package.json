@@ -46,7 +46,16 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:contract": "newman run tools/contract/cms0057f.postman_collection.json -e tools/contract/local.postman_environment.json",
+    "test:e2e": "playwright test",
+    "seed:maria": "node tools/seed/load-maria.mjs",
+    "backbone:up": "docker compose -f install/docker-compose.backbone.yml up -d",
+    "backbone:down": "docker compose -f install/docker-compose.backbone.yml down",
+    "backbone:logs": "docker compose -f install/docker-compose.backbone.yml logs -f",
+    "install:integrated": "bash install/install.sh --no-dev"
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.15",
@@ -68,6 +77,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@netlify/plugin-nextjs": "^5.11.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/d3": "7.4.3",
     "@types/node": "^20",
     "@types/react": "19.0.3",
@@ -79,10 +90,13 @@
     "eslint-config-next": "^15.2.4",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
+    "jsdom": "^25.0.1",
+    "newman": "^6.2.1",
     "postcss": "8.4.8",
     "prettier": "^3.5.3",
     "tailwindcss": "3.4.6",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }

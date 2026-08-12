@@ -1,0 +1,22 @@
+{
+  "name": "pa-policy-engine",
+  "version": "0.1.0",
+  "description": "Prior Authorization policy engine — LLM policy ingestion + FHIR-driven DTR criteria matching",
+  "type": "module",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "dev": "node --watch src/index.mjs",
+    "test": "node src/test-runner.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^2.0.0",
+    "openai": "^4.47.1",
+    "pdfjs-dist": "~4.8.69"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
