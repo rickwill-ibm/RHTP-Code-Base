@@ -1,0 +1,77 @@
+{
+  "components": [
+    {
+      "id": "rhtp",
+      "label": "RHTP Clinical Platform",
+      "description": "Population health & whole-person care management. 40+ screens, 8 demo personas.",
+      "port": 4029,
+      "url": "http://localhost:4029",
+      "demoUrls": [
+        { "label": "Demo Navigator",         "path": "/" },
+        { "label": "Guided Demo Deck",        "path": "/demo-deck" },
+        { "label": "RHTP Program Overview",   "path": "/contract-program-selection" },
+        { "label": "Patient Panel",           "path": "/panel-cohort-view" },
+        { "label": "Financial Dashboard",     "path": "/financial-dashboard" }
+      ],
+      "requiresDocker": false,
+      "requiresDockerProd": true,
+      "requiresLlm": false
+    },
+    {
+      "id": "cms",
+      "label": "CMS Mandates (CMS-0057-F)",
+      "description": "All 4 CMS-0057-F provisions + Golden Thread. Connects to WSO2 reference backbone in production.",
+      "port": 4029,
+      "url": "http://localhost:4029/cms",
+      "demoUrls": [
+        { "label": "CMS-0057-F Hub",         "path": "/cms" },
+        { "label": "Patient Access",          "path": "/access" },
+        { "label": "Provider Access",         "path": "/provider-access" },
+        { "label": "Payer-to-Payer",          "path": "/payer-to-payer" },
+        { "label": "Prior Authorization",     "path": "/prior-auth" },
+        { "label": "Network Adequacy",        "path": "/network-adequacy" }
+      ],
+      "requiresDocker": false,
+      "requiresDockerProd": false,
+      "requiresLlm": false
+    },
+    {
+      "id": "golden-thread",
+      "label": "Golden Thread / RCM",
+      "description": "Financial Clearance: Eligibility → Medical Necessity → Prior Auth → Patient Estimation. Policy Engine with gold carding.",
+      "port": 4029,
+      "url": "http://localhost:4029/financial-clearance",
+      "demoUrls": [
+        { "label": "Financial Clearance",     "path": "/financial-clearance" },
+        { "label": "Work Queue",              "path": "/work-queue" },
+        { "label": "Evidence Record",         "path": "/evidence" }
+      ],
+      "requiresDocker": false,
+      "requiresDockerProd": false,
+      "requiresLlm": false,
+      "requiresLlmProd": true
+    },
+    {
+      "id": "pa-standalone",
+      "label": "PA Standalone SmartApp",
+      "description": "Standalone CRD → DTR → PAS SMART on FHIR app. Includes Policy Engine with LLM extraction.",
+      "port": 4032,
+      "url": "http://localhost:4032",
+      "demoUrls": [
+        { "label": "PA SmartApp",             "path": "" },
+        { "label": "Launch (demo patient)",   "path": "/launch?iss=http%3A%2F%2Flocalhost%3A8080%2Ffhir&launch=patient-rachel-green" }
+      ],
+      "requiresDocker": false,
+      "requiresDockerProd": true,
+      "requiresLlm": false,
+      "requiresLlmProd": true
+    }
+  ],
+  "presets": [
+    { "id": "full-demo",       "label": "Full Demo",        "components": ["rhtp","cms","golden-thread","pa-standalone"], "mode": "demo" },
+    { "id": "clinical-demo",   "label": "Clinical Only",    "components": ["rhtp"],                                       "mode": "demo" },
+    { "id": "cms-demo",        "label": "CMS Demo",         "components": ["cms","golden-thread"],                        "mode": "demo" },
+    { "id": "pa-demo",         "label": "PA Demo",          "components": ["pa-standalone"],                              "mode": "demo" },
+    { "id": "full-production", "label": "Full Production",  "components": ["rhtp","cms","golden-thread","pa-standalone"], "mode": "production" }
+  ]
+}

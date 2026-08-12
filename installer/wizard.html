@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RHTP Platform Installer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5;background:#f7f8fa;color:#1f2328;min-height:100vh}
+.app{max-width:860px;margin:0 auto;padding:32px 20px}
+/* Header */
+.header{background:#1f2328;color:#fff;padding:16px 24px;border-radius:6px;margin-bottom:24px;display:flex;align-items:center;gap:12px}
+.header-title{font-size:18px;font-weight:700}
+.header-sub{font-size:12px;color:#8b949e;margin-top:2px}
+/* Steps nav */
+.steps-nav{display:flex;gap:0;margin-bottom:24px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden}
+.step-tab{flex:1;padding:10px 4px;text-align:center;font-size:11px;font-weight:600;color:#57606a;border-right:1px solid #e5e7eb;cursor:default;transition:background .15s}
+.step-tab:last-child{border-right:none}
+.step-tab.active{background:#0043ce;color:#fff}
+.step-tab.done{background:#dcfce7;color:#166534}
+/* Cards */
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:20px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.card-sub{font-size:12.5px;color:#57606a;margin-bottom:16px}
+/* Mode cards */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode-card{border:2px solid #e5e7eb;border-radius:6px;padding:16px;cursor:pointer;transition:border-color .15s,background .15s}
+.mode-card:hover{border-color:#0043ce;background:#f0f6ff}
+.mode-card.selected{border-color:#0043ce;background:#eff6ff}
+.mode-card-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.mode-card-sub{font-size:12px;color:#57606a;margin-bottom:10px}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin:2px 2px 0 0}
+.badge-green{background:#dcfce7;color:#166534}
+.badge-amber{background:#fef3c7;color:#92400e}
+.badge-blue{background:#dbeafe;color:#1e40af}
+/* Component checkboxes */
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.comp-card{border:2px solid #e5e7eb;border-radius:6px;padding:14px;cursor:pointer;transition:border-color .15s,background .15s;position:relative}
+.comp-card:hover{border-color:#6929c4;background:#faf5ff}
+.comp-card.selected{border-color:#6929c4;background:#faf5ff}
+.comp-card input[type=checkbox]{position:absolute;top:12px;right:12px;width:16px;height:16px;cursor:pointer}
+.comp-title{font-size:13px;font-weight:700;margin-bottom:3px;padding-right:24px}
+.comp-desc{font-size:11.5px;color:#57606a}
+.comp-port{font-size:10px;color:#3b82d4;margin-top:4px;font-weight:600}
+/* Presets */
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.preset-btn{font-size:11px;font-weight:600;padding:4px 12px;border:1px solid #d1d5db;border-radius:12px;background:#fff;cursor:pointer;transition:background .12s,border-color .12s}
+.preset-btn:hover{background:#f0f6ff;border-color:#0043ce;color:#0043ce}
+/* Config accordion */
+.accordion{border:1px solid #e5e7eb;border-radius:5px;margin-bottom:8px;overflow:hidden}
+.accordion-header{padding:10px 14px;font-size:13px;font-weight:600;background:#f7f8fa;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.accordion-body{padding:14px;display:none}
+.accordion-body.open{display:block}
+/* Form fields */
+.field-row{margin-bottom:12px}
+.field-label{font-size:12px;font-weight:600;color:#1f2328;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.field-required{font-size:10px;color:#dc2626;font-weight:400}
+.field-input{width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;font-family:inherit}
+.field-input:focus{outline:none;border-color:#0043ce;box-shadow:0 0 0 2px #dbeafe}
+.field-hint{font-size:11px;color:#57606a;margin-top:3px}
+.field-hint a{color:#3b82d4}
+/* LLM toggle */
+.llm-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.llm-option{border:2px solid #e5e7eb;border-radius:4px;padding:10px;cursor:pointer;transition:border-color .12s}
+.llm-option.selected{border-color:#0043ce;background:#eff6ff}
+.llm-option-title{font-size:12px;font-weight:700}
+.llm-option-sub{font-size:11px;color:#57606a}
+/* Prereq list */
+.prereq-list{list-style:none}
+.prereq-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.prereq-item:last-child{border-bottom:none}
+.prereq-status{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.status-ok{background:#dcfce7;color:#166534}
+.status-error{background:#fee2e2;color:#991b1b}
+.status-warn{background:#fef3c7;color:#92400e}
+.status-checking{background:#e5e7eb;color:#57606a}
+/* Progress */
+.progress-step{padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.progress-step:last-child{border-bottom:none}
+.progress-step-header{display:flex;align-items:center;gap:10px;cursor:pointer}
+.progress-log{font-family:monospace;font-size:11px;background:#1f2328;color:#e6edf3;padding:10px;border-radius:4px;margin-top:8px;max-height:180px;overflow-y:auto;display:none;white-space:pre-wrap}
+.progress-log.visible{display:block}
+/* Buttons */
+.btn{padding:8px 20px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:background .12s}
+.btn-primary{background:#0043ce;color:#fff}
+.btn-primary:hover{background:#0035a7}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed}
+.btn-secondary{background:#f7f8fa;color:#1f2328;border:1px solid #d1d5db}
+.btn-secondary:hover{background:#e5e7eb}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+/* Launch panel */
+.launch-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.launch-card{border:1px solid #e5e7eb;border-radius:5px;padding:12px}
+.launch-card-title{font-size:12px;font-weight:700;margin-bottom:6px}
+.launch-link{display:block;font-size:11.5px;color:#3b82d4;text-decoration:none;padding:2px 0}
+.launch-link:hover{text-decoration:underline}
+/* Utility */
+.hidden{display:none}
+.text-sm{font-size:12px;color:#57606a}
+.mt-8{margin-top:8px}
+.alert{padding:10px 14px;border-radius:4px;font-size:12.5px;margin-bottom:12px}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.alert-warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.generate-btn{font-size:11px;padding:3px 8px;border:1px solid #d1d5db;border-radius:3px;background:#f7f8fa;cursor:pointer;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div>
+      <div class="header-title">RHTP Platform Installer</div>
+      <div class="header-sub">Rural Health Transformation Program / Total Cost of Care</div>
+    </div>
+  </div>
+
+  <nav class="steps-nav" id="stepsNav">
+    <div class="step-tab active" data-screen="1">1 · Mode</div>
+    <div class="step-tab"        data-screen="2">2 · Components</div>
+    <div class="step-tab"        data-screen="3">3 · Configure</div>
+    <div class="step-tab"        data-screen="4">4 · Prereqs</div>
+    <div class="step-tab"        data-screen="5">5 · Install</div>
+  </nav>
+
+  <!-- ── Screen 1: Mode ──────────────────────────────────────────────────── -->
+  <div id="screen-1">
+    <div class="card">
+      <div class="card-title">Select Installation Mode</div>
+      <div class="card-sub">Choose how you want to run the platform.</div>
+      <div class="mode-grid">
+        <div class="mode-card selected" data-mode="demo" onclick="selectMode('demo')">
+          <div class="mode-card-title">🎯 Demo Mode</div>
+          <div class="mode-card-sub">Mock data, guided presentations. No external services required.</div>
+          <span class="badge badge-green">No Docker</span>
+          <span class="badge badge-green">No API keys</span>
+          <span class="badge badge-green">Ready in &lt; 5 min</span>
+        </div>
+        <div class="mode-card" data-mode="production" onclick="selectMode('production')">
+          <div class="mode-card-title">🚀 Production Mode</div>
+          <div class="mode-card-sub">Live FHIR data, real LLM, WSO2 backbone. State deployment.</div>
+          <span class="badge badge-amber">Docker required</span>
+          <span class="badge badge-amber">LLM key needed</span>
+          <span class="badge badge-blue">Full CMS-0057-F</span>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goTo(2)">Next: Select Components →</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 2: Components ────────────────────────────────────────────── -->
+  <div id="screen-2" class="hidden">
+    <div class="card">
+      <div class="card-title">Select Components</div>
+      <div class="card-sub">Choose which parts of the platform to install. Or use a preset below.</div>
+      <div class="presets" id="presets"></div>
+      <div class="comp-grid" id="compGrid"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(1)">← Back</button>
+      <button class="btn btn-primary"   onclick="goTo(3)">Next: Configure →</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 3: Configure ─────────────────────────────────────────────── -->
+  <div id="screen-3" class="hidden">
+    <div class="card">
+      <div class="card-title">Configuration</div>
+      <div class="card-sub">Auto-populated fields are shown read-only. Fill in any required fields.</div>
+      <div id="configSections"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(2)">← Back</button>
+      <button class="btn btn-primary"   onclick="goTo(4)">Next: Check Prerequisites →</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 4: Prereqs ───────────────────────────────────────────────── -->
+  <div id="screen-4" class="hidden">
+    <div class="card">
+      <div class="card-title">Prerequisite Check</div>
+      <div class="card-sub">Checking your system before installation starts.</div>
+      <ul class="prereq-list" id="prereqList"></ul>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo(3)">← Back</button>
+      <button class="btn btn-primary"   id="btnInstall" onclick="startInstall()">Install Now →</button>
+    </div>
+  </div>
+
+  <!-- ── Screen 5: Progress ──────────────────────────────────────────────── -->
+  <div id="screen-5" class="hidden">
+    <div class="card">
+      <div class="card-title">Installing...</div>
+      <div class="card-sub" id="progressSub">Starting installation steps.</div>
+      <div id="progressSteps"></div>
+    </div>
+    <div class="card hidden" id="launchPanel">
+      <div class="card-title">✅ Installation Complete</div>
+      <div class="card-sub">Your selected components are running. Click any link below to open.</div>
+      <div class="launch-grid" id="launchGrid"></div>
+    </div>
+  </div>
+
+</div>
+<script src="wizard-app.js"></script>
+</body>
+</html>

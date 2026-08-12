@@ -1,0 +1,62 @@
+{
+  "prereqs": [
+    {
+      "id": "node",
+      "label": "Node.js",
+      "command": "node --version",
+      "minVersion": "18.0.0",
+      "versionPattern": "v(\\d+\\.\\d+\\.\\d+)",
+      "required": "always",
+      "fixUrl": "https://nodejs.org/",
+      "fixText": "Download Node.js LTS"
+    },
+    {
+      "id": "npm",
+      "label": "npm",
+      "command": "npm --version",
+      "minVersion": "9.0.0",
+      "versionPattern": "(\\d+\\.\\d+\\.\\d+)",
+      "required": "always",
+      "fixText": "Installed with Node.js"
+    },
+    {
+      "id": "docker",
+      "label": "Docker Desktop",
+      "command": "docker --version",
+      "minVersion": "20.0.0",
+      "versionPattern": "Docker version (\\d+\\.\\d+)",
+      "required": "production",
+      "components": ["rhtp","pa-standalone"],
+      "fixUrl": "https://www.docker.com/products/docker-desktop/",
+      "fixText": "Download Docker Desktop"
+    },
+    {
+      "id": "docker-compose",
+      "label": "Docker Compose v2",
+      "command": "docker compose version",
+      "minVersion": "2.0.0",
+      "versionPattern": "v(\\d+\\.\\d+)",
+      "required": "production",
+      "components": ["rhtp","pa-standalone"],
+      "fixText": "Included with Docker Desktop"
+    },
+    {
+      "id": "git",
+      "label": "Git",
+      "command": "git --version",
+      "required": "optional",
+      "fixUrl": "https://git-scm.com/downloads",
+      "fixText": "Download Git"
+    }
+  ],
+  "ports": [
+    { "port": 4029, "label": "RHTP app",         "components": ["rhtp","cms","golden-thread"] },
+    { "port": 4032, "label": "PA SmartApp",       "components": ["pa-standalone"] },
+    { "port": 8080, "label": "EMR FHIR server",   "components": ["pa-standalone"], "mode": "production" },
+    { "port": 8081, "label": "CDS Hooks server",  "components": ["pa-standalone"], "mode": "production" },
+    { "port": 8082, "label": "Payer FHIR server", "components": ["pa-standalone"], "mode": "production" },
+    { "port": 8083, "label": "Policy Engine",     "components": ["pa-standalone"], "mode": "production" },
+    { "port": 8090, "label": "RHTP FHIR (Tier A)","components": ["rhtp"],          "mode": "production" },
+    { "port": 3306, "label": "MySQL",             "components": ["rhtp"],          "mode": "production" }
+  ]
+}

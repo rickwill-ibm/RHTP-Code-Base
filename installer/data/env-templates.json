@@ -1,0 +1,93 @@
+{
+  "rhtp": {
+    "demo": {
+      "NEXT_PUBLIC_USE_MOCK_DATA":           "true",
+      "NEXT_PUBLIC_FHIR_BASE_URL":           "http://localhost:8080/fhir",
+      "NEXT_PUBLIC_FHIR_TIMEOUT":            "30000",
+      "NEXT_PUBLIC_FHIR_RETRY_ATTEMPTS":     "3",
+      "NEXT_PUBLIC_SMART_CLIENT_ID":         "tcoc-client",
+      "NEXT_PUBLIC_SMART_REDIRECT_URI":      "http://localhost:4029/md-smart-launch",
+      "NEXT_PUBLIC_SMART_SCOPE":             "launch launch/patient patient/*.read openid fhirUser offline_access",
+      "NEXT_PUBLIC_ENABLE_CDS_HOOKS":        "true",
+      "NEXT_PUBLIC_CDS_HOOKS_ENDPOINT":      "http://localhost:8080/cds-services",
+      "NEXT_PUBLIC_CDS_HOOKS_TIMEOUT":       "10000",
+      "NEXT_PUBLIC_ENABLE_REAL_TIME_UPDATES":"false",
+      "NEXT_PUBLIC_ENABLE_AUDIT_LOGGING":    "false",
+      "NEXT_PUBLIC_ENABLE_DEBUG_LOGGING":    "true",
+      "NEXT_PUBLIC_SHOW_DATA_SOURCE_INDICATOR":"true"
+    },
+    "production": {
+      "NEXT_PUBLIC_USE_MOCK_DATA":           "false",
+      "NEXT_PUBLIC_FHIR_BASE_URL":           "http://localhost:8090/fhir",
+      "NEXT_PUBLIC_FHIR_TIMEOUT":            "30000",
+      "NEXT_PUBLIC_FHIR_RETRY_ATTEMPTS":     "3",
+      "NEXT_PUBLIC_ENABLE_AUDIT_LOGGING":    "true",
+      "NEXT_PUBLIC_SHOW_DATA_SOURCE_INDICATOR":"true"
+    }
+  },
+  "cms": {
+    "demo": {
+      "ALLOW_DEV_MOCK_AUTH":               "true",
+      "FHIR_GATEWAY_BASE":                 "http://localhost:8090/fhir",
+      "NEXT_PUBLIC_FLAG_PATIENT_ACCESS":   "true",
+      "NEXT_PUBLIC_FLAG_PROVIDER_ACCESS":  "true",
+      "NEXT_PUBLIC_FLAG_PAYER_TO_PAYER":   "true",
+      "NEXT_PUBLIC_FLAG_PRIOR_AUTH":       "true",
+      "NEXT_PUBLIC_FLAG_AI_DTR":           "false",
+      "NEXT_PUBLIC_FLAG_GOLDEN_THREAD":    "true",
+      "NEXT_PUBLIC_FLAG_NETWORK_ADEQUACY": "true"
+    },
+    "production": {
+      "ALLOW_DEV_MOCK_AUTH":               "false",
+      "NEXT_PUBLIC_FLAG_PATIENT_ACCESS":   "true",
+      "NEXT_PUBLIC_FLAG_PROVIDER_ACCESS":  "true",
+      "NEXT_PUBLIC_FLAG_PAYER_TO_PAYER":   "true",
+      "NEXT_PUBLIC_FLAG_PRIOR_AUTH":       "true",
+      "NEXT_PUBLIC_FLAG_AI_DTR":           "false",
+      "NEXT_PUBLIC_FLAG_GOLDEN_THREAD":    "true",
+      "NEXT_PUBLIC_FLAG_NETWORK_ADEQUACY": "true"
+    }
+  },
+  "cms_secrets": {
+    "SESSION_SECRET":        "__GENERATE__",
+    "WEBHOOK_SHARED_SECRET": "__GENERATE__"
+  },
+  "cms_wso2": {
+    "FHIR_GATEWAY_BASE":   "__USER_INPUT__",
+    "CDS_GATEWAY_BASE":    "__USER_INPUT__",
+    "BULK_GATEWAY_BASE":   "__USER_INPUT__",
+    "WSO2_AUTHORIZE_URL":  "__USER_INPUT__",
+    "WSO2_TOKEN_URL":      "__USER_INPUT__",
+    "WSO2_CLIENT_ID":      "__USER_INPUT__",
+    "WSO2_CLIENT_SECRET":  "__USER_INPUT__",
+    "WSO2_REDIRECT_URI":   "http://localhost:4029/api/auth/callback",
+    "WSO2_SCOPE":          "openid fhirUser launch/patient patient/*.read offline_access"
+  },
+  "llm": {
+    "groq":   { "GROQ_API_KEY":   "__USER_INPUT__" },
+    "openai": { "OPENAI_API_KEY": "__USER_INPUT__" }
+  },
+  "pa": {
+    "demo": {
+      "NEXT_PUBLIC_USE_MOCK_DATA":          "true",
+      "NEXT_PUBLIC_FHIR_BASE_URL":          "http://localhost:8080/fhir",
+      "NEXT_PUBLIC_SMART_CLIENT_ID":        "pa-smart-app",
+      "NEXT_PUBLIC_SMART_REDIRECT_URI":     "http://localhost:4032/app",
+      "NEXT_PUBLIC_CDS_HOOKS_ENDPOINT":     "http://localhost:8081/cds-services",
+      "NEXT_PUBLIC_PAYER_FHIR_BASE_URL":    "http://localhost:8082/fhir",
+      "NEXT_PUBLIC_POLICY_ENGINE_URL":      "http://localhost:8083",
+      "NEXT_PUBLIC_ENABLE_EDI_FALLBACK":    "true",
+      "NEXT_PUBLIC_ENABLE_DEBUG_LOGGING":   "true"
+    },
+    "production": {
+      "NEXT_PUBLIC_USE_MOCK_DATA":          "false",
+      "NEXT_PUBLIC_FHIR_BASE_URL":          "http://localhost:8080/fhir",
+      "NEXT_PUBLIC_SMART_CLIENT_ID":        "pa-smart-app",
+      "NEXT_PUBLIC_SMART_REDIRECT_URI":     "http://localhost:4032/app",
+      "NEXT_PUBLIC_CDS_HOOKS_ENDPOINT":     "http://localhost:8081/cds-services",
+      "NEXT_PUBLIC_PAYER_FHIR_BASE_URL":    "http://localhost:8082/fhir",
+      "NEXT_PUBLIC_POLICY_ENGINE_URL":      "http://localhost:8083",
+      "NEXT_PUBLIC_ENABLE_EDI_FALLBACK":    "true"
+    }
+  }
+}
