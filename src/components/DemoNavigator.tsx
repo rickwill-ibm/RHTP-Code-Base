@@ -70,6 +70,7 @@ const DEMO_PERSONAS: DemoPersona[] = [
       { stepNum: 10, route: '/md-smart-launch', label: 'MD Smart Launch', storyBeat: 'SMART on FHIR entry — embedded in EMR' },
       { stepNum: 11, route: '/panel-cohort-view', label: 'Panel & Cohort (Medicaid RHTP Track 3)', storyBeat: 'Attributed panel — PCP / CHW / BH three-column attribution', activePatient: 'MARIA_SD_001' },
       { stepNum: 12, route: '/patient-detail', label: 'Patient Detail — Whole Person Care Plan', storyBeat: 'Whole Person Care Plan tab + AI care plan + gain-share', activePatient: 'MARIA_SD_001' },
+      { stepNum: 13, route: '/prior-auth', label: 'Prior Authorization — CRD · DTR · PAS', storyBeat: 'Maria\'s lumbar MRI: CRD ✓ → DTR two-column policy match → HITL PAS submission', activePatient: 'MARIA_SD_001' },
     ],
   },
   {
@@ -81,10 +82,10 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#750e13',
     initials: 'CM',
     steps: [
-      { stepNum: 13, route: '/care-manager', label: 'Care Manager Worklist', storyBeat: 'Clinical/BH/Social filter — BH risk flags + social needs per row', activePatient: 'MARIA_SD_001' },
-      { stepNum: 14, route: '/patient-episode-summary', label: 'Patient Episode Summary', storyBeat: 'All episodes for a patient' },
-      { stepNum: 15, route: '/episode-detail', label: 'Episode Detail', storyBeat: 'Episode deep-dive — care setting timeline' },
-      { stepNum: 16, route: '/episodic-management-analytics', label: 'Episodic Analytics', storyBeat: 'Clinical + BH Episodes + Social Program Outcomes tabs' },
+      { stepNum: 14, route: '/care-manager', label: 'Care Manager Worklist', storyBeat: 'Clinical/BH/Social filter — BH risk flags + social needs per row', activePatient: 'MARIA_SD_001' },
+      { stepNum: 15, route: '/patient-episode-summary', label: 'Patient Episode Summary', storyBeat: 'All episodes for a patient' },
+      { stepNum: 16, route: '/episode-detail', label: 'Episode Detail', storyBeat: 'Episode deep-dive — care setting timeline' },
+      { stepNum: 17, route: '/episodic-management-analytics', label: 'Episodic Analytics', storyBeat: 'Clinical + BH Episodes + Social Program Outcomes tabs' },
     ],
   },
   {
@@ -96,10 +97,10 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#044317',
     initials: 'CW',
     steps: [
-      { stepNum: 17, route: '/chw-workflow', label: 'CHW Workflow', storyBeat: 'Home Visit Schedule — Start Visit, Clinical, Reschedule actions', activePatient: 'MARIA_SD_001' },
-      { stepNum: 18, route: '/social-needs-screening', label: 'Social Needs Screening', storyBeat: 'PRAPARE screening → social Task creation', activePatient: 'MARIA_SD_001' },
-      { stepNum: 19, route: '/program-eligibility', label: 'Program Eligibility', storyBeat: 'Eligible programs from screening results', activePatient: 'MARIA_SD_001' },
-      { stepNum: 20, route: '/benefit-enrollment', label: 'Benefit Enrollment', storyBeat: 'SNAP enrolled, housing pending, gaps flagged', activePatient: 'MARIA_SD_001' },
+      { stepNum: 18, route: '/chw-workflow', label: 'CHW Workflow', storyBeat: 'Home Visit Schedule — Start Visit, Clinical, Reschedule actions', activePatient: 'MARIA_SD_001' },
+      { stepNum: 19, route: '/social-needs-screening', label: 'Social Needs Screening', storyBeat: 'PRAPARE screening → social Task creation', activePatient: 'MARIA_SD_001' },
+      { stepNum: 20, route: '/program-eligibility', label: 'Program Eligibility', storyBeat: 'Eligible programs from screening results', activePatient: 'MARIA_SD_001' },
+      { stepNum: 21, route: '/benefit-enrollment', label: 'Benefit Enrollment', storyBeat: 'SNAP enrolled, housing pending, gaps flagged', activePatient: 'MARIA_SD_001' },
     ],
   },
   {
@@ -111,9 +112,9 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#740937',
     initials: 'BH',
     steps: [
-      { stepNum: 21, route: '/crisis-pathway', label: 'Crisis Pathway', storyBeat: 'SDOH context + 988/CSU/Mobile/ED dispatch + post-crisis linkage' },
-      { stepNum: 22, route: '/crisis-pathway', label: 'Patient Pathway — Dorothy Simmons', storyBeat: 'PRAPARE → SNAP → BH engagement → A1C 9.2% → 7.1%' },
-      { stepNum: 23, route: '/cbo-directory', label: 'CBO Directory', storyBeat: 'Community org network — domain-tagged, capacity status' },
+      { stepNum: 22, route: '/crisis-pathway', label: 'Crisis Pathway', storyBeat: 'SDOH context + 988/CSU/Mobile/ED dispatch + post-crisis linkage' },
+      { stepNum: 23, route: '/crisis-pathway', label: 'Patient Pathway — Dorothy Simmons', storyBeat: 'PRAPARE → SNAP → BH engagement → A1C 9.2% → 7.1%' },
+      { stepNum: 24, route: '/cbo-directory', label: 'CBO Directory', storyBeat: 'Community org network — domain-tagged, capacity status' },
     ],
   },
   {
@@ -125,10 +126,10 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#8a3800',
     initials: 'SP',
     steps: [
-      { stepNum: 24, route: '/care-team-inbox', label: 'Care Team Inbox', storyBeat: 'Universal task inbox — all programs' },
-      { stepNum: 25, route: '/specialist-inbox', label: 'Specialist Inbox', storyBeat: 'Clinical specialist role view + gain-share value' },
-      { stepNum: 26, route: '/referral-tracking', label: 'Referral Tracking', storyBeat: 'Referrals in flight + multi-program tasks' },
-      { stepNum: 27, route: '/referral-journey-tracker', label: 'Referral Journey Tracker', storyBeat: 'End-to-end journey — 7 stages + audit trail' },
+      { stepNum: 25, route: '/care-team-inbox', label: 'Care Team Inbox', storyBeat: 'Universal task inbox — all programs' },
+      { stepNum: 26, route: '/specialist-inbox', label: 'Specialist Inbox', storyBeat: 'Clinical specialist role view + gain-share value' },
+      { stepNum: 27, route: '/referral-tracking', label: 'Referral Tracking', storyBeat: 'Referrals in flight + multi-program tasks' },
+      { stepNum: 28, route: '/referral-journey-tracker', label: 'Referral Journey Tracker', storyBeat: 'End-to-end journey — 7 stages + audit trail' },
     ],
   },
   {
@@ -140,10 +141,10 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#31135e',
     initials: 'QA',
     steps: [
-      { stepNum: 28, route: '/care-gap-closure-verification', label: 'Care Gap Closure & Verification', storyBeat: 'Multi-program evidence chain — FHIR provenance' },
-      { stepNum: 29, route: '/stars-hedis-mips', label: 'Care Manager Attribution', storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs' },
-      { stepNum: 30, route: '/outcomes-linkage', label: 'Outcomes Linkage', storyBeat: 'Social ROI — executive closing proof' },
-      { stepNum: 31, route: '/executive-outcomes-dashboard', label: 'Executive Dashboard', storyBeat: 'Closed loop — patient → network → state outcome' },
+      { stepNum: 29, route: '/care-gap-closure-verification', label: 'Care Gap Closure & Verification', storyBeat: 'Multi-program evidence chain — FHIR provenance' },
+      { stepNum: 30, route: '/stars-hedis-mips', label: 'Care Manager Attribution', storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs' },
+      { stepNum: 31, route: '/outcomes-linkage', label: 'Outcomes Linkage', storyBeat: 'Social ROI — executive closing proof' },
+      { stepNum: 32, route: '/executive-outcomes-dashboard', label: 'Executive Dashboard', storyBeat: 'Closed loop — patient → network → state outcome' },
     ],
   },
   {
@@ -155,19 +156,19 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#2e1065',
     initials: 'AM',
     steps: [
-      { stepNum: 32, route: '/uhg-orchestrate/fragmentation-split-system-view', label: 'One Enterprise · Five Entities', storyBeat: 'Why fragmentation breaks Maria\'s care across UHC, Optum, Surest, UMR, Rally', activePatient: 'MARIA_SD_001' },
-      { stepNum: 33, route: '/uhg-orchestrate/cdp-assembly-split', label: 'CDP Assembly', storyBeat: '52 data dimensions unified — Maria\'s consent-governed citizen profile assembled', activePatient: 'MARIA_SD_001' },
-      { stepNum: 34, route: '/whole-person-care-summary', label: 'Whole Person Care View', storyBeat: 'All 52 dimensions of Maria\'s life visible in one knowledge graph — 4 roles, 14 streams, 4 consent layers', activePatient: 'MARIA_SD_001' },
-      { stepNum: 35, route: '/uhg-orchestrate/consumer-360', label: 'Journey-Aware Context', storyBeat: 'Maria\'s live episode window — milestones, expected vs. unexpected signals', activePatient: 'MARIA_SD_001' },
-      { stepNum: 36, route: '/uhg-orchestrate/whole-person-care', label: 'Whole Person Care Intelligence', storyBeat: 'SDOH amplifiers: Financial 82, Caregiver Burden 88, Transport blocker → care plan mods', activePatient: 'MARIA_SD_001' },
-      { stepNum: 37, route: '/uhg-orchestrate/signal-disposition-engine', label: 'Signal Disposition Engine', storyBeat: 'Live signals from Maria\'s care events — agents dispatched in real-time', activePatient: 'MARIA_SD_001' },
-      { stepNum: 38, route: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', label: 'Agentic Super Orchestration', storyBeat: 'Controller agent coordinates CHW + Clinical + BH + Social agents for Maria', activePatient: 'MARIA_SD_001' },
-      { stepNum: 39, route: '/uhg-orchestrate/agent-library', label: 'Agentic Marketplace', storyBeat: 'Agents activated for Maria\'s case — roles, triggers, outcomes', activePatient: 'MARIA_SD_001' },
-      { stepNum: 40, route: '/uhg-orchestrate/family-sofia', label: 'Family Thread — Sofia', storyBeat: 'Maria\'s dependent Sofia — pediatric gaps surfaced and orchestrated in the household loop', activePatient: 'MARIA_SD_001' },
-      { stepNum: 41, route: '/uhg-orchestrate/caregiver-elena', label: 'Caregiver Intelligence — Elena', storyBeat: 'Maria as caregiver — Elena\'s INR, polypharmacy, Martin Pharmacy refill sync', activePatient: 'MARIA_SD_001' },
-      { stepNum: 42, route: '/uhg-orchestrate/portfolio-scale', label: 'Live Population Filter', storyBeat: 'Maria\'s profile at population scale — cohort, risk tier, at-scale impact', activePatient: 'MARIA_SD_001' },
-      { stepNum: 43, route: '/uhg-orchestrate/agent-impact-dashboard', label: 'Agent Impact Dashboard', storyBeat: 'What agents achieved for Maria — A1C, appointments, SDOH tasks, cost avoidance', activePatient: 'MARIA_SD_001' },
-      { stepNum: 44, route: '/uhg-orchestrate/reporting-dashboard', label: 'Agent Impact — Reporting', storyBeat: 'Closed loop — Maria\'s case as proof-point for enterprise agentic ROI', activePatient: 'MARIA_SD_001' },
+      { stepNum: 33, route: '/uhg-orchestrate/fragmentation-split-system-view', label: 'One Enterprise · Five Entities', storyBeat: 'Why fragmentation breaks Maria\'s care across UHC, Optum, Surest, UMR, Rally', activePatient: 'MARIA_SD_001' },
+      { stepNum: 34, route: '/uhg-orchestrate/cdp-assembly-split', label: 'CDP Assembly', storyBeat: '52 data dimensions unified — Maria\'s consent-governed citizen profile assembled', activePatient: 'MARIA_SD_001' },
+      { stepNum: 35, route: '/whole-person-care-summary', label: 'Whole Person Care View', storyBeat: 'All 52 dimensions of Maria\'s life visible in one knowledge graph — 4 roles, 14 streams, 4 consent layers', activePatient: 'MARIA_SD_001' },
+      { stepNum: 36, route: '/uhg-orchestrate/consumer-360', label: 'Journey-Aware Context', storyBeat: 'Maria\'s live episode window — milestones, expected vs. unexpected signals', activePatient: 'MARIA_SD_001' },
+      { stepNum: 37, route: '/uhg-orchestrate/whole-person-care', label: 'Whole Person Care Intelligence', storyBeat: 'SDOH amplifiers: Financial 82, Caregiver Burden 88, Transport blocker → care plan mods', activePatient: 'MARIA_SD_001' },
+      { stepNum: 38, route: '/uhg-orchestrate/signal-disposition-engine', label: 'Signal Disposition Engine', storyBeat: 'Live signals from Maria\'s care events — agents dispatched in real-time', activePatient: 'MARIA_SD_001' },
+      { stepNum: 39, route: '/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece', label: 'Agentic Super Orchestration', storyBeat: 'Controller agent coordinates CHW + Clinical + BH + Social agents for Maria', activePatient: 'MARIA_SD_001' },
+      { stepNum: 40, route: '/uhg-orchestrate/agent-library', label: 'Agentic Marketplace', storyBeat: 'Agents activated for Maria\'s case — roles, triggers, outcomes', activePatient: 'MARIA_SD_001' },
+      { stepNum: 41, route: '/uhg-orchestrate/family-sofia', label: 'Family Thread — Sofia', storyBeat: 'Maria\'s dependent Sofia — pediatric gaps surfaced and orchestrated in the household loop', activePatient: 'MARIA_SD_001' },
+      { stepNum: 42, route: '/uhg-orchestrate/caregiver-elena', label: 'Caregiver Intelligence — Elena', storyBeat: 'Maria as caregiver — Elena\'s INR, polypharmacy, Martin Pharmacy refill sync', activePatient: 'MARIA_SD_001' },
+      { stepNum: 43, route: '/uhg-orchestrate/portfolio-scale', label: 'Live Population Filter', storyBeat: 'Maria\'s profile at population scale — cohort, risk tier, at-scale impact', activePatient: 'MARIA_SD_001' },
+      { stepNum: 44, route: '/uhg-orchestrate/agent-impact-dashboard', label: 'Agent Impact Dashboard', storyBeat: 'What agents achieved for Maria — A1C, appointments, SDOH tasks, cost avoidance', activePatient: 'MARIA_SD_001' },
+      { stepNum: 45, route: '/uhg-orchestrate/reporting-dashboard', label: 'Agent Impact — Reporting', storyBeat: 'Closed loop — Maria\'s case as proof-point for enterprise agentic ROI', activePatient: 'MARIA_SD_001' },
     ],
   },
   {
@@ -179,14 +180,14 @@ const DEMO_PERSONAS: DemoPersona[] = [
     textColor: '#004144',
     initials: 'WX',
     steps: [
-      { stepNum: 45, route: '/uhg-orchestrate/cdp-assembly-split', label: '1 · CDP Assembly', storyBeat: '4 systems, 4 records → one unified identity — knowledge graph assembly (0:50)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 46, route: '/whole-person-care-summary', label: '2 · Whole Person Care View', storyBeat: 'Knowledge graph — 52 dimensions of Maria\'s life; caregiver burden is the root cause (1:10)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 47, route: '/patient-detail', label: '3 · Patient Detail — 360°', storyBeat: 'Whole Person Care Plan tab — every dimension of her life (1:30)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 48, route: '/md-smart-launch', label: '4 · MD Smart Launch — Care Plan', storyBeat: 'Cerner SmartApp — tiered care plan, respite first → click Approve (1:55)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 49, route: '/cbo-directory', label: '5 · CBO Directory', storyBeat: 'Community referrals — digital, tracked, closed-loop (2:10)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 50, route: '/care-gap-closure-verification', label: '6 · Gap Closure Verification', storyBeat: 'All 3 gaps CLOSED — evidence chain verified (2:25)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 51, route: '/executive-outcomes-dashboard', label: '7 · Executive Outcomes', storyBeat: '6,842 gaps closed · ED ↓18% · $1.1M reinvested — close here (2:45)', activePatient: 'MARIA_SD_001' },
-      { stepNum: 52, route: '/md-smart-launch', label: '8 · MD SmartApp — Encore', storyBeat: 'Cerner PowerChart view — FHIR-native, write-back orders (3:00)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 46, route: '/uhg-orchestrate/cdp-assembly-split', label: '1 · CDP Assembly', storyBeat: '4 systems, 4 records → one unified identity — knowledge graph assembly (0:50)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 47, route: '/whole-person-care-summary', label: '2 · Whole Person Care View', storyBeat: 'Knowledge graph — 52 dimensions of Maria\'s life; caregiver burden is the root cause (1:10)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 48, route: '/patient-detail', label: '3 · Patient Detail — 360°', storyBeat: 'Whole Person Care Plan tab — every dimension of her life (1:30)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 49, route: '/md-smart-launch', label: '4 · MD Smart Launch — Care Plan', storyBeat: 'Cerner SmartApp — tiered care plan, respite first → click Approve (1:55)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 50, route: '/cbo-directory', label: '5 · CBO Directory', storyBeat: 'Community referrals — digital, tracked, closed-loop (2:10)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 51, route: '/care-gap-closure-verification', label: '6 · Gap Closure Verification', storyBeat: 'All 3 gaps CLOSED — evidence chain verified (2:25)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 52, route: '/executive-outcomes-dashboard', label: '7 · Executive Outcomes', storyBeat: '6,842 gaps closed · ED ↓18% · $1.1M reinvested — close here (2:45)', activePatient: 'MARIA_SD_001' },
+      { stepNum: 53, route: '/md-smart-launch', label: '8 · MD SmartApp — Encore', storyBeat: 'Cerner PowerChart view — FHIR-native, write-back orders (3:00)', activePatient: 'MARIA_SD_001' },
     ],
   },
 ];
@@ -277,7 +278,7 @@ export default function DemoNavigator() {
             <div className="flex items-center gap-2">
               <Icon name="MapIcon" size={16} className="text-carbon-gray-70" />
               <span className="text-xs font-semibold text-carbon-gray-100 uppercase tracking-wide">Demo Sequence</span>
-              <span className="text-2xs text-carbon-gray-50">9 Personas · {TOTAL_STEPS} Steps</span>
+              <span className="text-2xs text-carbon-gray-50">10 Personas · {TOTAL_STEPS} Steps</span>
             </div>
             <button
               onClick={() => setExpanded(false)}

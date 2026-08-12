@@ -1,173 +1,106 @@
 'use client';
 
 /**
- * Prior Authorization (plan Slice 4). CRD → DTR → PAS with a HUMAN gate before
- * submission. The PA state is driven by the deterministic paMachine; the LLM
- * never sets Approved/Denied.
+ * Prior Authorization — CMS-0057-F native experience.
+ * CRD → DTR → PAS, human-gated. Multi-view shell replacing the previous stub.
+ *
+ * Ported PA-Standalone-SmartApp components are wired to RHTP's BFF layer;
+ * no separate SMART OAuth or standalone services required.
  */
-import React, { useState } from 'react';
-import { postJson } from '@/lib/client/bff';
-import { QuestionnaireRenderer } from '@/components/dtr/QuestionnaireRenderer';
-import {
-  transition,
-  INITIAL,
-  slaHours,
-  type PaState,
-  type PaContext,
-} from '@/lib/workflow/paMachine';
-import type { QuestionnaireItemDef, QuestionnaireResponse } from '@/lib/dtr/questionnaireResponse';
-import type { CdsCard } from '@/lib/server/cdsClient';
-import { flag } from '@/lib/flags/flags';
-import { PaHandoffBanner } from '@/components/goldenThread/PaHandoffBanner';
 import AppLayout from '@/components/AppLayout';
+import { usePaStore, type AppView } from '@/lib/pa/usePaStore';
+import { flag } from '@/lib/flags/flags';
+import OrderView from '@/components/pa/OrderView';
+import CrdChecklistView from '@/components/pa/CrdChecklistView';
+import DtrTreeView from '@/components/pa/DtrTreeView';
+import ReviewSubmitView from '@/components/pa/ReviewSubmitView';
+import PaPortalView from '@/components/pa/PaPortalView';
+import PatientRecordDrawer from '@/components/pa/PatientRecordDrawer';
+import { PaHandoffBanner } from '@/components/goldenThread/PaHandoffBanner';
 
-// Representative DTR items (real flow loads these from $questionnaire-package).
-const ITEMS: QuestionnaireItemDef[] = [
-  {
-    linkId: 'q1',
-    text: 'Conservative therapy attempted (≥6 weeks)?',
-    type: 'boolean',
-    required: true,
-  },
-  { linkId: 'q2', text: 'Neurological deficit present?', type: 'boolean', required: true },
-  { linkId: 'q3', text: 'Relevant clinical notes', type: 'string' },
+const NAV_STEPS: { view: AppView; label: string; step: number }[] = [
+  { view: 'order',    label: 'Order & CRD Trigger', step: 1 },
+  { view: 'checklist', label: 'CRD Checklist',      step: 2 },
+  { view: 'dtr',      label: 'DTR Match',            step: 3 },
+  { view: 'review',   label: 'Review & Submit',      step: 4 },
+  { view: 'portal',   label: 'PA Portal',            step: 5 },
 ];
 
+const VIEW_COMPONENT: Record<AppView, React.ComponentType> = {
+  order:    OrderView,
+  checklist: CrdChecklistView,
+  dtr:      DtrTreeView,
+  review:   ReviewSubmitView,
+  portal:   PaPortalView,
+  case:     PaPortalView, // case detail falls back to portal in this integration
+};
+
 export default function PriorAuthPage(): React.ReactElement {
-  const ctx: PaContext = { priority: 'expedited' };
-  const [state, setState] = useState<PaState>(INITIAL);
-  const [cards, setCards] = useState<CdsCard[]>([]);
-  const [qr, setQr] = useState<QuestionnaireResponse | null>(null);
-  const [approver, setApprover] = useState('');
-  const [note, setNote] = useState('');
+  const { view, setView } = usePaStore();
 
-  // stateRef keeps the live value accessible inside async callbacks
-  // without relying on stale React state closures.
-  const stateRef = React.useRef<PaState>(state);
-  function apply(event: Parameters<typeof transition>[1], fromState?: PaState): PaState {
-    const current = fromState ?? stateRef.current;
-    const t = transition(current, event, ctx);
-    if (t.error) { setNote(t.error); return current; }
-    stateRef.current = t.state;
-    setNote('');
-    setState(t.state);
-    return t.state;
-  }
-
-  async function runCrd(): Promise<void> {
-    // Chain transitions: Draft → CRD, then CRD → RequirementsKnown.
-    // Both must use the live state from stateRef, not the React state snapshot.
-    const afterOrderCreated = apply({ type: 'order-created' });
-    const hookRequest = {
-      hook: 'order-sign',
-      context: {
-        draftOrders: {
-          entry: [
-            { resource: { resourceType: 'ServiceRequest', code: { coding: [{ code: '72148' }] } } },
-          ],
-        },
-      },
-    };
-    const r = await postJson<{ cards: CdsCard[] }>('/api/cds', {
-      hookId: 'crd-mri-spine-order-sign',
-      hookRequest,
-    });
-    setCards(r.data?.cards ?? []);
-    apply({ type: 'crd-required' }, afterOrderCreated);
-  }
-
-  async function submit(): Promise<void> {
-    // HUMAN GATE — approver required; the machine also enforces this.
-    const t = transition(
-      'EvidenceComplete',
-      { type: 'submit', approvedBy: approver || undefined },
-      ctx
+  if (!flag('priorAuth')) {
+    return (
+      <AppLayout>
+        <main className="p-6 text-sm text-slate-600">Prior Authorization is not enabled.</main>
+      </AppLayout>
     );
-    if (t.error) {
-      setNote(t.error);
-      return;
-    }
-    const res = await postJson('/api/pas/submit', {
-      claimBundle: { resourceType: 'Bundle', type: 'collection' },
-      approvedBy: approver,
-    });
-    setNote(
-      res.status === 202
-        ? 'Submission pending human approval.'
-        : `Submitted (status ${res.status}).`
-    );
-    setState(t.state);
   }
 
-  if (!flag('priorAuth')) return <main className="p-6">Prior Authorization is not enabled.</main>;
+  const Active = VIEW_COMPONENT[view];
 
   return (
     <AppLayout>
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
-      <PaHandoffBanner />
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Prior authorization</h1>
-        <span className="rounded bg-slate-100 px-2 py-1 text-xs">
-          state: <strong>{state}</strong> · SLA {slaHours(ctx.priority)}h
-        </span>
+      {/* CMS-0057-F compliance banner */}
+      <div className="px-6 pt-4">
+        <PaHandoffBanner />
       </div>
-      {note ? <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-800">{note}</p> : null}
 
-      <button onClick={runCrd} className="rounded bg-blue-600 px-4 py-2 text-sm text-white">
-        1 · Run coverage discovery (CRD)
-      </button>
-
-      {cards.length > 0 && (
-        <div className="space-y-1">
-          {cards.map((c, i) => (
-            <div key={i} className="rounded border border-slate-200 px-3 py-2 text-sm">
-              <strong className="capitalize">{c.indicator}</strong>: {c.summary}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {(state === 'RequirementsKnown' || state === 'DTR' || state === 'Prepopulated') && (
-        <section className="rounded border border-slate-200 p-4">
-          <h2 className="mb-2 text-sm font-semibold">2 · Documentation (DTR)</h2>
-          <QuestionnaireRenderer
-            items={ITEMS}
-            questionnaireCanonical="http://example.org/Questionnaire/mri-lumbar"
-            patientRef="Patient/MARIA_SD_001"
-            onComplete={(r) => {
-              setQr(r);
-              apply({ type: 'launch-dtr' });
-              apply({ type: 'prepopulated' });
-              apply({ type: 'evidence-complete' });
-            }}
-          />
-        </section>
-      )}
-
-      {qr && (
-        <section className="rounded border border-slate-200 p-4">
-          <h2 className="mb-2 text-sm font-semibold">3 · Submit (human-approved)</h2>
-          <p className="mb-2 text-xs text-slate-500">
-            A person must approve before submission — an agent may only prepare it.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={approver}
-              onChange={(e) => setApprover(e.target.value)}
-              placeholder="Approver name"
-              className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
-            />
-            <button
-              onClick={submit}
-              disabled={!approver}
-              className="rounded bg-green-600 px-4 py-2 text-sm text-white disabled:opacity-50"
-            >
-              Approve &amp; submit PAS
-            </button>
+      {/* Section header */}
+      <div className="border-b border-gray-200 bg-white px-6 pt-4 pb-0">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Prior Authorization</h1>
+            <p className="text-xs text-gray-500">
+              CRD · DTR · PAS — Da Vinci Implementation Guides · CMS-0057-F compliant
+            </p>
           </div>
-        </section>
-      )}
-    </main>
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
+            SMART on FHIR
+          </span>
+        </div>
+
+        {/* Step nav */}
+        <nav className="flex overflow-x-auto gap-0">
+          {NAV_STEPS.map((s) => (
+            <button
+              key={s.view}
+              onClick={() => setView(s.view)}
+              className={`flex items-center gap-2 border-b-[3px] px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+                view === s.view
+                  ? 'border-[#1669c1] text-[#1669c1]'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <span
+                className={`flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold ${
+                  view === s.view ? 'bg-[#1669c1] text-white' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {s.step}
+              </span>
+              {s.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <main className="mx-auto max-w-[1100px] px-6 py-8 pb-24">
+        <Active />
+      </main>
+
+      {/* Patient record drawer — mounted once at shell level, never per-view */}
+      <PatientRecordDrawer />
     </AppLayout>
   );
 }
