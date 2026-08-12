@@ -24,7 +24,7 @@ $RootDir      = $PSScriptRoot
 # ── Dot-source library modules ───────────────────────────────────────────────
 . "$InstallerDir\lib\prereqs.ps1"
 . "$InstallerDir\lib\env-writer.ps1"
-. "$InstallerDir\lib\http-server.ps1"
+# http-server.ps1 is superseded by installer/lib/http-server.js (Node.js)
 
 # ── --stop flag: kill running services ───────────────────────────────────────
 if ($Stop) {
@@ -89,7 +89,7 @@ if ($portInUse) {
   Write-Host " done" -ForegroundColor Green
 }
 
-# ── Start wizard server ───────────────────────────────────────────────────────
+# ── Start wizard server (Node.js HTTP server) ─────────────────────────────────
 Write-Host ""
 Write-Host "  Starting installer wizard..." -ForegroundColor Cyan
 Write-Host "  Opening http://localhost:$Port in your browser." -ForegroundColor Cyan
@@ -98,7 +98,8 @@ Write-Host "  Complete the wizard in your browser, then return here to watch pro
 Write-Host "  Press Ctrl+C to stop the installer at any time." -ForegroundColor Gray
 Write-Host ""
 
-Start-InstallerServer -InstallerDir $InstallerDir -Port $Port
+$env:INSTALLER_PORT = $Port
+& node "$InstallerDir\lib\http-server.js"
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
