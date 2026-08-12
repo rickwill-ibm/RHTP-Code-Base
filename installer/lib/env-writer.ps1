@@ -63,19 +63,19 @@ function Build-EnvVars {
   if ($Components -contains 'cms') {
     Merge-Template $tmpl.cms.$Mode $vars
 
-    # Auto-generate secrets if not already set
-    foreach ($k in @('SESSION_SECRET','WEBHOOK_SHARED_SECRET')) {
-      if (-not $vars[$k] -or $vars[$k] -eq '__GENERATE__') {
-        $vars[$k] = New-RandomSecret 32
-      }
-    }
-
     # Production: WSO2 fields from user input
     if ($Mode -eq 'production') {
       foreach ($prop in $tmpl.cms_wso2.PSObject.Properties) {
         $val = $UserInputs[$prop.Name]
         if ($val) { $vars[$prop.Name] = $val }
       }
+    }
+  }
+
+  # ── CMS secrets (always auto-generate when cms is selected) ──────────────
+  foreach ($k in @('SESSION_SECRET','WEBHOOK_SHARED_SECRET')) {
+    if (-not $vars[$k] -or $vars[$k] -eq '__GENERATE__') {
+      $vars[$k] = New-RandomSecret 32
     }
   }
 
@@ -129,7 +129,10 @@ function Set-LlmVars {
 
 function New-RandomSecret {
   param([int] $Length = 32)
+  # Use GetBytes() -- compatible with both PS 5.1 (.NET Framework) and PS 7+ (.NET Core)
+  $rng   = [System.Security.Cryptography.RandomNumberGenerator]::Create()
   $bytes = [byte[]]::new($Length)
-  [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  $rng.GetBytes($bytes)
+  $rng.Dispose()
   return [Convert]::ToBase64String($bytes).Substring(0, $Length) -replace '[+/=]', 'x'
 }

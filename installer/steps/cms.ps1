@@ -21,8 +21,10 @@ if ($config.userInputs) { $config.userInputs.PSObject.Properties | ForEach-Objec
 "Writing CMS-0057-F configuration ($mode mode)..."
 $vars = Build-EnvVars "$installerDir\data" @('cms') $mode $inputs
 Write-EnvFile $envFile $vars -Merge
-"  SESSION_SECRET        : $($vars['SESSION_SECRET'].Substring(0,8))... (auto-generated)"
-"  WEBHOOK_SHARED_SECRET : $($vars['WEBHOOK_SHARED_SECRET'].Substring(0,8))... (auto-generated)"
+$ss  = if ($vars['SESSION_SECRET'])        { $vars['SESSION_SECRET'].Substring(0,8)        + '...' } else { '(not set)' }
+$whs = if ($vars['WEBHOOK_SHARED_SECRET']) { $vars['WEBHOOK_SHARED_SECRET'].Substring(0,8) + '...' } else { '(not set)' }
+"  SESSION_SECRET        : $ss (auto-generated)"
+"  WEBHOOK_SHARED_SECRET : $whs (auto-generated)"
 "  ALLOW_DEV_MOCK_AUTH   : $($vars['ALLOW_DEV_MOCK_AUTH'])"
 
 # ── Step 2: Production -- validate WSO2 connectivity ──────────────────────────
@@ -61,7 +63,7 @@ $flags   = @('NEXT_PUBLIC_FLAG_PATIENT_ACCESS','NEXT_PUBLIC_FLAG_PROVIDER_ACCESS
              'NEXT_PUBLIC_FLAG_PAYER_TO_PAYER','NEXT_PUBLIC_FLAG_PRIOR_AUTH',
              'NEXT_PUBLIC_FLAG_GOLDEN_THREAD','NEXT_PUBLIC_FLAG_NETWORK_ADEQUACY')
 foreach ($f in $flags) {
-  $val = $written[$f] ?? 'NOT SET'
+  $val = if ($written[$f]) { $written[$f] } else { 'NOT SET' }
   "  $f = $val"
 }
 "  CMS-0057-F configuration complete."

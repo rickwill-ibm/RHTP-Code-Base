@@ -17,10 +17,28 @@ if ($config.userInputs) { $config.userInputs.PSObject.Properties | ForEach-Objec
 
 . "$installerDir\lib\env-writer.ps1"
 
+# ── Helper -- must be defined before first call ───────────────────────────────
+function Test-LlmKey {
+  param([string] $Provider, [string] $Key)
+  try {
+    if ($Provider -eq 'groq') {
+      $r = Invoke-WebRequest 'https://api.groq.com/openai/v1/models' `
+        -Headers @{ Authorization = "Bearer $Key" } -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
+      return $r.StatusCode -eq 200
+    }
+    if ($Provider -eq 'openai') {
+      $r = Invoke-WebRequest 'https://api.openai.com/v1/models' `
+        -Headers @{ Authorization = "Bearer $Key" } -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
+      return $r.StatusCode -eq 200
+    }
+  } catch { return $false }
+  return $false
+}
+
 # ── Step 1: Write LLM config (production only) ───────────────────────────────
 if ($mode -eq 'production') {
   $provider = $inputs['LLM_PROVIDER']
-  $key      = $inputs['GROQ_API_KEY'] ?? $inputs['OPENAI_API_KEY']
+  $key      = if ($inputs['GROQ_API_KEY']) { $inputs['GROQ_API_KEY'] } else { $inputs['OPENAI_API_KEY'] }
 
   if (-not $provider -or -not $key) {
     "  INFO: No LLM key provided."
@@ -68,21 +86,3 @@ if (Test-Path $seedFile) {
 "  Financial Clearance: http://localhost:4029/financial-clearance"
 "  Work Queue:          http://localhost:4029/work-queue"
 "  Evidence Record:     http://localhost:4029/evidence"
-
-# ── Helper ────────────────────────────────────────────────────────────────────
-function Test-LlmKey {
-  param([string] $Provider, [string] $Key)
-  try {
-    if ($Provider -eq 'groq') {
-      $r = Invoke-WebRequest 'https://api.groq.com/openai/v1/models' `
-        -Headers @{ Authorization = "Bearer $Key" } -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
-      return $r.StatusCode -eq 200
-    }
-    if ($Provider -eq 'openai') {
-      $r = Invoke-WebRequest 'https://api.openai.com/v1/models' `
-        -Headers @{ Authorization = "Bearer $Key" } -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
-      return $r.StatusCode -eq 200
-    }
-  } catch { return $false }
-  return $false
-}

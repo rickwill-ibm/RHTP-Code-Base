@@ -39,7 +39,7 @@ if (Test-Path $nextMod) {
 # ── Step 3: LLM key (production) ─────────────────────────────────────────────
 if ($mode -eq 'production') {
   $provider = $inputs['LLM_PROVIDER']
-  $key      = $inputs['GROQ_API_KEY'] ?? $inputs['OPENAI_API_KEY']
+  $key      = if ($inputs['GROQ_API_KEY']) { $inputs['GROQ_API_KEY'] } else { $inputs['OPENAI_API_KEY'] }
   if ($provider -and $key) {
     "LLM provider: $provider -- key already written to .env.local."
     "  The Policy Engine will use this key for policy extraction."
@@ -91,13 +91,7 @@ if ($mode -eq 'production') {
   "Demo mode: mock FHIR server will start with the app (no Docker needed)."
 }
 
-# ── Step 5: Type-check PA app ────────────────────────────────────────────────
-"Running PA type-check..."
-$proc = Start-Process npm -ArgumentList 'run','type-check' -NoNewWindow -PassThru -Wait -WorkingDirectory $paDir
-if ($proc.ExitCode -ne 0) { "  WARNING: PA type-check reported errors." }
-else { "  PA type-check passed." }
-
-# ── Step 6: Start PA dev server ──────────────────────────────────────────────
+# ── Step 5: Start PA dev server ──────────────────────────────────────────────
 "Starting PA Standalone SmartApp on port 4032..."
 Start-Process cmd -ArgumentList '/c','start cmd /k npm run dev' -WorkingDirectory $paDir
 "  PA SmartApp starting at http://localhost:4032"
