@@ -16,7 +16,7 @@
 const http    = require('http');
 const path    = require('path');
 const fs      = require('fs');
-const { execFile, spawn } = require('child_process');
+const { exec, spawn } = require('child_process');
 const net     = require('net');
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -116,8 +116,8 @@ function handleCheckPrereq(res, id) {
 
   if (!spec) return sendJson(res, 404, { error: `Unknown prereq: ${id}` });
 
-  const [cmd, ...args] = spec.command.split(' ');
-  execFile(cmd, args, { timeout: 8000 }, (err, stdout) => {
+  // exec() runs through the shell so .cmd wrappers (npm, docker, git) resolve on Windows PATH.
+  exec(spec.command, { timeout: 8000 }, (err, stdout) => {
     if (err) {
       return sendJson(res, 200, { status: 'error', message: 'Not found' });
     }
