@@ -3,15 +3,17 @@
     {
       "id": "rhtp",
       "label": "RHTP Clinical Platform",
-      "description": "Population health & whole-person care management. 40+ screens, 8 demo personas.",
+      "description": "Population health & whole-person care management. 50+ screens, 10 demo personas, 53 guided steps.",
       "port": 4029,
       "url": "http://localhost:4029",
       "demoUrls": [
         { "label": "Demo Navigator",         "path": "/" },
+        { "label": "Demo Onboarding",        "path": "/demo-onboarding" },
         { "label": "Guided Demo Deck",        "path": "/demo-deck" },
         { "label": "RHTP Program Overview",   "path": "/contract-program-selection" },
         { "label": "Patient Panel",           "path": "/panel-cohort-view" },
-        { "label": "Financial Dashboard",     "path": "/financial-dashboard" }
+        { "label": "Financial Dashboard",     "path": "/financial-dashboard" },
+        { "label": "Prior Authorization",     "path": "/prior-auth" }
       ],
       "requiresDocker": false,
       "requiresDockerProd": true,
@@ -53,13 +55,14 @@
     },
     {
       "id": "pa-standalone",
-      "label": "PA Standalone SmartApp",
-      "description": "Standalone CRD → DTR → PAS SMART on FHIR app. Includes Policy Engine with LLM extraction.",
+      "label": "PA Standalone SmartApp (Developer / Advanced)",
+      "description": "Standalone CRD → DTR → PAS SMART on FHIR app. NOTE: the integrated /prior-auth experience inside the RHTP app is the primary demo path. This standalone app is for developer/advanced use only.",
       "port": 4032,
       "url": "http://localhost:4032",
       "demoUrls": [
         { "label": "PA SmartApp",             "path": "" },
-        { "label": "Launch (demo patient)",   "path": "/launch?iss=http%3A%2F%2Flocalhost%3A8080%2Ffhir&launch=patient-rachel-green" }
+        { "label": "Launch (demo patient)",   "path": "/launch?iss=http%3A%2F%2Flocalhost%3A8080%2Ffhir&launch=patient-rachel-green" },
+        { "label": "Integrated PA (RHTP)",    "path": "http://localhost:4029/prior-auth" }
       ],
       "requiresDocker": false,
       "requiresDockerProd": true,
@@ -70,8 +73,9 @@
   "presets": [
     { "id": "full-demo",       "label": "Full Demo",        "components": ["rhtp","cms","golden-thread","pa-standalone"], "mode": "demo" },
     { "id": "clinical-demo",   "label": "Clinical Only",    "components": ["rhtp"],                                       "mode": "demo" },
-    { "id": "cms-demo",        "label": "CMS Demo",         "components": ["cms","golden-thread"],                        "mode": "demo" },
-    { "id": "pa-demo",         "label": "PA Demo",          "components": ["pa-standalone"],                              "mode": "demo" },
+    { "id": "cms-demo",        "label": "CMS Demo",         "components": ["rhtp","cms","golden-thread"],                 "mode": "demo" },
+    { "id": "pa-demo",         "label": "PA Demo (integrated)", "components": ["rhtp","cms"],                             "mode": "demo" },
+    { "id": "pa-standalone-demo", "label": "PA Standalone (developer)", "components": ["pa-standalone"],                 "mode": "demo" },
     { "id": "full-production", "label": "Full Production",  "components": ["rhtp","cms","golden-thread","pa-standalone"], "mode": "production" }
   ]
 }

@@ -6,10 +6,9 @@
 
 ## How to run
 
-- **Branch:** `feat/cms0057f-native` (the base `main` branch does not contain this work).
+- **Branch:** `main` (this work is fully merged).
 - **Start:**
   ```bash
-  git checkout feat/cms0057f-native
   npm install
   ./install/install.sh        # Tier-A offline stack: dev SMART session + dev stubs + seeded FHIR
   npm run dev                 # http://localhost:4029
@@ -73,11 +72,17 @@ Everything runs offline. Decision-support outputs (propensity, adequacy recommen
 - **Talking points:** "The queue is rebuilt from the persisted Evidence Records — one durable source of truth. SLA timers reflect the CMS 72-hour expedited / 7-day standard clocks."
 
 ### S5 · Stage-3 handoff — Prior Authorization (CRD → DTR → PAS)
-- **Audience:** clinical ops. **Mandate:** CMS-0057-F Prior Auth API (Da Vinci PAS). **Route:** the **Proceed to Prior Authorization** button from S2.
-- **Steps:** 1) Click the stage-3 handoff. 2) Note the **banner** showing the incoming order + Evidence Record (the thread continues). 3) Walk CRD cards → the DTR questionnaire → the **human-gated** submit (no `approvedBy`, no submission).
-- **Expected:** the handoff carries context; submission refuses without a human approver.
-- **Talking points:** "Prior Auth isn't a dead end — it's *stage 3 of the same thread*. And an agent can prepare the claim, but only a human submits; the LLM never sets Approved or Denied."
-- **Accuracy note (be transparent):** in the offline demo these **CRD cards are dev-stubbed**, not engine-driven; under the Tier-B backbone they come from the live CDS Hooks / CRD service. The engine's "requires PA / medical necessity" determination is the one shown in stages 2 / S3–S3b. Wiring `evaluate()` behind the CRD card is a bounded next increment.
+- **Audience:** clinical ops. **Mandate:** CMS-0057-F Prior Auth API (Da Vinci PAS). **Route:** `/prior-auth` (also reachable via the **Proceed to Prior Authorization** button from S2, or directly from the Demo Navigator step 13).
+- **Steps:**
+  1. Navigate to `/prior-auth`. The 5-step shell opens: **Order** (Maria Redhawk, CPT 72148 lumbar MRI pre-filled).
+  2. **Step 1 — Order:** confirm order details; click **Run CRD Check**.
+  3. **Step 2 — CRD:** walk the coverage requirement cards; click **Start DTR**.
+  4. **Step 3 — DTR:** show the two-column policy requirement vs. patient record match; click **Review & Submit**.
+  5. **Step 4 — Review:** show the HITL approver gate — submission is blocked until a human approver is named.
+  6. **Step 5 — PAS Status:** demonstrate the submitted claim tracking view.
+- **Expected:** full 5-step flow completes on mock data with no external services; submission refuses without `approvedBy`.
+- **Talking points:** "Prior Auth isn't a dead end — it's *stage 3 of the same thread*. An agent prepares the claim, but only a human submits; the LLM never sets Approved or Denied."
+- **Accuracy note (be transparent):** CRD cards are seeded mock data in the offline demo; under the Tier-B backbone they come from the live CDS Hooks / CRD service. The engine's medical necessity determination is shown in stages S3–S3b.
 
 *(Optional S2b — Provider/Payer surfaces: `/provider-access` shows `$member-match` + treatment-relationship data; `/payer-to-payer` shows the async bulk import. Include if the audience wants all four provisions.)*
 
@@ -114,7 +119,7 @@ Transition line: *"Maria's care depends on there being an in-network provider wi
 
 "One platform, one member, **two CMS mandates** — interoperability & faster prior authorization, and network adequacy — with **human-gated AI** throughout, all demonstrated offline. The path to live is configuration (the Tier-B backbone) and data, not a rewrite."
 
-Anticipated Q&A: *Is the AI making decisions?* No — decision-support only, human-gated, `ClaimResponse`/certified filing authoritative. *Is this real data?* Seed/mock for the demo; live needs the directory/geo/membership feeds (adequacy) and the Tier-B backbone (PA). *Where's the code?* All on `feat/cms0057f-native`; PR to `main` to release.
+Anticipated Q&A: *Is the AI making decisions?* No — decision-support only, human-gated, `ClaimResponse`/certified filing authoritative. *Is this real data?* Seed/mock for the demo; live needs the directory/geo/membership feeds (adequacy) and the Tier-B backbone (PA). *Where's the code?* All on `main`.
 
 ---
 
@@ -133,7 +138,7 @@ Anticipated Q&A: *Is the AI making decisions?* No — decision-support only, hum
 | GA counties | Fulton, DeKalb, Gwinnett, Cobb, Clay |
 | Copilot prompts | "Prioritize the worst behavioral-health gaps in South Dakota" · "Show the Medicaid pediatric baseline for Maria's state" · "Validate Oglala Lakota Pediatrics Medicaid against CMS standards" · "Recommend augmentation for Fulton Mental Health Medicaid" |
 | Routes | `/cms` · `/access` · `/provider-access` · `/payer-to-payer` · `/financial-clearance` · `/work-queue` · `/evidence/:id` · `/prior-auth` · `/network-adequacy` |
-| Validation gate | `npx tsc --noEmit` (0) · `npx vitest run` (145) · `npm run lint` |
+| Validation gate | `npx tsc --noEmit` (0) · `npx vitest run` (178) · `npm run lint` |
 
 ### Known demo simplifications (state these if asked — don't get caught)
 

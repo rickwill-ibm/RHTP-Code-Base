@@ -104,7 +104,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host " FAILED" -ForegroundColor Red
     Write-Host "        Run 'npm run test' to see failures." -ForegroundColor Yellow
 } else {
-    Write-Host " OK (145 tests passing)" -ForegroundColor Green
+    Write-Host " OK (178 tests passing)" -ForegroundColor Green
 }
 
 # ── Desktop shortcut (optional) ──────────────────────────────
@@ -134,7 +134,9 @@ Write-Host "    - Then open     http://localhost:4029" -ForegroundColor White
 Write-Host ""
 Write-Host "  Key demo URLs:" -ForegroundColor White
 Write-Host "    http://localhost:4029                            Demo Navigator" -ForegroundColor Gray
-Write-Host "    http://localhost:4029/demo-deck                 Guided 31-step presentation" -ForegroundColor Gray
+Write-Host "    http://localhost:4029/demo-onboarding           Demo Onboarding" -ForegroundColor Gray
+Write-Host "    http://localhost:4029/demo-deck                 Guided demo (53 steps, 10 personas)" -ForegroundColor Gray
+Write-Host "    http://localhost:4029/prior-auth                Prior Authorization (CRD/DTR/PAS)" -ForegroundColor Gray
 Write-Host "    http://localhost:4029/cms                       CMS-0057-F hub" -ForegroundColor Gray
 Write-Host "    http://localhost:4029/contract-program-selection RHTP Program Overview" -ForegroundColor Gray
 Write-Host ""

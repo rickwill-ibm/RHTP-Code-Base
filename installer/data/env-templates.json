@@ -2,6 +2,7 @@
   "rhtp": {
     "demo": {
       "NEXT_PUBLIC_USE_MOCK_DATA":           "true",
+      "ALLOW_DEV_MOCK_AUTH":                 "true",
       "NEXT_PUBLIC_FHIR_BASE_URL":           "http://localhost:8080/fhir",
       "NEXT_PUBLIC_FHIR_TIMEOUT":            "30000",
       "NEXT_PUBLIC_FHIR_RETRY_ATTEMPTS":     "3",

@@ -108,7 +108,9 @@ echo   RHTP Demo is running!
 echo  ================================================
 echo.
 echo   Main app:       http://localhost:4029
-echo   Demo deck:      http://localhost:4029/demo-deck
+echo   Demo onboarding:http://localhost:4029/demo-onboarding
+echo   Demo deck:      http://localhost:4029/demo-deck (53 steps, 10 personas)
+echo   Prior Auth:     http://localhost:4029/prior-auth
 echo   CMS-0057-F hub: http://localhost:4029/cms
 echo   RHTP Overview:  http://localhost:4029/contract-program-selection
 echo.
