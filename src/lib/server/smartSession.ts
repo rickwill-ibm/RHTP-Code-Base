@@ -171,7 +171,13 @@ export async function isAuthenticated(): Promise<boolean> {
   const env = serverEnv();
   const jar = await cookies();
   const session = open<SessionData>(jar.get(SESSION_COOKIE)?.value ?? '', env);
-  return !!session && session.expiresAt > Date.now();
+  if (session && session.expiresAt > Date.now()) return true;
+  // Dev offline path: no WSO2 configured + ALLOW_DEV_MOCK_AUTH=true → auto-establish a dev session
+  if (!env.tokenUrl && env.allowDevMockAuth) {
+    await startDevSession();
+    return true;
+  }
+  return false;
 }
 
 export async function logout(): Promise<void> {

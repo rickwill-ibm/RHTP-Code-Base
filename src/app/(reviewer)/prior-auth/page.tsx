@@ -5,7 +5,7 @@
  * submission. The PA state is driven by the deterministic paMachine; the LLM
  * never sets Approved/Denied.
  */
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { postJson } from '@/lib/client/bff';
 import { QuestionnaireRenderer } from '@/components/dtr/QuestionnaireRenderer';
 import {
@@ -19,6 +19,7 @@ import type { QuestionnaireItemDef, QuestionnaireResponse } from '@/lib/dtr/ques
 import type { CdsCard } from '@/lib/server/cdsClient';
 import { flag } from '@/lib/flags/flags';
 import { PaHandoffBanner } from '@/components/goldenThread/PaHandoffBanner';
+import AppLayout from '@/components/AppLayout';
 
 // Representative DTR items (real flow loads these from $questionnaire-package).
 const ITEMS: QuestionnaireItemDef[] = [
@@ -40,17 +41,23 @@ export default function PriorAuthPage(): React.ReactElement {
   const [approver, setApprover] = useState('');
   const [note, setNote] = useState('');
 
-  function apply(event: Parameters<typeof transition>[1]): void {
-    const t = transition(state, event, ctx);
-    if (t.error) setNote(t.error);
-    else {
-      setNote('');
-      setState(t.state);
-    }
+  // stateRef keeps the live value accessible inside async callbacks
+  // without relying on stale React state closures.
+  const stateRef = React.useRef<PaState>(state);
+  function apply(event: Parameters<typeof transition>[1], fromState?: PaState): PaState {
+    const current = fromState ?? stateRef.current;
+    const t = transition(current, event, ctx);
+    if (t.error) { setNote(t.error); return current; }
+    stateRef.current = t.state;
+    setNote('');
+    setState(t.state);
+    return t.state;
   }
 
   async function runCrd(): Promise<void> {
-    apply({ type: 'order-created' });
+    // Chain transitions: Draft → CRD, then CRD → RequirementsKnown.
+    // Both must use the live state from stateRef, not the React state snapshot.
+    const afterOrderCreated = apply({ type: 'order-created' });
     const hookRequest = {
       hook: 'order-sign',
       context: {
@@ -66,7 +73,7 @@ export default function PriorAuthPage(): React.ReactElement {
       hookRequest,
     });
     setCards(r.data?.cards ?? []);
-    apply({ type: 'crd-required' });
+    apply({ type: 'crd-required' }, afterOrderCreated);
   }
 
   async function submit(): Promise<void> {
@@ -95,6 +102,7 @@ export default function PriorAuthPage(): React.ReactElement {
   if (!flag('priorAuth')) return <main className="p-6">Prior Authorization is not enabled.</main>;
 
   return (
+    <AppLayout>
     <main className="mx-auto max-w-3xl space-y-4 p-6">
       <PaHandoffBanner />
       <div className="flex items-center justify-between">
@@ -160,5 +168,6 @@ export default function PriorAuthPage(): React.ReactElement {
         </section>
       )}
     </main>
+    </AppLayout>
   );
 }

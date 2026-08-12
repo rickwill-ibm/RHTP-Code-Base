@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Network Adequacy interactive assistant (increment NA-2).
  *
  * The analyst copilot, deterministic-first: it parses a payer/state analyst's
  * natural-language request into a typed intent and answers **from the engine**,
  * so it works offline (no API key) and every number is grounded and reproducible.
- * An optional LLM layer (flag-gated) can rephrase / narrate on top ΓÇö but the
+ * An optional LLM layer (flag-gated) can rephrase / narrate on top -- but the
  * facts always come from here.
  */
 import { computeMetrics, computeGaps, validateCell, recommendAugmentation } from './adequacyEngine';
@@ -118,7 +118,7 @@ function pct(n: number): string {
 }
 function label(scope: AssistantScope): string {
   return (
-    [scope.specialty, scope.lob, scope.county, scope.state].filter(Boolean).join(' ┬╖ ') ||
+    [scope.specialty, scope.lob, scope.county, scope.state].filter(Boolean).join(' · ') ||
     'all cells'
   );
 }
@@ -135,7 +135,7 @@ export function runAssistant(
   if (kind === 'help') {
     return {
       ...base,
-      text: 'I can help you analyze and validate provider network adequacy. Try: "show the Medicaid pediatric baseline for MariaΓÇÖs state", "prioritize the worst behavioral-health gaps in SD", "validate Oglala Lakota pediatrics Medicaid against CMS standards", or "recommend augmentation for Fulton mental health Medicaid".',
+      text: 'I can help you analyze and validate provider network adequacy. Try: "show the Medicaid pediatric baseline for Maria--s state", "prioritize the worst behavioral-health gaps in SD", "validate Oglala Lakota pediatrics Medicaid against CMS standards", or "recommend augmentation for Fulton mental health Medicaid".',
       suggestions: [
         'Show the baseline for SD Medicaid Pediatrics',
         'Prioritize the worst gaps in South Dakota',
@@ -152,14 +152,14 @@ export function runAssistant(
     }).slice(0, 5);
     const lines = gaps.map(
       (g, i) =>
-        `${i + 1}. ${g.county}, ${g.state} ΓÇö ${g.specialty}/${g.lob}: ${pct(g.currentPct)} (target ${pct(g.requiredPct)}, ${g.severity}, ~${g.affectedPopulation.toLocaleString()} affected, +${g.shortfallProviders} providers needed)`
+        `${i + 1}. ${g.county}, ${g.state} -- ${g.specialty}/${g.lob}: ${pct(g.currentPct)} (target ${pct(g.requiredPct)}, ${g.severity}, ~${g.affectedPopulation.toLocaleString()} affected, +${g.shortfallProviders} providers needed)`
     );
     return {
       ...base,
       gaps,
       text: gaps.length
         ? `Top ${gaps.length} adequacy gaps for ${label(scope)}:\n` + lines.join('\n')
-        : `No gaps found for ${label(scope)} ΓÇö all cells meet target.`,
+        : `No gaps found for ${label(scope)} -- all cells meet target.`,
       visualizationUpdates: {
         focusState: scope.state,
         focusCounties: gaps.map((g) => g.county),
@@ -197,13 +197,13 @@ export function runAssistant(
     }
     const v = validateCell(input, { county, specialty, lob });
     if (!v)
-      return { ...base, text: `No data for ${county} ┬╖ ${specialty} ┬╖ ${lob}.`, suggestions: [] };
-    const checkLines = v.checks.map((c) => `  ${c.pass ? 'Γ£ô' : 'Γ£ù'} ${c.standard}: ${c.detail}`);
+      return { ...base, text: `No data for ${county} · ${specialty} · ${lob}.`, suggestions: [] };
+    const checkLines = v.checks.map((c) => `  ${c.pass ? 'OK' : 'FAIL'} ${c.standard}: ${c.detail}`);
     return {
       ...base,
       validation: v,
       text:
-        `Compliance validation ΓÇö ${county}, ${specialty}/${lob}: ${v.compliant ? 'COMPLIANT Γ£ô' : 'NON-COMPLIANT Γ£ù'}\n` +
+        `Compliance validation -- ${county}, ${specialty}/${lob}: ${v.compliant ? 'COMPLIANT OK' : 'NON-COMPLIANT FAIL'}\n` +
         checkLines.join('\n'),
       visualizationUpdates: { focusState: scope.state, focusCounties: [county], specialty, lob },
       suggestions: v.compliant
@@ -233,11 +233,11 @@ export function runAssistant(
     }
     const a = recommendAugmentation(input, { county, specialty, lob });
     if (!a)
-      return { ...base, text: `No data for ${county} ┬╖ ${specialty} ┬╖ ${lob}.`, suggestions: [] };
+      return { ...base, text: `No data for ${county} · ${specialty} · ${lob}.`, suggestions: [] };
     return {
       ...base,
       augmentation: a,
-      text: `Augmentation recommendation ΓÇö ${a.rationale} (est. lift +${a.adequacyLiftPct} pts). Human review required before contracting.`,
+      text: `Augmentation recommendation -- ${a.rationale} (est. lift +${a.adequacyLiftPct} pts). Human review required before contracting.`,
       visualizationUpdates: { focusState: scope.state, focusCounties: [county], specialty, lob },
       suggestions: [`Validate ${county} ${specialty} ${lob} after augmentation`],
     };
@@ -251,14 +251,14 @@ export function runAssistant(
     });
     const lines = metrics.map(
       (m) =>
-        `  ${m.specialty}/${m.lob}: ${pct(m.adequacyPct)}${m.gapStatus ? ' (GAP)' : ''} ┬╖ nearest ${m.nearestDistanceMiles ?? 'ΓÇö'}mi ┬╖ ${m.providerCount} in-county providers`
+        `  ${m.specialty}/${m.lob}: ${pct(m.adequacyPct)}${m.gapStatus ? ' (GAP)' : ''} · nearest ${m.nearestDistanceMiles ?? '--'}mi · ${m.providerCount} in-county providers`
     );
     const geo = input.geo.find((g) => g.name === scope.county);
     return {
       ...base,
       metrics,
       text:
-        `${scope.county}, ${geo?.state ?? ''} (${geo?.countyType ?? ''}) ΓÇö adequacy detail:\n` +
+        `${scope.county}, ${geo?.state ?? ''} (${geo?.countyType ?? ''}) -- adequacy detail:\n` +
         lines.join('\n'),
       visualizationUpdates: {
         focusState: geo?.state,

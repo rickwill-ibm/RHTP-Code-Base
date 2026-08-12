@@ -10,6 +10,7 @@ import { postJson, fhirGet, getJson } from '@/lib/client/bff';
 import { canReadMemberData } from '@/lib/authz/guard';
 import { toConditionVM, type ConditionVM } from '@/lib/fhir/viewModels';
 import { flag } from '@/lib/flags/flags';
+import AppLayout from '@/components/AppLayout';
 
 interface Bundle {
   entry?: { resource?: Record<string, unknown> }[];
@@ -69,6 +70,7 @@ export default function ProviderAccessPage(): React.ReactElement {
   if (!flag('providerAccess')) return <main className="p-6">Provider Access is not enabled.</main>;
 
   return (
+    <AppLayout>
     <main className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-xl font-semibold">Provider access</h1>
       <p className="text-xs text-slate-500">
@@ -122,5 +124,6 @@ export default function ProviderAccessPage(): React.ReactElement {
         </section>
       ) : null}
     </main>
+    </AppLayout>
   );
 }

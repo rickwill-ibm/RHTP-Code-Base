@@ -1,16 +1,17 @@
-﻿'use client';
+'use client';
 
 /**
- * Network Adequacy ΓÇö analyst workspace (increment NA-5).
+ * Network Adequacy -- analyst workspace (increment NA-5).
  *
  * State selector (GA storyboard / SD = Maria's state), KPI summary, prioritized
- * gap table, and the interactive analyst copilot. Client component ΓÇö reads only
+ * gap table, and the interactive analyst copilot. Client component -- reads only
  * through the BFF (`/api/network-adequacy`).
  */
 import { useEffect, useState } from 'react';
 import { getJson } from '@/lib/client/bff';
 import type { AdequacyMetric, Gap } from '@/lib/networkAdequacy';
 import { NetworkAssistant } from '@/components/networkAdequacy/NetworkAssistant';
+import AppLayout from '@/components/AppLayout';
 
 interface Summary {
   state: string;
@@ -19,8 +20,8 @@ interface Summary {
 }
 
 const STATES = [
-  { code: 'SD', label: "South Dakota ΓÇö Maria's state" },
-  { code: 'GA', label: 'Georgia ΓÇö storyboard demo' },
+  { code: 'SD', label: "South Dakota -- Maria's state" },
+  { code: 'GA', label: 'Georgia -- storyboard demo' },
 ];
 
 const SEV_TONE: Record<string, string> = {
@@ -49,12 +50,13 @@ export default function NetworkAdequacyPage(): React.ReactElement {
     : 0;
 
   return (
+    <AppLayout>
     <main className="mx-auto max-w-6xl space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Network Adequacy</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Measure, monitor, and <strong>validate</strong> provider network adequacy by specialty ├ù
-          county ├ù line of business against CMS time-distance, in-network, wait-time, and ratio
+          Measure, monitor, and <strong>validate</strong> provider network adequacy by specialty x
+          county x line of business against CMS time-distance, in-network, wait-time, and ratio
           standards. Analyst copilot on the right.
         </p>
         <label className="mt-3 inline-flex items-center gap-2 text-sm">
@@ -89,15 +91,15 @@ export default function NetworkAdequacyPage(): React.ReactElement {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border border-slate-200 p-3">
               <p className="text-xs text-slate-500">Avg adequacy</p>
-              <p className="text-2xl font-semibold">{summary ? `${avg}%` : 'ΓÇö'}</p>
+              <p className="text-2xl font-semibold">{summary ? `${avg}%` : '--'}</p>
             </div>
             <div className="rounded-lg border border-slate-200 p-3">
               <p className="text-xs text-slate-500">Cells measured</p>
-              <p className="text-2xl font-semibold">{summary?.metrics.length ?? 'ΓÇö'}</p>
+              <p className="text-2xl font-semibold">{summary?.metrics.length ?? '--'}</p>
             </div>
             <div className="rounded-lg border border-slate-200 p-3">
               <p className="text-xs text-slate-500">Gaps below target</p>
-              <p className="text-2xl font-semibold text-red-700">{summary?.gaps.length ?? 'ΓÇö'}</p>
+              <p className="text-2xl font-semibold text-red-700">{summary?.gaps.length ?? '--'}</p>
             </div>
           </div>
 
@@ -107,9 +109,9 @@ export default function NetworkAdequacyPage(): React.ReactElement {
               Prioritized adequacy gaps
             </h2>
             {!summary ? (
-              <p className="p-3 text-sm text-slate-500">LoadingΓÇª</p>
+              <p className="p-3 text-sm text-slate-500">Loading...</p>
             ) : summary.gaps.length === 0 ? (
-              <p className="p-3 text-sm text-slate-500">No gaps ΓÇö all cells meet target.</p>
+              <p className="p-3 text-sm text-slate-500">No gaps -- all cells meet target.</p>
             ) : (
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-slate-500">
@@ -160,5 +162,6 @@ export default function NetworkAdequacyPage(): React.ReactElement {
         </div>
       </div>
     </main>
+    </AppLayout>
   );
 }

@@ -1,12 +1,12 @@
-﻿/**
+/**
  * BFF: Network Adequacy (increment NA-2).
  *
- * GET  ?state=SD           ΓåÆ adequacy summary (metrics + prioritized gaps)
- * POST { query, defaultState } ΓåÆ interactive assistant answer (deterministic)
+ * GET  ?state=SD           -> adequacy summary (metrics + prioritized gaps)
+ * POST { query, defaultState } -> interactive assistant answer (deterministic)
  *
  * Authenticated + flag-gated + audited. Operates on provider/geo aggregates
  * (no member PHI). The AI/LLM narration layer is gated separately by
- * `networkAdequacyAI` (not required ΓÇö the assistant is deterministic).
+ * `networkAdequacyAI` (not required -- the assistant is deterministic).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/server/smartSession';

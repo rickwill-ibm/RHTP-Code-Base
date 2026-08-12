@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { postJson, getJson } from '@/lib/client/bff';
 import { StatusTimeline, type TimelineStep } from '@/components/fhir/StatusTimeline';
 import { flag } from '@/lib/flags/flags';
+import AppLayout from '@/components/AppLayout';
 
 export default function PayerToPayerPage(): React.ReactElement {
   const [priorPayer, setPriorPayer] = useState('');
@@ -42,6 +43,7 @@ export default function PayerToPayerPage(): React.ReactElement {
   if (!flag('payerToPayer')) return <main className="p-6">Payer-to-Payer is not enabled.</main>;
 
   return (
+    <AppLayout>
     <main className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-xl font-semibold">Payer-to-Payer data exchange</h1>
       <div className="flex gap-2">
@@ -75,5 +77,6 @@ export default function PayerToPayerPage(): React.ReactElement {
         idempotently.
       </p>
     </main>
+    </AppLayout>
   );
 }

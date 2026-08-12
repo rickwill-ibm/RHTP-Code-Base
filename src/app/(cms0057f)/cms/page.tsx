@@ -1,13 +1,14 @@
-﻿'use client';
+'use client';
 
 /**
- * CMS-0057-F hub ΓÇö single entry point to the four native provision experiences.
+ * CMS-0057-F hub -- single entry point to the four native provision experiences.
  * Reachable at /cms. Keeps the new work discoverable without touching the
  * existing app navigation.
  */
 import { useEffect, useState } from 'react';
 import { getJson } from '@/lib/client/bff';
 import { flag } from '@/lib/flags/flags';
+import AppLayout from '@/components/AppLayout';
 
 const LINKS = [
   {
@@ -31,13 +32,13 @@ const LINKS = [
   {
     href: '/prior-auth',
     title: 'Prior Authorization',
-    desc: 'CRD ΓåÆ DTR ΓåÆ PAS (human-gated)',
+    desc: 'CRD -> DTR -> PAS (human-gated)',
     flag: 'priorAuth' as const,
   },
   {
     href: '/financial-clearance',
     title: 'Golden Thread',
-    desc: 'Eligibility ┬╖ Med-Necessity ┬╖ PA ┬╖ Estimation (gold carding)',
+    desc: 'Eligibility · Med-Necessity · PA · Estimation (gold carding)',
     flag: 'goldenThread' as const,
   },
   {
@@ -57,17 +58,18 @@ export default function CmsHubPage(): React.ReactElement {
   }, []);
 
   return (
+    <AppLayout>
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold">CMS-0057-F ΓÇö native experience</h1>
+        <h1 className="text-2xl font-semibold">CMS-0057-F -- native experience</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Patient Access ┬╖ Provider Access ┬╖ Payer-to-Payer ┬╖ Prior Authorization
+          Patient Access · Provider Access · Payer-to-Payer · Prior Authorization
         </p>
       </header>
 
       <div className="rounded border border-slate-200 p-3 text-sm">
         {authed === null ? (
-          'Checking sessionΓÇª'
+          'Checking session...'
         ) : authed ? (
           <span className="text-green-700">Signed in.</span>
         ) : (
@@ -95,5 +97,6 @@ export default function CmsHubPage(): React.ReactElement {
         ))}
       </div>
     </main>
+    </AppLayout>
   );
 }

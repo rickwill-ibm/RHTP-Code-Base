@@ -1,11 +1,11 @@
-﻿'use client';
+'use client';
 
 /**
  * Network Adequacy analyst copilot (increment NA-5).
  *
  * Conversational assistant for a payer/state analyst: ask to analyze or validate
  * network adequacy, get grounded answers from the engine (via the BFF), and
- * follow suggested next steps. Deterministic ΓÇö works with no API key.
+ * follow suggested next steps. Deterministic -- works with no API key.
  */
 import { useState } from 'react';
 import { postJson } from '@/lib/client/bff';
@@ -112,7 +112,7 @@ export function NetworkAssistant({
             </div>
           ))
         )}
-        {sending ? <p className="text-xs text-slate-400">AnalyzingΓÇª</p> : null}
+        {sending ? <p className="text-xs text-slate-400">Analyzing...</p> : null}
       </div>
 
       {suggestions.length > 0 ? (
@@ -139,7 +139,7 @@ export function NetworkAssistant({
       >
         <input
           className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
-          placeholder="Ask about network adequacyΓÇª"
+          placeholder="Ask about network adequacy..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           aria-label="Ask the network adequacy assistant"

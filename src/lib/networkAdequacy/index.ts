@@ -1,5 +1,5 @@
-﻿/**
- * Network Adequacy ΓÇö public surface (increments NA-0/NA-1/NA-2).
+/**
+ * Network Adequacy -- public surface (increments NA-0/NA-1/NA-2).
  */
 export * from './types';
 export {

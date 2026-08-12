@@ -1,15 +1,15 @@
-﻿/**
- * Network Adequacy ΓÇö normalized model (increment NA-0).
+/**
+ * Network Adequacy -- normalized model (increment NA-0).
  *
  * A source-agnostic model for measuring, monitoring, and validating provider
- * network adequacy by **specialty ├ù county ├ù line of business**, against
+ * network adequacy by **specialty x county x line of business**, against
  * configurable CMS standards (time/distance, in-network %, wait-time, ratio).
  * Mirrors the `providernet_analytics` asset + the pediatric-adequacy storyboard.
  */
 
 export type Lob = 'Medicaid' | 'Medicare' | 'Commercial';
 
-/** CMS county designations drive the applicable standard (large-metro ΓåÆ rural). */
+/** CMS county designations drive the applicable standard (large-metro -> rural). */
 export type CountyType = 'large-metro' | 'metro' | 'micro' | 'rural' | 'ccn';
 
 export interface Provider {

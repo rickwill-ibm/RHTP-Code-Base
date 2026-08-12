@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Feature flags (plan ┬º7). Gates slices so incomplete work never ships hot.
  * Reads NEXT_PUBLIC_* so flags are readable on client + server (they are not secrets).
  */
@@ -17,7 +17,7 @@ const DEFAULTS: Record<FeatureFlag, boolean> = {
   payerToPayer: true,
   priorAuth: true,
   aiDtrGeneration: false, // off until human-review gate is wired (Slice 5)
-  goldenThread: true, // Financial Clearance thread (GT-*) ΓÇö demoable on mock data
+  goldenThread: true, // Financial Clearance thread (GT-*) -- demoable on mock data
   networkAdequacy: true, // Network adequacy analytics + analyst copilot (NA-*)
 };
 

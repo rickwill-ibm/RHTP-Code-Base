@@ -20,6 +20,7 @@ import { ProvenanceBadge } from '@/components/fhir/ProvenanceBadge';
 import { OperationOutcomeView } from '@/components/fhir/OperationOutcomeView';
 import type { OperationOutcome } from '@/lib/fhir/operationOutcome';
 import { flag } from '@/lib/flags/flags';
+import AppLayout from '@/components/AppLayout';
 
 // Patient id comes from the SMART session context; falls back to the seeded member.
 const DEFAULT_PATIENT = 'MARIA_SD_001';
@@ -63,22 +64,25 @@ export default function PatientAccessPage(): React.ReactElement {
 
   if (authed === false) {
     return (
-      <main className="p-6">
-        <h1 className="text-xl font-semibold">Your health information</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Please sign in to view your coverage, conditions, and prior-authorization status.
-        </p>
-        <a
-          href="/api/auth/login"
-          className="mt-3 inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white"
-        >
-          Sign in (SMART)
-        </a>
-      </main>
+      <AppLayout>
+        <main className="p-6">
+          <h1 className="text-xl font-semibold">Your health information</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Please sign in to view your coverage, conditions, and prior-authorization status.
+          </p>
+          <a
+            href="/api/auth/login"
+            className="mt-3 inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white"
+          >
+            Sign in (SMART)
+          </a>
+        </main>
+      </AppLayout>
     );
   }
 
   return (
+    <AppLayout>
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Your health information</h1>
@@ -137,6 +141,7 @@ export default function PatientAccessPage(): React.ReactElement {
         )}
       </Section>
     </main>
+    </AppLayout>
   );
 }
 

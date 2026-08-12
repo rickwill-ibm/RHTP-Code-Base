@@ -1,7 +1,7 @@
-﻿/**
+/**
  * Network Adequacy engine (increment NA-1).
  *
- * Pure + deterministic. Computes adequacy metrics by county ├ù specialty ├ù LOB
+ * Pure + deterministic. Computes adequacy metrics by county x specialty x LOB
  * from providers + geography + standards, derives prioritized gaps, validates a
  * cell against the CMS standards (time/distance, in-network %, wait-time, ratio,
  * target), and recommends augmentation. The interactive assistant reasons over
@@ -50,7 +50,7 @@ export interface CellKey {
   lob: Lob;
 }
 
-/** Compute the adequacy metric for one county├ùspecialty├ùLOB cell. */
+/** Compute the adequacy metric for one countyxspecialtyxLOB cell. */
 export function computeCell(input: AdequacyInput, key: CellKey): AdequacyMetric | null {
   const geo = input.geo.find((g) => g.name === key.county);
   const std = standardFor(input, key.specialty);
@@ -95,7 +95,7 @@ export function computeCell(input: AdequacyInput, key: CellKey): AdequacyMetric 
   };
 }
 
-/** Compute metrics for every county├ùspecialty├ùLOB that has members. */
+/** Compute metrics for every countyxspecialtyxLOB that has members. */
 export function computeMetrics(
   input: AdequacyInput,
   opts?: { lob?: Lob; specialty?: string; state?: string; county?: string }
@@ -162,7 +162,7 @@ export function validateCell(input: AdequacyInput, key: CellKey): ValidationResu
       pass: m.nearestDistanceMiles !== null && m.nearestDistanceMiles <= std.maxDistanceMiles,
       actual: m.nearestDistanceMiles,
       required: std.maxDistanceMiles,
-      detail: `nearest in-network provider ${m.nearestDistanceMiles ?? 'ΓÇö'} mi vs ${std.maxDistanceMiles} mi standard`,
+      detail: `nearest in-network provider ${m.nearestDistanceMiles ?? '--'} mi vs ${std.maxDistanceMiles} mi standard`,
     },
     {
       standard: 'ratio',
@@ -234,6 +234,6 @@ export function recommendAugmentation(input: AdequacyInput, key: CellKey): Augme
     lob: key.lob,
     adequacyLiftPct: after.adequacyPct - before.adequacyPct,
     newAdequacyPct: after.adequacyPct,
-    rationale: `Adding 1 ${key.specialty} provider accepting ${key.lob} in ${key.county} raises adequacy ${before.adequacyPct}% ΓåÆ ${after.adequacyPct}%.`,
+    rationale: `Adding 1 ${key.specialty} provider accepting ${key.lob} in ${key.county} raises adequacy ${before.adequacyPct}% -> ${after.adequacyPct}%.`,
   };
 }

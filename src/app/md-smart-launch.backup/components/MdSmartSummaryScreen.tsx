@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useCallback } from 'react';
 import { mockPatients, mockHCCSuspects } from '@/lib/mockData';
 import Icon from '@/components/ui/AppIcon';
@@ -30,7 +30,7 @@ const JOURNEY_PHASES = [
 const CURRENT_PHASE_KEY = 'high-risk-transition';
 
 const SDOH_BADGES = [
-  { label: 'Social Risk', value: '53Γåæ', color: 'bg-[#ffe0e0] text-[#da1e28] border-[#ffb3b8]' },
+  { label: 'Social Risk', value: '53→', color: 'bg-[#ffe0e0] text-[#da1e28] border-[#ffb3b8]' },
   { label: 'Food Risk', value: 'High', color: 'bg-[#fdf6dd] text-[#b45309] border-[#f1c21b]' },
   { label: 'Housing', value: 'Unstable', color: 'bg-[#fdf6dd] text-[#b45309] border-[#f1c21b]' },
 ];
@@ -225,7 +225,7 @@ function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENH
         <div className="flex border-b border-carbon-gray-20">
           {[{ n: 1, label: 'Closure Method' }, { n: 2, label: 'Evidence & Documentation' }, { n: 3, label: 'Confirm & Sign' }].map(({ n, label }) => (
             <div key={n} className={`flex-1 flex items-center gap-2 px-4 py-2.5 text-2xs font-semibold border-b-2 transition-colors ${step === n ? 'border-[#0043ce] text-[#0043ce] bg-[#edf5ff]' : step > n ? 'border-[#24a148] text-[#24a148]' : 'border-transparent text-carbon-gray-40'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold flex-shrink-0 ${step === n ? 'bg-[#0043ce] text-white' : step > n ? 'bg-[#24a148] text-white' : 'bg-carbon-gray-20 text-carbon-gray-50'}`}>{step > n ? 'Γ£ô' : n}</span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold flex-shrink-0 ${step === n ? 'bg-[#0043ce] text-white' : step > n ? 'bg-[#24a148] text-white' : 'bg-carbon-gray-20 text-carbon-gray-50'}`}>{step > n ? 'OK' : n}</span>
               {label}
             </div>
           ))}
@@ -281,9 +281,9 @@ function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENH
         <div className="px-5 py-3 border-t border-carbon-gray-20 flex items-center justify-between">
           <button onClick={onClose} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">Cancel</button>
           <div className="flex items-center gap-2">
-            {step > 1 && <button onClick={() => setStep((s) => (s - 1) as CloseGapStep)} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">ΓåÉ Back</button>}
+            {step > 1 && <button onClick={() => setStep((s) => (s - 1) as CloseGapStep)} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">← Back</button>}
             {step < 3 ? (
-              <button onClick={() => setStep((s) => (s + 1) as CloseGapStep)} disabled={step === 1 && !method} className="text-xs px-4 py-1.5 bg-[#0043ce] text-white hover:bg-[#0035b3] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Next ΓåÆ</button>
+              <button onClick={() => setStep((s) => (s + 1) as CloseGapStep)} disabled={step === 1 && !method} className="text-xs px-4 py-1.5 bg-[#0043ce] text-white hover:bg-[#0035b3] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
             ) : (
               <button onClick={() => { onComplete(gap.id); onClose(); }} disabled={!attested} className="text-xs px-4 py-1.5 bg-[#0e6027] text-white hover:bg-[#0a4d1e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Confirm & Close Gap</button>
             )}
@@ -315,7 +315,7 @@ function ConfirmDocumentModal({ cdi, onClose, onComplete }: { cdi: typeof CDI_OP
         <div className="flex border-b border-carbon-gray-20">
           {[{ n: 1, label: 'Evidence Review' }, { n: 2, label: 'ICD-10 Confirmation' }, { n: 3, label: 'Sign & Submit' }].map(({ n, label }) => (
             <div key={n} className={`flex-1 flex items-center gap-2 px-4 py-2.5 text-2xs font-semibold border-b-2 transition-colors ${step === n ? 'border-[#b45309] text-[#b45309] bg-[#fdf6dd]' : step > n ? 'border-[#24a148] text-[#24a148]' : 'border-transparent text-carbon-gray-40'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold flex-shrink-0 ${step === n ? 'bg-[#b45309] text-white' : step > n ? 'bg-[#24a148] text-white' : 'bg-carbon-gray-20 text-carbon-gray-50'}`}>{step > n ? 'Γ£ô' : n}</span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold flex-shrink-0 ${step === n ? 'bg-[#b45309] text-white' : step > n ? 'bg-[#24a148] text-white' : 'bg-carbon-gray-20 text-carbon-gray-50'}`}>{step > n ? 'OK' : n}</span>
               {label}
             </div>
           ))}
@@ -380,9 +380,9 @@ function ConfirmDocumentModal({ cdi, onClose, onComplete }: { cdi: typeof CDI_OP
         <div className="px-5 py-3 border-t border-carbon-gray-20 flex items-center justify-between">
           <button onClick={onClose} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">Cancel</button>
           <div className="flex items-center gap-2">
-            {step > 1 && <button onClick={() => setStep((s) => (s - 1) as ConfirmDocStep)} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">ΓåÉ Back</button>}
+            {step > 1 && <button onClick={() => setStep((s) => (s - 1) as ConfirmDocStep)} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">← Back</button>}
             {step < 3 ? (
-              <button onClick={() => setStep((s) => (s + 1) as ConfirmDocStep)} className="text-xs px-4 py-1.5 bg-[#b45309] text-white hover:bg-[#8a3d07] transition-colors">Next ΓåÆ</button>
+              <button onClick={() => setStep((s) => (s + 1) as ConfirmDocStep)} className="text-xs px-4 py-1.5 bg-[#b45309] text-white hover:bg-[#8a3d07] transition-colors">Next →</button>
             ) : (
               <button onClick={() => { onComplete(cdi.id); onClose(); }} disabled={!attested} className="text-xs px-4 py-1.5 bg-[#0e6027] text-white hover:bg-[#0a4d1e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Sign & Submit to {submitTarget}</button>
             )}
@@ -462,7 +462,7 @@ function PanelPager({ total, page, onPage }: { total: number; page: number; onPa
         disabled={page === 0}
         className="text-2xs font-semibold px-2 py-0.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
-        ΓåÉ Prev
+        ← Prev
       </button>
       <span className="text-2xs text-carbon-gray-50">
         {page + 1} / {totalPages}
@@ -473,7 +473,7 @@ function PanelPager({ total, page, onPage }: { total: number; page: number; onPa
         disabled={page >= totalPages - 1}
         className="text-2xs font-semibold px-2 py-0.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
-        Next ΓåÆ
+        Next →
       </button>
     </div>
   );
@@ -702,7 +702,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={`text-2xs font-mono font-bold ${cond.acuity === 'critical' ? 'text-[#da1e28]' : 'text-[#b45309]'}`}>{cond.metric}</span>
                           <span className={`text-2xs px-1 py-0.5 font-semibold ${cond.trend === 'worsening' ? 'bg-[#ffe0e0] text-[#da1e28]' : 'bg-[#defbe6] text-[#0e6027]'}`}>
-                            {cond.trend === 'worsening' ? 'Γåô Worsening' : 'ΓåÆ Stable'}
+                            {cond.trend === 'worsening' ? 'Γåô Worsening' : '→ Stable'}
                           </span>
                         </div>
                       </div>
@@ -770,7 +770,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
                           <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusStyle.dot}`} />
-                          <span className={`text-2xs font-semibold px-1 py-0.5 ${statusStyle.badge}`}>{isClosed ? 'Closed Γ£ô' : statusStyle.label}</span>
+                          <span className={`text-2xs font-semibold px-1 py-0.5 ${statusStyle.badge}`}>{isClosed ? 'Closed OK' : statusStyle.label}</span>
                         </div>
                         {!isClosed && (
                           gap.status === 'Not Started' ? (
@@ -888,7 +888,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                                   <span className="text-2xs font-semibold text-[#24a148] flex items-center gap-1"><Icon name="CheckCircleIcon" size={11} /> Confirmed</span>
                                 ) : (
                                   <button onClick={() => setConfirmDocTarget(cdi)} className="text-2xs font-semibold px-2.5 py-1.5 bg-[#0e6027] text-white hover:bg-[#0a4d1e] transition-colors flex items-center gap-1">
-                                    <Icon name="CheckIcon" size={10} /> Confirm & Document ΓåÆ
+                                    <Icon name="CheckIcon" size={10} /> Confirm & Document →
                                   </button>
                                 )}
                                 <button onClick={() => setExpandedCdi(null)} className="text-2xs px-2 py-1.5 border border-carbon-gray-30 text-carbon-gray-70 hover:bg-carbon-gray-10 transition-colors">Defer</button>
@@ -919,7 +919,7 @@ export default function MdSmartSummaryScreen({ launchContext, onAuditEntry, onOp
                       <div className="text-right">
                         <span className={`text-sm font-bold font-mono ${vt.flag ? 'text-[#da1e28]' : 'text-[#24a148]'}`}>{vt.values[vt.values.length - 1]}</span>
                         <span className="text-2xs text-carbon-gray-50 ml-1">{vt.unit}</span>
-                        {vt.flag && <span className="ml-1 text-2xs font-bold text-[#da1e28]">Γåæ</span>}
+                        {vt.flag && <span className="ml-1 text-2xs font-bold text-[#da1e28]">→</span>}
                       </div>
                     </div>
                     <Sparkline values={vt.values} flag={vt.flag} />
