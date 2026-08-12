@@ -203,16 +203,17 @@ function runInstallSteps(res, config) {
 }
 
 function runStep(res, step, config, done) {
+  // Pass config as a JSON string via an env var — avoids PowerShell argument-quoting
+  // pitfalls and keeps the step scripts' param signatures simple.
+  const env = { ...process.env, RHTP_INSTALL_CONFIG: JSON.stringify(config) };
+
   const psArgs = [
     '-ExecutionPolicy', 'Bypass',
     '-NoProfile',
     '-File', step.scriptPath,
-    '-Mode',       config.mode,
-    '-Components', config.components.join(','),
-    '-RootDir',    ROOT_DIR,
   ];
 
-  const proc = spawn('powershell.exe', psArgs, { cwd: ROOT_DIR });
+  const proc = spawn('powershell.exe', psArgs, { cwd: ROOT_DIR, env });
 
   proc.stdout.on('data', data => {
     String(data).split(/\r?\n/).filter(Boolean).forEach(line => {

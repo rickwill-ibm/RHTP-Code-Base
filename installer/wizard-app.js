@@ -303,7 +303,7 @@ async function startInstall() {
   stepsEl.innerHTML = '';
 
   const evtSrc = new EventSource(`/api/run/${token}`);
-  const stepEls = {};
+  let failedSteps = 0;
 
   evtSrc.addEventListener('step-start', e => {
     const d = JSON.parse(e.data);
@@ -316,7 +316,8 @@ async function startInstall() {
       </div>
       <div class="progress-log" id="psl-${d.id}"></div>`;
     stepsEl.appendChild(div);
-    stepEls[d.id] = div;
+    // auto-expand the log while the step is running
+    document.getElementById(`psl-${d.id}`).classList.add('visible');
   });
 
   evtSrc.addEventListener('log', e => {
@@ -328,13 +329,27 @@ async function startInstall() {
   evtSrc.addEventListener('step-done', e => {
     const d = JSON.parse(e.data);
     const icon = document.getElementById(`psi-${d.id}`);
-    if (icon) icon.textContent = (d.status === 'ok' ? '✅' : '❌') + ' ' + icon.textContent.slice(2);
+    const ok = d.status === 'ok';
+    if (!ok) failedSteps++;
+    if (icon) {
+      icon.textContent = (ok ? '✅' : '❌') + ' ' + icon.textContent.slice(2);
+      // collapse successful step logs; keep failed ones open
+      if (ok) {
+        const log = document.getElementById(`psl-${d.id}`);
+        if (log) log.classList.remove('visible');
+      }
+    }
   });
 
   evtSrc.addEventListener('done', () => {
     evtSrc.close();
-    document.getElementById('progressSub').textContent = 'Installation complete!';
-    showLaunchPanel();
+    const sub = document.getElementById('progressSub');
+    if (failedSteps === 0) {
+      sub.textContent = 'Installation complete!';
+      showLaunchPanel();
+    } else {
+      sub.innerHTML = `<span style="color:#dc2626">⚠ ${failedSteps} step${failedSteps > 1 ? 's' : ''} failed — expand the ❌ log above for details.</span>`;
+    }
   });
 }
 

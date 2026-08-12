@@ -1,27 +1,31 @@
 <#
 .SYNOPSIS
   CMS Mandates (CMS-0057-F) install steps.
-  Configures BFF env vars, feature flags, secrets, and optionally WSO2 endpoints.
-  One responsibility: CMS-0057-F configuration only (no app start — rhtp.ps1 does that).
+  Reads config from $env:RHTP_INSTALL_CONFIG (JSON set by http-server.js).
+  One responsibility: CMS-0057-F configuration only (no app start -- rhtp.ps1 does that).
 #>
-param([hashtable] $Config, [string] $InstallerDir)
 
-$mode     = $Config.mode
-$rootDir  = Split-Path $InstallerDir -Parent
-$envFile  = Join-Path $rootDir '.env.local'
-$inputs   = $Config.userInputs ?? @{}
+$raw = $env:RHTP_INSTALL_CONFIG
+if (-not $raw) { Write-Error "RHTP_INSTALL_CONFIG not set"; exit 1 }
+$config       = $raw | ConvertFrom-Json
+$mode         = $config.mode
+$rootDir      = $PSScriptRoot | Split-Path | Split-Path
+$installerDir = Join-Path $rootDir 'installer'
+$envFile      = Join-Path $rootDir '.env.local'
+$inputs       = @{}
+if ($config.userInputs) { $config.userInputs.PSObject.Properties | ForEach-Object { $inputs[$_.Name] = $_.Value } }
 
-. "$InstallerDir\lib\env-writer.ps1"
+. "$installerDir\lib\env-writer.ps1"
 
 # ── Step 1: Write CMS env vars (merged into .env.local) ──────────────────────
 "Writing CMS-0057-F configuration ($mode mode)..."
-$vars = Build-EnvVars $InstallerDir @('cms') $mode $inputs
+$vars = Build-EnvVars "$installerDir\data" @('cms') $mode $inputs
 Write-EnvFile $envFile $vars -Merge
 "  SESSION_SECRET        : $($vars['SESSION_SECRET'].Substring(0,8))... (auto-generated)"
 "  WEBHOOK_SHARED_SECRET : $($vars['WEBHOOK_SHARED_SECRET'].Substring(0,8))... (auto-generated)"
 "  ALLOW_DEV_MOCK_AUTH   : $($vars['ALLOW_DEV_MOCK_AUTH'])"
 
-# ── Step 2: Production — validate WSO2 connectivity ──────────────────────────
+# ── Step 2: Production -- validate WSO2 connectivity ──────────────────────────
 if ($mode -eq 'production') {
   "Validating WSO2 connectivity..."
   $endpoints = @{

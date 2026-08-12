@@ -1,17 +1,21 @@
 <#
 .SYNOPSIS
   Golden Thread / RCM install steps.
-  Configures Policy Engine, LLM key (Groq or OpenAI), and Evidence Record.
+  Reads config from $env:RHTP_INSTALL_CONFIG (JSON set by http-server.js).
   One responsibility: Golden Thread configuration only.
 #>
-param([hashtable] $Config, [string] $InstallerDir)
 
-$mode    = $Config.mode
-$rootDir = Split-Path $InstallerDir -Parent
-$envFile = Join-Path $rootDir '.env.local'
-$inputs  = $Config.userInputs ?? @{}
+$raw = $env:RHTP_INSTALL_CONFIG
+if (-not $raw) { Write-Error "RHTP_INSTALL_CONFIG not set"; exit 1 }
+$config       = $raw | ConvertFrom-Json
+$mode         = $config.mode
+$rootDir      = $PSScriptRoot | Split-Path | Split-Path
+$installerDir = Join-Path $rootDir 'installer'
+$envFile      = Join-Path $rootDir '.env.local'
+$inputs       = @{}
+if ($config.userInputs) { $config.userInputs.PSObject.Properties | ForEach-Object { $inputs[$_.Name] = $_.Value } }
 
-. "$InstallerDir\lib\env-writer.ps1"
+. "$installerDir\lib\env-writer.ps1"
 
 # ── Step 1: Write LLM config (production only) ───────────────────────────────
 if ($mode -eq 'production') {
