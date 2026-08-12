@@ -1,6 +1,18 @@
-# Integrated install (Tier A) for Windows PowerShell.
-# One command to a running RHTP against a real FHIR data tier.
-#   Usage:  powershell -ExecutionPolicy Bypass -File install\install.ps1
+# ============================================================================
+# RHTP install script — Windows PowerShell (Tier A)
+#
+# DEMO MODE (no Docker needed — recommended for first run):
+#   npm install; npm run dev
+#   All screens including CRD/DTR/PAS Prior Authorization run on mock data.
+#   No FHIR server, no Docker, no Policy Engine required.
+#
+# TIER A (this script — integrated dev backbone):
+#   powershell -ExecutionPolicy Bypass -File install\install.ps1
+#   Starts FHIR + MySQL in Docker, seeds Maria, runs validation, starts dev.
+#
+# TIER B (full production — WSO2 + Ballerina):
+#   See INTEGRATED_INSTALL.md. Set ALLOW_DEV_MOCK_AUTH=false.
+# ============================================================================
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
 
@@ -44,5 +56,14 @@ npm run test
 
 Write-Host ''
 Write-Host 'Integrated dev backbone is up.'
-Write-Host '   FHIR:  http://localhost:8090/fhir/Patient/MARIA_SD_001'
-Write-Host "   Next:  npm run dev  ->  http://localhost:4029/cms  ->  Sign in (dev)  ->  Patient Access"
+Write-Host '   FHIR:    http://localhost:8090/fhir/Patient/MARIA_SD_001'
+Write-Host '   App:     npm run dev  ->  http://localhost:4029'
+Write-Host ''
+Write-Host '   Demo screens (all work with mock data - no Docker required):'
+Write-Host '     /cms          -> CMS-0057-F hub'
+Write-Host '     /prior-auth   -> Prior Authorization CRD.DTR.PAS (Maria CPT 72148 pre-loaded)'
+Write-Host '     /contract-program-selection -> RHTP Overview (Step 1)'
+Write-Host ''
+Write-Host '   Sign in: http://localhost:4029/api/auth/login -> Sign in (dev)'
+Write-Host ''
+Write-Host '   DEMO MODE (no Docker): copy .env.example .env.local; npm run dev'

@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# Integrated install (Tier A) — one command to a running RHTP against a real FHIR
-# data tier. Brings up FHIR + MySQL, seeds Maria, installs deps, and starts RHTP
-# with a local dev session. Full CMS provisions need Tier B (see INTEGRATED_INSTALL.md).
+# ============================================================================
+# RHTP install script
 #
-# Usage:  bash install/install.sh          (from the repo root)
-#         bash install/install.sh --no-dev (skip starting the dev server)
+# DEMO MODE (no Docker needed):
+#   npm install && npm run dev
+#   All screens — including the full CRD·DTR·PAS PA workflow — run on
+#   mock data with NEXT_PUBLIC_USE_MOCK_DATA=true. No FHIR server required.
+#
+# TIER A (integrated dev backbone — this script):
+#   bash install/install.sh          (starts the dev server at the end)
+#   bash install/install.sh --no-dev (skip starting the dev server)
+#   Brings up FHIR + MySQL in Docker, seeds Maria, then starts RHTP.
+#
+# TIER B (full production — WSO2 + Ballerina):
+#   See INTEGRATED_INSTALL.md. Set ALLOW_DEV_MOCK_AUTH=false.
+# ============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -51,8 +61,17 @@ npm run test
 
 echo ""
 echo "✅ Integrated dev backbone is up."
-echo "   FHIR:  http://localhost:8090/fhir/Patient/MARIA_SD_001"
-echo "   Next:  npm run dev  → open http://localhost:4029/cms  → 'Sign in (dev)' → Patient Access"
+echo "   FHIR:    http://localhost:8090/fhir/Patient/MARIA_SD_001"
+echo "   App:     npm run dev  →  http://localhost:4029"
+echo ""
+echo "   Demo screens (all work with mock data — no Docker required):"
+echo "     /cms          → CMS-0057-F hub (Patient Access · Provider Access · PA · P2P)"
+echo "     /prior-auth   → Prior Authorization CRD·DTR·PAS (Maria CPT 72148 pre-loaded)"
+echo "     /contract-program-selection → RHTP Overview (Step 1, State Executive)"
+echo ""
+echo "   Sign in:  http://localhost:4029/api/auth/login  →  'Sign in (dev)'"
+echo ""
+echo "   DEMO MODE (no Docker): cp .env.example .env.local && npm run dev"
 if [ "${1:-}" != "--no-dev" ]; then
   echo "==> Starting RHTP (Ctrl+C to stop)"
   npm run dev
