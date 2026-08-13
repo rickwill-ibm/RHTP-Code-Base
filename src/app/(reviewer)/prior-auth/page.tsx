@@ -19,11 +19,11 @@ import PatientRecordDrawer from '@/components/pa/PatientRecordDrawer';
 import { PaHandoffBanner } from '@/components/goldenThread/PaHandoffBanner';
 
 const NAV_STEPS: { view: AppView; label: string; step: number }[] = [
-  { view: 'order',    label: 'Order & CRD Trigger', step: 1 },
-  { view: 'checklist', label: 'CRD Checklist',      step: 2 },
-  { view: 'dtr',      label: 'DTR Match',            step: 3 },
-  { view: 'review',   label: 'Review & Submit',      step: 4 },
-  { view: 'portal',   label: 'PA Portal',            step: 5 },
+  { view: 'order',    label: 'Order & Coverage Check', step: 1 },
+  { view: 'checklist', label: 'Coverage Requirements', step: 2 },
+  { view: 'dtr',      label: 'Clinical Documentation', step: 3 },
+  { view: 'review',   label: 'Review & Submit',        step: 4 },
+  { view: 'portal',   label: 'Authorizations',         step: 5 },
 ];
 
 const VIEW_COMPONENT: Record<AppView, React.ComponentType> = {
@@ -61,11 +61,11 @@ export default function PriorAuthPage(): React.ReactElement {
           <div>
             <h1 className="text-lg font-bold text-gray-900">Prior Authorization</h1>
             <p className="text-xs text-gray-500">
-              CRD · DTR · PAS — Da Vinci Implementation Guides · CMS-0057-F compliant
+              Coverage check · Clinical documentation · Human-gated submission · CMS-0057-F compliant
             </p>
           </div>
           <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
-            SMART on FHIR
+            CMS-0057-F
           </span>
         </div>
 
