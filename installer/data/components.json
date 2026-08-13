@@ -13,7 +13,8 @@
         { "label": "RHTP Program Overview",   "path": "/contract-program-selection" },
         { "label": "Patient Panel",           "path": "/panel-cohort-view" },
         { "label": "Financial Dashboard",     "path": "/financial-dashboard" },
-        { "label": "Prior Authorization",     "path": "/prior-auth" }
+        { "label": "Prior Authorization",     "path": "/prior-auth" },
+        { "label": "CMS API Explorer",        "path": "/api-explorer" }
       ],
       "requiresDocker": false,
       "requiresDockerProd": true,
