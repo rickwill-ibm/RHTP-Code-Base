@@ -20,8 +20,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!jobId) {
     return NextResponse.json(ooError('jobId required', 'required'), { status: 400 });
   }
+  // patientId is forwarded from the start response via query param for patient-aware mock data
+  const patientId = req.nextUrl.searchParams.get('patientId') ?? undefined;
   if (devMockEnabled()) {
-    return NextResponse.json(devBulkStatus());
+    return NextResponse.json(devBulkStatus(patientId));
   }
   const s = await exportStatus(jobId, { correlationId });
   return NextResponse.json(

@@ -23,6 +23,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = (await req.json().catch(() => null)) as {
     claimBundle?: unknown;
     approvedBy?: string;
+    patientId?: string;
   } | null;
   if (!body?.claimBundle) {
     return NextResponse.json(ooError('claimBundle required', 'required'), { status: 400 });
@@ -44,9 +45,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Extract patientId from claimBundle if not provided at top level
+  const claimPatientId = body.patientId
+    ?? (() => {
+      try {
+        const bundle = body.claimBundle as { entry?: { resource?: { patient?: { reference?: string } } }[] };
+        const ref = bundle.entry?.[0]?.resource?.patient?.reference ?? '';
+        return ref.startsWith('Patient/') ? ref.slice(8) : undefined;
+      } catch { return undefined; }
+    })();
+
   // Dev demo: return a canned approved decision (human gate above still enforced).
   if (devMockEnabled()) {
-    return NextResponse.json(devClaimResponseApproved(approvedBy), { status: 200 });
+    return NextResponse.json(devClaimResponseApproved(approvedBy, claimPatientId), { status: 200 });
   }
 
   const idempotencyKey = req.headers.get('idempotency-key') || newCorrelationId();

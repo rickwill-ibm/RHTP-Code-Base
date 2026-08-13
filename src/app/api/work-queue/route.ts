@@ -3,6 +3,10 @@
  *
  * GET /api/work-queue → work items derived from persisted Evidence Records,
  * grouped by disposition. Authenticated + authorized + audited. Read-only.
+ *
+ * In mock mode returns seeded items from devStubs so the queue is never empty
+ * in a fresh demo session (Evidence Records only populate after a financial
+ * clearance run, which requires a seed bundle — mock always shows the demo data).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/server/smartSession';
@@ -13,6 +17,7 @@ import { audit } from '@/lib/server/audit';
 import { flag } from '@/lib/flags/flags';
 import { defaultEvidenceStore } from '@/lib/evidence/evidenceStore';
 import { listWorkItems, groupByQueue } from '@/lib/goldenThread/workQueueView';
+import { devMockEnabled, devWorkQueueItems } from '@/lib/server/devStubs';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +35,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // In mock mode always return seeded demo items — the in-memory evidence store
+    // is empty on a fresh session unless financial-clearance has been run first.
+    if (devMockEnabled()) {
+      const seeded = devWorkQueueItems();
+      type QN = 'auto-cleared' | 'ready-to-submit' | 'high-risk-review' | 'denied-appeal' | 'more-info';
+      const groups: Record<QN, typeof seeded> = { 'auto-cleared': [], 'ready-to-submit': [], 'high-risk-review': [], 'denied-appeal': [], 'more-info': [] };
+      for (const it of seeded) groups[it.queue as QN].push(it);
+      return NextResponse.json({ count: seeded.length, groups }, { status: 200 });
+    }
     const items = await listWorkItems(defaultEvidenceStore());
     await audit({
       ts: new Date().toISOString(),

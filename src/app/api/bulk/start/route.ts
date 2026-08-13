@@ -17,15 +17,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   const body = (await req.json().catch(() => null)) as {
     priorPayer?: string;
+    patientId?: string;
     memberMatch?: unknown;
   } | null;
   if (!body?.priorPayer) {
     return NextResponse.json(ooError('priorPayer required', 'required'), { status: 400 });
   }
   if (devMockEnabled()) {
-    return NextResponse.json({ ...devBulkStart(), correlationId }, { status: 202 });
+    return NextResponse.json({ ...devBulkStart(), patientId: body.patientId, correlationId }, { status: 202 });
   }
-  const result = await startExport(body.priorPayer, body.memberMatch ?? {}, {
+  // Build a proper $member-match payload from the patientId if provided
+  const memberMatchPayload = body.memberMatch && Object.keys(body.memberMatch as object).length > 0
+    ? body.memberMatch
+    : body.patientId
+      ? { resourceType: 'Parameters', parameter: [{ name: 'MemberPatient', resource: { resourceType: 'Patient', id: body.patientId } }] }
+      : {};
+  const result = await startExport(body.priorPayer, memberMatchPayload, {
     actor: 'session-user',
     correlationId,
   });

@@ -16,8 +16,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!(await isAuthenticated().catch(() => false))) {
     return NextResponse.json(ooError('Not authenticated', 'login'), { status: 401 });
   }
+  // Extract patientId from the hook request context for patient-aware mock data
+  const bodyForContext = (await req.clone().json().catch(() => null)) as { hookRequest?: { context?: { patientId?: string } } } | null;
+  const hookPatientId = bodyForContext?.hookRequest?.context?.patientId ?? undefined;
   if (devMockEnabled()) {
-    return NextResponse.json({ cards: devCrdCards(), correlationId });
+    return NextResponse.json({ cards: devCrdCards(hookPatientId), correlationId });
   }
   const body = (await req.json().catch(() => null)) as {
     hookId?: string;
