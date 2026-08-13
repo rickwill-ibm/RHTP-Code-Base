@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
 import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
@@ -121,7 +121,6 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, pageTitle, breadcrumbs, contextBanner }: AppLayoutProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [backupCollapsed, setBackupCollapsed] = useState(true);
@@ -438,7 +437,6 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
                 value={activePatientId}
                 onChange={(e) => {
                   setActivePatientId(e.target.value);
-                  router.push(`/patient-detail?id=${e.target.value}`);
                 }}
                 className="text-xs border border-carbon-gray-20 bg-white text-carbon-gray-100 px-2 py-1 focus:outline-none focus:border-carbon-blue max-w-[180px] truncate"
                 title="Switch active patient"
