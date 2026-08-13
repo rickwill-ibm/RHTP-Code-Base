@@ -1002,6 +1002,17 @@ export function resolveFhirToPlatformId(fhirId: string): string | undefined {
 }
 
 /**
+ * Resolve a platform or alternate patient identifier to the canonical FHIR ID
+ * used at platform/FHIR integration boundaries.
+ */
+export function resolveToCanonicalFhirPatientId(id: string): string | undefined {
+  if (!id) return undefined;
+  if (PLATFORM_TO_FHIR_ID_MAP[id]) return PLATFORM_TO_FHIR_ID_MAP[id];
+  const platformId = resolveFhirToPlatformId(id);
+  return platformId ? PLATFORM_TO_FHIR_ID_MAP[platformId] ?? id.replace(/^patient\//, '') : id.replace(/^patient\//, '');
+}
+
+/**
  * Get all patients in the registry
  */
 export function getAllPatients(): RegistryPatient[] {

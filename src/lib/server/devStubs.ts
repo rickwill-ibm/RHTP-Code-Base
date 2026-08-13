@@ -124,8 +124,8 @@ const PATIENT_PROFILES: Record<string, PatientProfile> = {
     encounterCount: 134,
     coverageCount: 3,
     paHistory: [
-      { service: 'BNP / Pro-BNP Lab Panel (CHF monitoring)', cpt: '83880', decision: 'approved', authNumber: 'MOL-2022-03312', date: '2022-11-22' },
-      { service: 'Echocardiogram (complete)', cpt: '93306', decision: 'denied', denialReason: 'Not medically necessary — stable CHF', date: '2023-02-17' },
+      { service: 'Echocardiogram (complete transthoracic)', cpt: '93306', decision: 'denied', denialReason: 'Not medically necessary — stable CHF', date: '2023-02-17' },
+      { service: 'Echocardiogram — resubmission with worsening dyspnea', cpt: '93306', decision: 'approved', authNumber: 'MOL-2023-04127', date: '2023-03-03' },
       { service: 'Diabetes education program (10 hrs)', cpt: '98960', decision: 'approved', authNumber: 'MOL-2021-00771', date: '2021-05-03' },
     ],
     newConditionsAdded: 2,
@@ -271,6 +271,68 @@ export function devDtrEvaluation(patientId: string, cptCode: string): unknown {
     };
   }
 
+  if (patientId === 'PAT-0103' || cptCode === '99243') {
+    return {
+      policyTitle: 'Specialty Consult — Medical Necessity Policy (CPT 99243)',
+      cptCode,
+      allMet: true,
+      groups: [
+        {
+          id: 1, title: 'Documented Chronic Kidney Disease (CKD Stage ≥ 3)', status: 'met', required: true,
+          description: 'Nephrology referral is appropriate for CKD Stage 3 or greater with eGFR < 45.',
+          fhirQuery: { resourceType: 'Condition', searchParam: 'code', system: 'http://hl7.org/fhir/sid/icd-10-cm', codes: ['N18.3', 'N18.4', 'N18.5'] },
+          sourceExcerpt: 'Nephrology consultation is indicated when eGFR falls below 45 mL/min or there is evidence of CKD progression.',
+          leaf: { code: 'N18.3', label: 'CKD Stage 3b — eGFR 42', evidence: 'eGFR 42 mL/min confirmed 2026-02-28', source: 'emr', recordedDate: '2026-02-28', performerName: 'Dr. Castillo' },
+        },
+        {
+          id: 2, title: 'Hypertension Poorly Controlled Despite Therapy', status: 'met', required: true,
+          description: 'BP > 140/90 despite ≥ 2 antihypertensive agents supports nephrology referral.',
+          fhirQuery: { resourceType: 'Condition', searchParam: 'code', system: 'http://hl7.org/fhir/sid/icd-10-cm', codes: ['I10'] },
+          sourceExcerpt: 'Resistant hypertension contributing to CKD progression is a standard indication for nephrology specialist evaluation.',
+          leaf: { code: 'I10', label: 'Essential hypertension', evidence: 'BP 158/96 on 2 agents (Amlodipine + Losartan)', source: 'emr' },
+        },
+        {
+          id: 3, title: 'Specialist Not Seen Within Prior 12 Months', status: 'met', required: false,
+          description: 'Confirms this is not a duplicate referral within the policy lookback window.',
+          fhirQuery: { resourceType: 'Encounter', searchParam: 'type', system: 'http://snomed.info/sct', codes: ['11429006'] },
+          sourceExcerpt: 'Routine follow-up nephrology visits within 12 months do not require re-authorization.',
+          leaf: { code: 'NPI 9876543210', label: 'No nephrology encounter in prior 12 months', evidence: 'Claims history reviewed — last nephrology 2022-08-30', source: 'claims' },
+        },
+      ],
+    };
+  }
+
+  if (patientId === 'PAT-0156' || cptCode === '99244') {
+    return {
+      policyTitle: 'Specialty Consult — Medical Necessity Policy (CPT 99244)',
+      cptCode,
+      allMet: true,
+      groups: [
+        {
+          id: 1, title: 'Documented Severe Persistent Asthma', status: 'met', required: true,
+          description: 'Pulmonology referral is appropriate for severe persistent asthma not controlled on standard therapy.',
+          fhirQuery: { resourceType: 'Condition', searchParam: 'code', system: 'http://hl7.org/fhir/sid/icd-10-cm', codes: ['J45.50', 'J45.51'] },
+          sourceExcerpt: 'Pulmonology consultation is indicated for severe persistent asthma requiring step-up therapy or biologic evaluation.',
+          leaf: { code: 'J45.50', label: 'Severe persistent asthma, uncomplicated', evidence: 'Active diagnosis since 2012-03 — GINA Step 4', source: 'emr', recordedDate: '2026-03-28', performerName: 'Dr. Torres' },
+        },
+        {
+          id: 2, title: 'Step 3–4 Controller Therapy Active', status: 'met', required: true,
+          description: 'Patient must be on high-dose ICS/LABA before biologic or specialist escalation.',
+          fhirQuery: { resourceType: 'MedicationRequest', searchParam: 'code', system: 'http://www.nlm.nih.gov/research/umls/rxnorm', codes: ['1945274', '896218'] },
+          sourceExcerpt: 'Specialist referral for biologic therapy requires documented failure on ICS/LABA combination therapy.',
+          leaf: { code: 'RxNorm 1945274', label: 'Fluticasone/Salmeterol 250/50mcg BID', evidence: 'Active since 2024-01, adherence 76%', source: 'emr' },
+        },
+        {
+          id: 3, title: 'Spirometry Confirms Obstruction', status: 'met', required: false,
+          description: 'FEV1/FVC < 0.70 supports severity classification and specialist referral.',
+          fhirQuery: { resourceType: 'Observation', searchParam: 'code', system: 'http://loinc.org', codes: ['19926-5'] },
+          sourceExcerpt: 'Spirometry confirming fixed obstruction strengthens the medical necessity case for specialist management.',
+          leaf: { code: 'LOINC 19926-5', label: 'FEV1/FVC ratio', evidence: 'Spirometry overdue — last result FEV1/FVC 0.64 (2025-03)', source: 'claims' },
+        },
+      ],
+    };
+  }
+
   // Default: Maria's lumbar MRI
   return mariaMock(cptCode);
 }
@@ -327,12 +389,17 @@ export function devBulkStatus(patientId?: string): {
     priorPayer: p.priorPayer,
     memberMatchedId: p.priorMemberId,
     coveragePeriod: { start: p.priorCoverageStart, end: p.priorCoverageEnd },
+    // USCDI v3 data classes required by CMS-0057-F §422.120(a)(2) — 7 NDJSON files
     fileUrls: [
       '/dev/export/eob.ndjson',
       '/dev/export/coverage.ndjson',
       '/dev/export/pa-history.ndjson',
       '/dev/export/clinical.ndjson',
+      '/dev/export/allergies.ndjson',
+      '/dev/export/immunizations.ndjson',
+      '/dev/export/patient.ndjson',
     ],
+    // Resource type counts — includes all USCDI v3 data classes
     resourceCounts: {
       ExplanationOfBenefit: p.eobCount,
       Coverage: p.coverageCount,
@@ -343,6 +410,10 @@ export function devBulkStatus(patientId?: string): {
       Observation: p.observationCount,
       Procedure: p.procedureCount,
       Encounter: p.encounterCount,
+      // USCDI v3 additions — required by §3 transfer mandate
+      AllergyIntolerance: Math.round(p.conditionCount * 0.3),    // proportional to condition burden
+      Immunization: Math.round(p.encounterCount * 0.15),         // ~15% of encounters include immunization records
+      Patient: 1,
     },
     paHistory: p.paHistory,
     newConditionsAdded: p.newConditionsAdded,
@@ -352,21 +423,35 @@ export function devBulkStatus(patientId?: string): {
 
 // ─── Work Queue seed ──────────────────────────────────────────────────────────
 
-/** Seeded work-queue items for demo — one per key patient scenario. */
+/** Seeded work-queue items for demo — one per key patient scenario.
+ *
+ * SLA rules per CMS-0057-F §422.122(b)(1):
+ *   - Expedited (urgent/life-threatening): 72 hours
+ *   - Standard: 7 calendar days = 168 hours
+ * Each item carries isExpedited so the UI can display the correct SLA label.
+ * Note: Lisa Thompson (PAT-0156) has no active PA in the queue — her scenario
+ * (CPT 99244) resolved auto-cleared at the eligibility stage before entering review.
+ */
 export function devWorkQueueItems(): Array<{
   id: string; memberId: string; code: string; queue: string;
   netOutcome: string; requiresPA: boolean; propensityScore: number; propensityBand: string;
+  isExpedited: boolean; slaDurationHours: number;
   submittedAt: string; slaDueAt: string; slaBreached: boolean;
 }> {
   const now = new Date();
   const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600000).toISOString();
   const hoursFromNow = (h: number) => new Date(now.getTime() + h * 3600000).toISOString();
   return [
-    { id: 'wq-001', memberId: 'MARIA_SD_001', code: '72148', queue: 'high-risk-review',   netOutcome: 'requires-review', requiresPA: true,  propensityScore: 0.71, propensityBand: 'high',   submittedAt: hoursAgo(4),  slaDueAt: hoursFromNow(68), slaBreached: false },
-    { id: 'wq-002', memberId: 'PAT-0042',     code: '75561', queue: 'more-info',          netOutcome: 'more-info',       requiresPA: true,  propensityScore: 0.48, propensityBand: 'medium', submittedAt: hoursAgo(26), slaDueAt: hoursFromNow(46), slaBreached: false },
-    { id: 'wq-003', memberId: 'PAT-0087',     code: '93306', queue: 'ready-to-submit',    netOutcome: 'approved',        requiresPA: false, propensityScore: 0.12, propensityBand: 'low',    submittedAt: hoursAgo(2),  slaDueAt: hoursFromNow(70), slaBreached: false },
-    { id: 'wq-004', memberId: 'PAT-0103',     code: '99243', queue: 'auto-cleared',       netOutcome: 'pa-exempt-gold-card', requiresPA: false, propensityScore: 0.08, propensityBand: 'low', submittedAt: hoursAgo(1),  slaDueAt: hoursFromNow(71), slaBreached: false },
-    { id: 'wq-005', memberId: 'PAT-0042',     code: '94010', queue: 'denied-appeal',      netOutcome: 'denied',          requiresPA: true,  propensityScore: 0.82, propensityBand: 'high',   submittedAt: hoursAgo(78), slaDueAt: hoursAgo(6),     slaBreached: true  },
+    // Maria — high propensity MRI, expedited due to neurological symptoms → 72h SLA, 4h elapsed → 68h remaining
+    { id: 'wq-001', memberId: 'MARIA_SD_001', code: '72148', queue: 'high-risk-review',   netOutcome: 'requires-review',    requiresPA: true,  propensityScore: 0.71, propensityBand: 'high',   isExpedited: true,  slaDurationHours: 72,  submittedAt: hoursAgo(4),  slaDueAt: hoursFromNow(68), slaBreached: false },
+    // Dorothy — Cardiac MRI more-info request, standard PA → 168h SLA, 26h elapsed → 142h remaining
+    { id: 'wq-002', memberId: 'PAT-0042',     code: '75561', queue: 'more-info',          netOutcome: 'more-info',          requiresPA: true,  propensityScore: 0.48, propensityBand: 'medium', isExpedited: false, slaDurationHours: 168, submittedAt: hoursAgo(26), slaDueAt: hoursFromNow(142), slaBreached: false },
+    // James — Echocardiogram all criteria met, standard → 168h SLA, 2h elapsed → 166h remaining
+    { id: 'wq-003', memberId: 'PAT-0087',     code: '93306', queue: 'ready-to-submit',    netOutcome: 'approved',           requiresPA: false, propensityScore: 0.12, propensityBand: 'low',    isExpedited: false, slaDurationHours: 168, submittedAt: hoursAgo(2),  slaDueAt: hoursFromNow(166), slaBreached: false },
+    // Robert — Nephrology consult gold-card exempt, standard → 168h SLA, 1h elapsed → 167h remaining
+    { id: 'wq-004', memberId: 'PAT-0103',     code: '99243', queue: 'auto-cleared',       netOutcome: 'pa-exempt-gold-card', requiresPA: false, propensityScore: 0.08, propensityBand: 'low',   isExpedited: false, slaDurationHours: 168, submittedAt: hoursAgo(1),  slaDueAt: hoursFromNow(167), slaBreached: false },
+    // Dorothy — Spirometry denied-appeal, expedited (appeal of prior denial) → 72h SLA, 78h elapsed → SLA BREACHED 6h ago
+    { id: 'wq-005', memberId: 'PAT-0042',     code: '94010', queue: 'denied-appeal',      netOutcome: 'denied',             requiresPA: true,  propensityScore: 0.82, propensityBand: 'high',   isExpedited: true,  slaDurationHours: 72,  submittedAt: hoursAgo(78), slaDueAt: hoursAgo(6),      slaBreached: true  },
   ];
 }
 
@@ -393,27 +478,72 @@ export function devClaimResponseApproved(approvedBy: string, patientId?: string)
 
 // ─── DTR Questionnaire Package ────────────────────────────────────────────────
 
-/** A DTR $questionnaire-package Bundle wrapping the seeded MRI questionnaire. */
-export function devQuestionnairePackage(): unknown {
+/** Per-CPT questionnaire definitions for Da Vinci DTR $questionnaire-package. */
+const DTR_QUESTIONNAIRES: Record<string, { id: string; url: string; title: string; item: unknown[] }> = {
+  '72148': {
+    id: 'Q_MRI_LUMBAR',
+    url: 'http://example.org/Questionnaire/mri-lumbar',
+    title: 'MRI Lumbar Spine — Documentation Requirements (DTR)',
+    item: [
+      { linkId: 'q1', text: 'Conservative therapy attempted (>= 6 weeks)?', type: 'boolean', required: true },
+      { linkId: 'q2', text: 'Neurological deficit present?', type: 'boolean', required: true },
+      { linkId: 'q3', text: 'Relevant clinical notes', type: 'string' },
+    ],
+  },
+  '75561': {
+    id: 'Q_CARDIAC_MRI',
+    url: 'http://example.org/Questionnaire/cardiac-mri',
+    title: 'Cardiac MRI — Documentation Requirements (DTR)',
+    item: [
+      { linkId: 'q1', text: 'Standard echocardiogram performed prior to this order?', type: 'boolean', required: true },
+      { linkId: 'q2', text: 'Echocardiogram date (YYYY-MM-DD)', type: 'date', required: true },
+      { linkId: 'q3', text: 'Documented cardiac condition (CHF / CAD / cardiomyopathy)?', type: 'boolean', required: true },
+      { linkId: 'q4', text: 'Clinical question that echocardiogram could not answer', type: 'string', required: true },
+    ],
+  },
+  '93306': {
+    id: 'Q_ECHO',
+    url: 'http://example.org/Questionnaire/echo',
+    title: 'Echocardiogram — Documentation Requirements (DTR)',
+    item: [
+      { linkId: 'q1', text: 'Documented heart failure or cardiac symptom?', type: 'boolean', required: true },
+      { linkId: 'q2', text: 'Prior echocardiogram within 12 months? If yes, describe new indication.', type: 'string' },
+    ],
+  },
+  '99243': {
+    id: 'Q_NEPHROLOGY_CONSULT',
+    url: 'http://example.org/Questionnaire/nephrology-consult',
+    title: 'Nephrology Consultation — Documentation Requirements (DTR)',
+    item: [
+      { linkId: 'q1', text: 'CKD Stage 3 or greater documented (eGFR < 45)?', type: 'boolean', required: true },
+      { linkId: 'q2', text: 'Most recent eGFR value and date', type: 'string', required: true },
+      { linkId: 'q3', text: 'Hypertension not controlled on ≥ 2 agents?', type: 'boolean' },
+    ],
+  },
+  '99244': {
+    id: 'Q_PULMONOLOGY_CONSULT',
+    url: 'http://example.org/Questionnaire/pulmonology-consult',
+    title: 'Pulmonology Consultation — Documentation Requirements (DTR)',
+    item: [
+      { linkId: 'q1', text: 'Documented severe persistent asthma (GINA Step 3–4)?', type: 'boolean', required: true },
+      { linkId: 'q2', text: 'ICS/LABA combination therapy currently active?', type: 'boolean', required: true },
+      { linkId: 'q3', text: 'Spirometry confirming obstruction (FEV1/FVC < 0.70)?', type: 'boolean' },
+      { linkId: 'q4', text: 'Date of most recent spirometry', type: 'date' },
+    ],
+  },
+};
+
+/**
+ * Patient/CPT-aware DTR $questionnaire-package Bundle.
+ * Returns the questionnaire appropriate for the patient's primary PA scenario.
+ * Falls back to lumbar MRI questionnaire if CPT not mapped.
+ */
+export function devQuestionnairePackage(cptCode?: string): unknown {
+  const q = DTR_QUESTIONNAIRES[cptCode ?? '72148'] ?? DTR_QUESTIONNAIRES['72148'];
   return {
     resourceType: 'Bundle',
     type: 'collection',
-    entry: [
-      {
-        resource: {
-          resourceType: 'Questionnaire',
-          id: 'Q_MRI_LUMBAR',
-          url: 'http://example.org/Questionnaire/mri-lumbar',
-          status: 'active',
-          title: 'MRI Lumbar Spine — Documentation Requirements (DTR)',
-          item: [
-            { linkId: 'q1', text: 'Conservative therapy attempted (>= 6 weeks)?', type: 'boolean', required: true },
-            { linkId: 'q2', text: 'Neurological deficit present?', type: 'boolean', required: true },
-            { linkId: 'q3', text: 'Relevant clinical notes', type: 'string' },
-          ],
-        },
-      },
-    ],
+    entry: [{ resource: { resourceType: 'Questionnaire', id: q.id, url: q.url, status: 'active', title: q.title, item: q.item } }],
   };
 }
 

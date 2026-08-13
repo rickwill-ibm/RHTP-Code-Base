@@ -193,6 +193,12 @@ export async function getSessionPatient(): Promise<string | null> {
   return session?.patient ?? null;
 }
 
+export async function setDevSessionPatient(patient: string): Promise<boolean> {
+  const env = serverEnv();
+  if (env.tokenUrl || !env.allowDevMockAuth) return false;
+  return startDevSession(patient);
+}
+
 /**
  * DEV ONLY — establish a local session WITHOUT WSO2 so the integrated offline
  * install renders real FHIR data. Only works when WSO2 is unconfigured AND

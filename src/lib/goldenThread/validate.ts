@@ -60,9 +60,12 @@ export function validateClearanceRequest(body: {
   return { ok: true };
 }
 
-/** Evidence record ids are server-minted; validate the shape before lookup. */
+/** Evidence record ids are server-minted; validate the shape before lookup.
+ * IDs follow the pattern ev-{memberId}-{cptCode}-{epochMs}.
+ * memberId may contain hyphens (e.g. PAT-0042) so hyphens must be allowed.
+ */
 export function validateEvidenceId(id: unknown): ValidationResult {
-  if (typeof id !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(id)) {
+  if (typeof id !== 'string' || !/^[A-Za-z0-9._:\-]{1,128}$/.test(id)) {
     return { ok: false, error: 'invalid evidence id' };
   }
   return { ok: true };

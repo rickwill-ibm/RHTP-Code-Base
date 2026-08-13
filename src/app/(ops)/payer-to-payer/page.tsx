@@ -55,6 +55,10 @@ const RESOURCE_LABELS: Record<string, string> = {
   Observation: 'Observation',
   Procedure: 'Procedure',
   Encounter: 'Encounter',
+  // USCDI v3 additions required by CMS-0057-F §422.120(a)(2)
+  AllergyIntolerance: 'Allergy Intolerance (USCDI v3)',
+  Immunization: 'Immunization (USCDI v3)',
+  Patient: 'Patient Demographics',
 };
 
 function stepIndex(s: Step) { return STEP_ORDER.indexOf(s); }
@@ -176,7 +180,7 @@ export default function PayerToPayerPage(): React.ReactElement {
               </div>
               <h1 className="text-lg font-bold text-gray-900">Payer-to-Payer Data Exchange</h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                5-year claims history transfer · $member-match identity resolution · Async FHIR Bulk export · 1 business day SLA
+                5-year USCDI v3 data transfer · $member-match identity resolution · Async FHIR Bulk 2.0 export · 1 business day SLA (§422.120)
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">

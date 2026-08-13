@@ -4,14 +4,115 @@
  * Browser → /api/fhir/<FHIR path> → (session authz) → fhirServer → APIM gateway.
  * No token or gateway URL is ever exposed to the browser. Every call is audited
  * and carries a correlation id.
+ *
+ * Mock mode: returns per-patient data from the patient registry so every FHIR
+ * read works in demo mode without a FHIR server. Keyed by the patientId query
+ * param or path segment (beneficiary=Patient/X, subject=Patient/X, patient=Patient/X).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/server/smartSession';
 import { fhirRead, fhirCreate } from '@/lib/server/fhirServer';
 import { correlationFrom, CORRELATION_HEADER } from '@/lib/server/correlation';
 import { ooError } from '@/lib/fhir/operationOutcome';
+import { devMockEnabled, devBulkStatus } from '@/lib/server/devStubs';
+import { getPatientById, resolveFhirToPlatformId } from '@/lib/patientRegistry';
 
 export const runtime = 'nodejs';
+
+// ── Mock FHIR resource builders ───────────────────────────────────────────────
+
+function extractPatientId(search: string): string | null {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  for (const key of ['beneficiary', 'subject', 'patient']) {
+    const val = params.get(key);
+    if (val) return val.startsWith('Patient/') ? val.slice(8) : val;
+  }
+  return null;
+}
+
+function normalizePatientId(rawId: string | null): string | null {
+  if (!rawId) return null;
+  return resolveFhirToPlatformId(rawId) ?? rawId;
+}
+
+function mockFhirGet(resourceType: string, search: string): unknown {
+  const pid = normalizePatientId(extractPatientId(search));
+  const patient = pid ? (getPatientById(pid) ?? null) : null;
+
+  if (resourceType === 'Patient' && pid) {
+    return patient ? {
+      resourceType: 'Patient', id: pid,
+      name: [{ family: patient.name.split(' ').pop(), given: [patient.name.split(' ')[0]] }],
+      birthDate: patient.dob, gender: patient.gender.toLowerCase() === 'f' ? 'female' : 'male',
+      address: [{ text: patient.location }], telecom: [{ system: 'phone', value: patient.phone }],
+    } : { resourceType: 'OperationOutcome', issue: [{ severity: 'error', code: 'not-found', diagnostics: `Patient/${pid} not found` }] };
+  }
+
+  if (resourceType === 'Coverage') {
+    return { resourceType: 'Bundle', type: 'searchset', total: 1, entry: [{
+      resource: { resourceType: 'Coverage', id: `cov-${pid ?? 'mock'}`, status: 'active',
+        beneficiary: { reference: `Patient/${pid}` },
+        payor: [{ display: patient?.contract ?? 'Medicaid' }],
+        period: { start: '2024-01-01', end: '2026-12-31' },
+        class: [{ type: { text: 'plan' }, name: patient?.contract ?? 'Medicaid Plan' }],
+      },
+    }]};
+  }
+
+  if (resourceType === 'Condition') {
+    const conditions = patient?.conditions ?? [];
+    return { resourceType: 'Bundle', type: 'searchset', total: conditions.length,
+      entry: conditions.map((c) => ({ resource: {
+        resourceType: 'Condition', id: c.key,
+        subject: { reference: `Patient/${pid}` },
+        code: { coding: [{ system: 'http://hl7.org/fhir/sid/icd-10-cm', code: c.code, display: c.name }], text: c.name },
+        clinicalStatus: { coding: [{ code: c.status.toLowerCase().replace(' ', '-') }] },
+        onsetDateTime: c.onset,
+      }}))
+    };
+  }
+
+  if (resourceType === 'ClaimResponse') {
+    // Return the patient's PA history as ClaimResponse resources so the
+    // Patient Access API tab shows real denial/approval data per patient.
+    const paHistory = pid ? devBulkStatus(pid).paHistory : [];
+    return {
+      resourceType: 'Bundle', type: 'searchset', total: paHistory.length,
+      entry: paHistory.map((h, i) => ({
+        resource: {
+          resourceType: 'ClaimResponse',
+          id: `cr-${pid ?? 'mock'}-${i}`,
+          status: 'active',
+          use: 'preauthorization',
+          patient: { reference: `Patient/${pid}` },
+          outcome: h.decision === 'approved' ? 'complete' : 'error',
+          disposition: h.decision === 'approved'
+            ? `Approved — Auth# ${h.authNumber ?? 'N/A'}`
+            : `Denied — ${h.denialReason ?? 'See details'}`,
+          type: { coding: [{ system: 'http://www.ama-assn.org/go/cpt', code: h.cpt, display: h.service }], text: h.service },
+          created: h.date,
+        },
+      })),
+    };
+  }
+
+  if (resourceType === 'MedicationRequest') {
+    const meds = patient?.medications ?? [];
+    return { resourceType: 'Bundle', type: 'searchset', total: meds.length,
+      entry: meds.map((m) => ({ resource: {
+        resourceType: 'MedicationRequest', id: m.key,
+        subject: { reference: `Patient/${pid}` },
+        status: 'active', intent: 'order',
+        medicationCodeableConcept: { text: `${m.name} ${m.dose}` },
+        dosageInstruction: [{ text: `${m.dose} ${m.frequency}` }],
+        requester: { display: m.prescriber },
+      }}))
+    };
+  }
+
+  // Fallback: empty bundle
+  return { resourceType: 'Bundle', type: 'searchset', total: 0, entry: [] };
+}
 
 async function ensureSession(): Promise<boolean> {
   try {
@@ -33,7 +134,17 @@ export async function GET(
     });
   }
   const { path } = await ctx.params;
-  const search = req.nextUrl.search; // preserve query string
+  const search = req.nextUrl.search;
+
+  // Mock bypass — build response from registry data, no FHIR server needed
+  if (devMockEnabled()) {
+    const resourceType = path[0] ?? '';
+    return NextResponse.json(mockFhirGet(resourceType, search), {
+      status: 200,
+      headers: { [CORRELATION_HEADER]: correlationId },
+    });
+  }
+
   const fhirPath = path.join('/') + search;
   const result = await fhirRead(fhirPath, { actor: 'session-user', correlationId });
   return NextResponse.json(result.ok ? result.raw : result.error, {

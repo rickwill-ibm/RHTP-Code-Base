@@ -20,6 +20,7 @@ import {
 import { flag } from '@/lib/flags/flags';
 import AppLayout from '@/components/AppLayout';
 import { useAppContext } from '@/lib/appContext';
+import { resolveToCanonicalFhirPatientId } from '@/lib/patientRegistry';
 
 // ── Per-patient mock data (demo mode) ─────────────────────────────────────────
 
@@ -91,11 +92,17 @@ interface Bundle {
   entry?: { resource?: Record<string, unknown> }[];
 }
 
+interface SessionStatus {
+  authenticated: boolean;
+  patient?: string;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PatientAccessPage(): React.ReactElement {
   const { activePatientId } = useAppContext();
   const [authed, setAuthed]         = useState<boolean | null>(null);
+  const [sessionPatient, setSessionPatient] = useState<string | null>(null);
   const [coverage, setCoverage]     = useState<CoverageVM[]>([]);
   const [conditions, setConditions] = useState<ConditionVM[]>([]);
   const [paStatus, setPaStatus]     = useState<PaStatusVM[]>([]);
@@ -112,9 +119,10 @@ export default function PatientAccessPage(): React.ReactElement {
   const loadLive = useCallback(async (patientId: string) => {
     setLoading(true);
     setError(null);
-    const cov  = await fhirGet<Bundle>(`Coverage?beneficiary=Patient/${patientId}`);
-    const cond = await fhirGet<Bundle>(`Condition?subject=Patient/${patientId}`);
-    const pa   = await fhirGet<Bundle>(`ClaimResponse?patient=Patient/${patientId}`);
+    const canonicalPatientId = resolveToCanonicalFhirPatientId(patientId) ?? patientId;
+    const cov  = await fhirGet<Bundle>(`Coverage?beneficiary=Patient/${canonicalPatientId}`);
+    const cond = await fhirGet<Bundle>(`Condition?subject=Patient/${canonicalPatientId}`);
+    const pa   = await fhirGet<Bundle>(`ClaimResponse?patient=Patient/${canonicalPatientId}`);
     if (cov.data)  setCoverage((cov.data.entry  ?? []).map((e) => toCoverageVM(e.resource  ?? {})));
     if (cond.data) setConditions((cond.data.entry ?? []).map((e) => toConditionVM(e.resource ?? {})));
     if (pa.data)   setPaStatus((pa.data.entry    ?? []).map((e) => toPaStatusVM(e.resource  ?? {})));
@@ -127,12 +135,14 @@ export default function PatientAccessPage(): React.ReactElement {
   useEffect(() => {
     if (isMockMode()) {
       setAuthed(true);
+      setSessionPatient(resolveToCanonicalFhirPatientId(activePatientId) ?? activePatientId);
       loadMock(activePatientId);
       return;
     }
-    getJson<{ authenticated: boolean; patient?: string }>('/api/auth/session').then((r) => {
+    getJson<SessionStatus>('/api/auth/session').then((r) => {
       const ok = !!r.data?.authenticated;
       setAuthed(ok);
+      setSessionPatient(r.data?.patient ?? null);
       if (ok) void loadLive(r.data?.patient ?? activePatientId);
     });
   }, [activePatientId, loadMock, loadLive]);
@@ -175,13 +185,27 @@ export default function PatientAccessPage(): React.ReactElement {
               Coverage · Conditions · Prior Authorization status · CMS-0057-F compliant
             </p>
           </div>
-          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
-            CMS-0057-F
-          </span>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+              Selected: <span className="text-gray-800">{activePatientId}</span>
+            </span>
+            <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${sessionPatient === activePatientId ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+              Session: <span className="text-gray-800">{sessionPatient ?? '—'}</span>
+            </span>
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
+              CMS-0057-F
+            </span>
+          </div>
         </div>
       </div>
 
       <main className="mx-auto max-w-[1100px] px-6 py-8 pb-24 space-y-5">
+
+        {sessionPatient && sessionPatient !== activePatientId && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-bold">Patient context mismatch</span> — selected patient is <span className="font-mono font-bold">{activePatientId}</span> but current session is <span className="font-mono font-bold">{sessionPatient}</span>. This page may show session-scoped data instead of the selected patient.
+          </div>
+        )}
 
         {/* Consent context */}
         <ConsentCard />

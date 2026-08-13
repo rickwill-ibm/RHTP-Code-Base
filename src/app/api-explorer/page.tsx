@@ -7,9 +7,10 @@
  * infrastructure cross-cuts. All requests go through the RHTP BFF layer
  * (never directly to FHIR/APIM). Pre-fills from activePatientId.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useAppContext } from '@/lib/appContext';
+import { resolveToCanonicalFhirPatientId } from '@/lib/patientRegistry';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,11 @@ interface RequestResult {
   latencyMs: number | null;
   body: string | null;
   error: string | null;
+}
+
+interface SessionStatus {
+  authenticated: boolean;
+  patient: string | null;
 }
 
 interface Endpoint {
@@ -58,10 +64,27 @@ function paScenarioFor(patientId: string) {
   return PATIENT_PA_SCENARIOS[patientId] ?? PATIENT_PA_SCENARIOS['MARIA_SD_001'];
 }
 
+// ── Per-patient network adequacy context ──────────────────────────────────────
+// Derives the state abbreviation and a human-readable location label for the
+// active patient so the infrastructure tab is always contextually correct.
+
+const PATIENT_NETWORK_CONTEXT: Record<string, { state: string; location: string; specialty: string; specialtyLabel: string }> = {
+  MARIA_SD_001: { state: 'SD', location: 'Martin, Bennett County SD (CAH)',          specialty: 'Behavioral Health', specialtyLabel: 'Behavioral Health — postpartum rural SD gap' },
+  'PAT-0042':   { state: 'SD', location: 'Ozark Regional FQHC Service Area, SD',     specialty: 'Pulmonology',       specialtyLabel: 'Pulmonology — COPD specialist access SD' },
+  'PAT-0087':   { state: 'SD', location: 'Winner, Tripp County SD',                  specialty: 'Cardiology',        specialtyLabel: 'Cardiology — CHF specialist access SD' },
+  'PAT-0103':   { state: 'SD', location: 'Rapid City, Pennington County SD',         specialty: 'Nephrology',        specialtyLabel: 'Nephrology — CKD specialist access SD' },
+  'PAT-0156':   { state: 'SD', location: 'Sioux Falls, Minnehaha County SD',         specialty: 'Pulmonology',       specialtyLabel: 'Pulmonology — severe asthma specialist access SD' },
+};
+
+function networkContextFor(patientId: string) {
+  return PATIENT_NETWORK_CONTEXT[patientId] ?? PATIENT_NETWORK_CONTEXT['MARIA_SD_001'];
+}
+
 // ── Endpoint definitions ──────────────────────────────────────────────────────
 
 function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
   const pa = paScenarioFor(patientId);
+  const fhirPatientId = resolveToCanonicalFhirPatientId(patientId) ?? patientId;
   return {
     'patient-access': [
       {
@@ -76,7 +99,7 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         id: 'pa-coverage',
         method: 'GET',
         path: '/api/fhir/Coverage',
-        buildPath: (pid) => `/api/fhir/Coverage?beneficiary=Patient/${pid}`,
+        buildPath: () => `/api/fhir/Coverage?beneficiary=Patient/${fhirPatientId}`,
         label: 'Coverage — member plan & period',
         mandate: 'CMS-0057-F §1 — Patient Access API',
         annotation: 'Returns FHIR R4 Coverage resources for the selected member. Proves coverage data is accessible through the Patient Access API.',
@@ -85,7 +108,7 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         id: 'pa-conditions',
         method: 'GET',
         path: '/api/fhir/Condition',
-        buildPath: (pid) => `/api/fhir/Condition?subject=Patient/${pid}`,
+        buildPath: () => `/api/fhir/Condition?subject=Patient/${fhirPatientId}`,
         label: 'Conditions — clinical problem list',
         mandate: 'CMS-0057-F §1 — Patient Access API',
         annotation: 'FHIR R4 Condition bundle. Clinical data accessible to the member — one of the core data classes CMS-0057-F requires.',
@@ -94,7 +117,7 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         id: 'pa-claimresponse',
         method: 'GET',
         path: '/api/fhir/ClaimResponse',
-        buildPath: (pid) => `/api/fhir/ClaimResponse?patient=Patient/${pid}`,
+        buildPath: () => `/api/fhir/ClaimResponse?patient=Patient/${fhirPatientId}`,
         label: 'Prior Auth status + denial reasons',
         mandate: 'CMS-0057-F §1 — Patient Access API',
         annotation: 'ClaimResponse includes disposition and denial reasons — the CMS-0057-F §1 requirement that members can see why a PA was denied.',
@@ -126,7 +149,7 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         id: 'prov-conditions',
         method: 'GET',
         path: '/api/fhir/Condition',
-        buildPath: (pid) => `/api/fhir/Condition?subject=Patient/${pid}`,
+        buildPath: () => `/api/fhir/Condition?subject=Patient/${fhirPatientId}`,
         label: 'Conditions — under treatment relationship',
         mandate: 'CMS-0057-F §2 — Provider Access API',
         annotation: 'Same FHIR read as Patient Access but with provider authorization basis. The authz guard enforces treatment-relationship scope and logs elevated audit when applicable.',
@@ -183,12 +206,21 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         }),
       },
       {
+        id: 'pa-dtr-package',
+        method: 'GET',
+        path: '/api/dtr/package',
+        buildPath: (_pid) => `/api/dtr/package?cptCode=${pa.cptCode}`,
+        label: `DTR — $questionnaire-package (CPT ${pa.cptCode})`,
+        mandate: 'CMS-0057-F §4 — Prior Authorization API (Da Vinci DTR STU3 §questionnaire-package)',
+        annotation: `Retrieves the payer's Questionnaire resource for ${pa.procedureName} (CPT ${pa.cptCode}). Step 1 of the Da Vinci DTR flow: fetch questionnaire → prefill from EHR → submit QuestionnaireResponse. Required by DTR STU3 IG before evaluation.`,
+      },
+      {
         id: 'pa-dtr',
         method: 'POST',
         path: '/api/dtr/evaluate',
-        label: `DTR — Documentation Requirements (${pa.procedureName})`,
+        label: `DTR — evaluate documentation requirements (${pa.procedureName})`,
         mandate: 'CMS-0057-F §4 — Prior Authorization API (Da Vinci DTR)',
-        annotation: `Evaluates medical necessity policy for ${pa.procedureName} (CPT ${pa.cptCode}) against the patient's record. Returns per-criterion met/gap status with FHIR evidence references.`,
+        annotation: `Step 2: evaluates medical necessity policy for ${pa.procedureName} (CPT ${pa.cptCode}) against the patient's record. Returns per-criterion met/gap status with FHIR evidence references. Consumes the Questionnaire retrieved in the $questionnaire-package step.`,
         buildBody: (pid) => ({ patientId: pid, cptCode: pa.cptCode, procedureName: pa.procedureName }),
       },
       {
@@ -196,8 +228,8 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         method: 'POST',
         path: '/api/financial-clearance',
         label: 'Financial Clearance — full Golden Thread run',
-        mandate: 'CMS-0057-F §4 — Prior Authorization API + Gold Carding',
-        annotation: 'Runs the full eligibility → medical necessity → PA determination → estimation thread. Returns gold-card status, propensity score, work queue routing, and persisted Evidence Record ID.',
+        mandate: 'CMS-0057-F §4 — Prior Authorization API (eligibility + medical necessity + PA automation)',
+        annotation: 'Runs the full eligibility → medical necessity → PA determination → cost estimation thread. Returns propensity score, work queue routing, and persisted Evidence Record ID. Gold-card exemption is applied when provider approval rate ≥ 90% — a voluntary payer program, not a §4 mandate requirement.',
         buildBody: (pid) => ({ patientId: pid, orderCode: pa.cptCode, providerNpi: '1730154783' }),
       },
       {
@@ -245,65 +277,75 @@ function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
         method: 'GET',
         path: '/api/work-queue',
         label: 'Reviewer work queue — SLA timers',
-        mandate: 'CMS-0057-F §4 — 72h expedited / 7d standard SLA',
-        annotation: 'Returns work items grouped by disposition with CMS SLA due-dates and breach flags. Mock mode returns 5 seeded items across all 5 patients. Ready-to-submit, high-risk-review, more-info, denied-appeal, auto-cleared.',
+        mandate: 'CMS-0057-F §422.122(b)(1) — 72h expedited / 168h (7 calendar days) standard SLA',
+        annotation: 'Returns work items grouped by disposition with CMS SLA due-dates, breach flags, and isExpedited label. Mock mode returns 5 seeded items: Maria (72148/expedited), Dorothy (75561/standard + 94010/expedited-breached), James (93306/standard), Robert (99243/standard). Lisa Thompson (PAT-0156 / CPT 99244) is not in queue — her scenario auto-cleared at eligibility.',
       },
       {
         id: 'pa-evidence',
         method: 'GET',
         path: '/api/evidence',
-        buildPath: (pid) => `/api/evidence/ev-${pid}-72148-1730154783`,
+        buildPath: (pid) => `/api/evidence/ev-${pid}-${paScenarioFor(pid).cptCode}-1730154783`,
         label: 'Evidence Record — Da Vinci CDex audit spine',
         mandate: 'CMS-0057-F §4 — Coverage Determination Record (CDex)',
-        annotation: 'Fetches a persisted Evidence Record for the active patient. This is the Da Vinci CDex Coverage Determination Record — the auditable chain linking every PA decision to its source data.',
+        annotation: `Fetches a persisted Evidence Record for the active patient (CPT ${pa.cptCode} — ${pa.procedureName}). This is the Da Vinci CDex Coverage Determination Record — the auditable chain linking every PA decision to its source data.`,
       },
     ],
-    'infrastructure': [
-      {
-        id: 'infra-adequacy-sd',
-        method: 'GET',
-        path: '/api/network-adequacy',
-        buildPath: (_pid) => '/api/network-adequacy?state=SD',
-        label: 'Network Adequacy — South Dakota (Maria\'s state)',
-        mandate: 'MA §422.116 · Medicaid §438.68 · 2024 CMS Access Rule',
-        annotation: 'Returns adequacy metrics and prioritized gaps for SD. Reservation counties (Oglala Lakota/Pine Ridge, Todd/Rosebud) surface as critical. Copilot-ready.',
-      },
-      {
-        id: 'infra-adequacy-ga',
-        method: 'GET',
-        path: '/api/network-adequacy',
-        buildPath: (_pid) => '/api/network-adequacy?state=GA',
-        label: 'Network Adequacy — Georgia (storyboard)',
-        mandate: 'MA §422.116 · Medicaid §438.68',
-        annotation: 'Same engine, different state dataset. Demonstrates the engine is state-agnostic — any state\'s network can be analyzed with the same API call.',
-      },
-      {
-        id: 'infra-cds-patient-view',
-        method: 'POST',
-        path: '/api/cds-hooks/patient-view',
-        label: 'CDS Hooks — patient-view (HL7 standard)',
-        mandate: 'HL7 CDS Hooks 2.0 — interoperability standard',
-        annotation: 'Raw CDS Hooks patient-view invocation. Shows the HL7-standard hook interface that EMR systems call. Returns SMART app link cards.',
-        buildBody: (pid) => ({
-          hook: 'patient-view',
-          context: { userId: `Practitioner/PRAC_PCP`, patientId: pid },
-          prefetch: {},
-        }),
-      },
-      {
-        id: 'infra-cds-order-sign',
-        method: 'POST',
-        path: '/api/cds-hooks/order-sign',
-        label: 'CDS Hooks — order-sign (ordering workflow)',
-        mandate: 'HL7 CDS Hooks 2.0 — ordering workflow',
-        annotation: 'Fires when a clinician signs an order in the EMR. Returns coverage requirement and documentation cards inline in the ordering workflow — no separate PA portal needed.',
-        buildBody: (pid) => ({
-          hook: 'order-sign',
-          context: { userId: `Practitioner/PRAC_PCP`, patientId: pid, draftOrders: { resourceType: 'Bundle', entry: [] } },
-          prefetch: {},
-        }),
-      },
-    ],
+    'infrastructure': (() => {
+      const nc = networkContextFor(patientId);
+      return [
+        {
+          id: 'infra-adequacy-state',
+          method: 'GET' as const,
+          path: '/api/network-adequacy',
+          buildPath: (_pid: string) => `/api/network-adequacy?state=${nc.state}`,
+          label: `Network Adequacy — ${nc.state} (${nc.location})`,
+          mandate: 'MA §422.116 · Medicaid §438.68 · 2024 CMS Access Rule',
+          annotation: `Returns adequacy metrics and prioritised gaps for ${nc.state} — the home state of the active patient (${nc.location}). Reservation counties (Oglala Lakota/Pine Ridge, Todd/Rosebud) surface as critical gaps for rural SD patients.`,
+        },
+        {
+          id: 'infra-adequacy-specialty',
+          method: 'GET' as const,
+          path: '/api/network-adequacy',
+          buildPath: (_pid: string) => `/api/network-adequacy?state=${nc.state}&specialty=${encodeURIComponent(nc.specialty)}`,
+          label: `Network Adequacy — ${nc.specialtyLabel}`,
+          mandate: 'MA §422.116 · Medicaid §438.68',
+          annotation: `Same ${nc.state} network dataset filtered to ${nc.specialty} — the specialist type most relevant to the active patient's primary condition. Demonstrates the engine's specialty-slice capability with a single extra query param.`,
+        },
+        {
+          id: 'infra-cds-patient-view',
+          method: 'POST' as const,
+          path: '/api/cds-hooks/patient-view',
+          label: 'CDS Hooks — patient-view (HL7 standard)',
+          mandate: 'HL7 CDS Hooks 2.0 — interoperability standard',
+          annotation: 'Raw CDS Hooks patient-view invocation. Shows the HL7-standard hook interface that EMR systems call. Returns care-gap cards from the active patient\'s registry data.',
+          buildBody: (pid: string) => ({
+            hook: 'patient-view',
+            context: { userId: 'Practitioner/PRAC_PCP', patientId: pid },
+            prefetch: {},
+          }),
+        },
+        {
+          id: 'infra-cds-order-sign',
+          method: 'POST' as const,
+          path: '/api/cds-hooks/order-sign',
+          label: 'CDS Hooks — order-sign (ordering workflow)',
+          mandate: 'HL7 CDS Hooks 2.0 — ordering workflow',
+          annotation: `Fires when a clinician signs an order in the EMR. Returns DDI and coverage cards for the active patient (${pa.procedureName}). No separate PA portal needed.`,
+          buildBody: (pid: string) => ({
+            hook: 'order-sign',
+            context: {
+              userId: 'Practitioner/PRAC_PCP',
+              patientId: pid,
+              draftOrders: {
+                resourceType: 'Bundle',
+                entry: [{ resource: { resourceType: 'ServiceRequest', code: { coding: [{ system: 'http://www.ama-assn.org/go/cpt', code: pa.cptCode, display: pa.procedureName }] } } }],
+              },
+            },
+            prefetch: {},
+          }),
+        },
+      ];
+    })(),
   };
 }
 
@@ -455,6 +497,33 @@ function EndpointCard({
 export default function ApiExplorerPage(): React.ReactElement {
   const { activePatientId } = useAppContext();
   const [activeTab, setActiveTab] = useState<TabId>('patient-access');
+  const [sessionPatient, setSessionPatient] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function syncSession(): Promise<void> {
+      const patient = resolveToCanonicalFhirPatientId(activePatientId) ?? activePatientId;
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient }),
+      }).catch(() => undefined);
+
+      const res = await fetch('/api/auth/session', {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      }).catch(() => null);
+      if (!res) return;
+      const body = (await res.json().catch(() => null)) as SessionStatus | null;
+      if (!cancelled) setSessionPatient(body?.patient ?? null);
+    }
+
+    void syncSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [activePatientId]);
+
   // Rebuild endpoint definitions whenever the active patient changes —
   // labels, CPT codes, paths, and request bodies are all patient-specific.
   const ENDPOINTS = buildEndpoints(activePatientId);
@@ -472,15 +541,30 @@ export default function ApiExplorerPage(): React.ReactElement {
               Live BFF endpoint testing · All requests proxied server-side · No FHIR server required in demo mode
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wide">
-              Patient: <span className="text-gray-800">{activePatientId}</span>
+              Selected: <span className="text-gray-800">{activePatientId}</span>
+            </span>
+            <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${sessionPatient === activePatientId ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+              Session: <span className="text-gray-800">{sessionPatient ?? '—'}</span>
             </span>
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
               CMS-0057-F
             </span>
           </div>
         </div>
+
+        {sessionPatient && sessionPatient !== activePatientId && (
+          <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Explorer patient mismatch: selected patient is <span className="font-mono font-bold">{activePatientId}</span> but current session is <span className="font-mono font-bold">{sessionPatient}</span>. Responses may reflect the session patient until context is resynced.
+          </div>
+        )}
+
+        {!sessionPatient && (
+          <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Session patient context is not available yet. Responses may not reflect the selected patient.
+          </div>
+        )}
 
         {/* Tab strip */}
         <nav className="flex overflow-x-auto gap-0">

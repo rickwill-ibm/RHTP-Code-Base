@@ -15,10 +15,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!(await isAuthenticated().catch(() => false))) {
     return NextResponse.json(ooError('Not authenticated', 'login'), { status: 401 });
   }
-  if (devMockEnabled()) {
-    return NextResponse.json(devMemberMatch());
-  }
   const parameters = await req.json().catch(() => null);
+  if (devMockEnabled()) {
+    // Extract patientId from the Parameters body to return the right patient's identity
+    const pid = (() => {
+      try {
+        const params = parameters as { parameter?: { name?: string; resource?: { id?: string } }[] };
+        return params?.parameter?.find((p) => p.name === 'MemberPatient')?.resource?.id ?? undefined;
+      } catch { return undefined; }
+    })();
+    return NextResponse.json(devMemberMatch(pid));
+  }
   if (!parameters) {
     return NextResponse.json(ooError('Parameters body required', 'required'), { status: 400 });
   }

@@ -8,9 +8,7 @@ import { useAppContext, PHYSICIAN_PROFILES } from '@/lib/appContext';
 import type { UserSession, PhysicianPersona } from '@/lib/appContext';
 import { useFhirModeSync } from '@/lib/hooks/useFhirModeSync';
 import PatientSwitcherDropdown from '@/components/PatientSwitcherDropdown';
-import { getAllPatients, PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
-import type { RegistryPatient } from '@/lib/patientRegistry';
-import { getFhirClient } from '@/lib/services/fhirClient';
+import { PLATFORM_TO_FHIR_ID_MAP } from '@/lib/patientRegistry';
 
 // ─── Authorship ────────────────────────────────────────────────────────────────
 // Author: Richard Hennessy — TCOC Total Cost of Care Clinical Platform
@@ -129,20 +127,6 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
   const { user, setUser, entryContext, setEntryContext, physicianPersona, setPhysicianPersona, activePhysician, useMockData, setUseMockData, activePatientId, setActivePatientId } = useAppContext();
   useFhirModeSync(); // keeps fhirClient singleton in sync with the UI toggle
 
-  // Patient selector dropdown — use FHIR list in live mode so the dropdown
-  // reflects any patients on the server, not just the local registry.
-  const [dropdownPatients, setDropdownPatients] = useState<RegistryPatient[]>(() => getAllPatients());
-  useEffect(() => {
-    if (useMockData) {
-      setDropdownPatients(getAllPatients());
-      return;
-    }
-    getFhirClient()
-      .getAllRegistryPatients()
-      .then((pts) => { if (pts.length > 0) setDropdownPatients(pts); })
-      .catch(() => setDropdownPatients(getAllPatients()));
-  }, [useMockData]);
-  
   // Ref for nav container to enable scrollIntoView
   const navRef = useRef<HTMLElement>(null);
 
@@ -430,25 +414,6 @@ export default function AppLayout({ children, pageTitle, breadcrumbs, contextBan
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Patient selector */}
-            <div className="hidden md:flex items-center gap-1.5">
-              <Icon name="UserIcon" size={14} className="text-carbon-gray-50 flex-shrink-0" />
-              <select
-                value={activePatientId}
-                onChange={(e) => {
-                  setActivePatientId(e.target.value);
-                }}
-                className="text-xs border border-carbon-gray-20 bg-white text-carbon-gray-100 px-2 py-1 focus:outline-none focus:border-carbon-blue max-w-[180px] truncate"
-                title="Switch active patient"
-              >
-                {dropdownPatients.map((p) => (
-                  <option key={p.platformId} value={p.platformId}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="w-px h-5 bg-carbon-gray-20" />
             {/* FHIR / Mock data toggle */}
             <button
               onClick={() => setUseMockData(!useMockData)}

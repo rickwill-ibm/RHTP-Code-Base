@@ -17,16 +17,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(ooError('Not authenticated', 'login'), { status: 401 });
   }
   const questionnaire = req.nextUrl.searchParams.get('questionnaire');
-  if (!questionnaire) {
-    return NextResponse.json(ooError('questionnaire canonical required', 'required'), {
+  const cptCode = req.nextUrl.searchParams.get('cptCode') ?? undefined;
+  if (!questionnaire && !cptCode) {
+    return NextResponse.json(ooError('questionnaire canonical or cptCode required', 'required'), {
       status: 400,
     });
   }
   if (devMockEnabled()) {
-    return NextResponse.json(devQuestionnairePackage());
+    return NextResponse.json(devQuestionnairePackage(cptCode));
   }
   // $questionnaire-package is a FHIR operation served by fhir-service.
-  const path = `Questionnaire/$questionnaire-package?questionnaire=${encodeURIComponent(questionnaire)}`;
+  const path = `Questionnaire/$questionnaire-package?questionnaire=${encodeURIComponent(questionnaire ?? cptCode ?? '')}`;
   const result = await fhirRead(path, { actor: 'session-user', correlationId });
   return NextResponse.json(result.ok ? result.raw : result.error, {
     status: result.status || (result.ok ? 200 : 502),
