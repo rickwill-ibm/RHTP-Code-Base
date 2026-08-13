@@ -15,6 +15,7 @@ import CrdChecklistView from '@/components/pa/CrdChecklistView';
 import DtrTreeView from '@/components/pa/DtrTreeView';
 import ReviewSubmitView from '@/components/pa/ReviewSubmitView';
 import PaPortalView from '@/components/pa/PaPortalView';
+import CaseDetailView from '@/components/pa/CaseDetailView';
 import PatientRecordDrawer from '@/components/pa/PatientRecordDrawer';
 import { PaHandoffBanner } from '@/components/goldenThread/PaHandoffBanner';
 
@@ -27,12 +28,12 @@ const NAV_STEPS: { view: AppView; label: string; step: number }[] = [
 ];
 
 const VIEW_COMPONENT: Record<AppView, React.ComponentType> = {
-  order:    OrderView,
+  order:     OrderView,
   checklist: CrdChecklistView,
-  dtr:      DtrTreeView,
-  review:   ReviewSubmitView,
-  portal:   PaPortalView,
-  case:     PaPortalView, // case detail falls back to portal in this integration
+  dtr:       DtrTreeView,
+  review:    ReviewSubmitView,
+  portal:    PaPortalView,
+  case:      CaseDetailView,
 };
 
 export default function PriorAuthPage(): React.ReactElement {
