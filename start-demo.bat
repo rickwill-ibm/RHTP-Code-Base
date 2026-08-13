@@ -114,7 +114,9 @@ echo   Prior Auth:     http://localhost:4029/prior-auth
 echo   CMS-0057-F hub: http://localhost:4029/cms
 echo   RHTP Overview:  http://localhost:4029/contract-program-selection
 echo.
-echo   Close the "RHTP Dev Server" window to stop.
+echo   To stop cleanly:  double-click  stop-demo.bat
+echo   (closing the "RHTP Dev Server" window also works but
+echo    may leave Node processes running on port 4029)
 echo  ================================================
 echo.
 pause

@@ -109,23 +109,28 @@ function Start-RhtpServer {
 }
 
 function Stop-RhtpServices {
-  foreach ($port in @(4029, 4032)) {
+  # Kill all RHTP ports: 4029 (RHTP), 4032 (PA standalone), 9999 (installer wizard)
+  foreach ($port in @(4029, 4032, 9999)) {
     $pids = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue |
       Select-Object -ExpandProperty OwningProcess -Unique
     foreach ($pid in $pids) {
-      try { Stop-Process -Id $pid -Force; Write-Host "  Stopped PID $pid (port $port)" } catch {}
+      try { Stop-Process -Id $pid -Force; Write-Host "  Stopped PID $pid (port $port)" -ForegroundColor Green } catch {}
     }
+    if (-not $pids) { Write-Host "  Port $port not in use" -ForegroundColor Gray }
   }
   # Stop Docker backbone if running
   $composeFile = Join-Path $PSScriptRoot 'install\docker-compose.backbone.yml'
   if (Test-Path $composeFile) {
     $docker = Get-Command docker -ErrorAction SilentlyContinue
     if ($docker) {
+      Write-Host "  Stopping Docker backbone..." -NoNewline
       Start-Process docker -ArgumentList 'compose','-f',$composeFile,'down' -NoNewWindow -Wait
-      Write-Host "  Docker backbone stopped."
+      Write-Host " done" -ForegroundColor Green
     }
   }
-  Write-Host "  All services stopped." -ForegroundColor Green
+  Write-Host ""
+  Write-Host "  All RHTP services stopped." -ForegroundColor Green
+  Write-Host "  To restart: double-click start-demo.bat" -ForegroundColor Gray
 }
 
 function Stop-PortProcess {
