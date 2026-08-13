@@ -4,6 +4,7 @@
  * Provider Access (plan Slice 2). A provider identifies a member via
  * $member-match, then reads member data under a treatment relationship.
  * Authorization basis differs from member access (see lib/authz/guard).
+ * Member ID input is pre-populated from the global patient switcher.
  */
 import { useState } from 'react';
 import { postJson, fhirGet, getJson } from '@/lib/client/bff';
@@ -11,6 +12,7 @@ import { canReadMemberData } from '@/lib/authz/guard';
 import { toConditionVM, type ConditionVM } from '@/lib/fhir/viewModels';
 import { flag } from '@/lib/flags/flags';
 import AppLayout from '@/components/AppLayout';
+import { useAppContext } from '@/lib/appContext';
 
 interface Bundle {
   entry?: { resource?: Record<string, unknown> }[];
@@ -22,7 +24,8 @@ interface ConsentStatus {
 }
 
 export default function ProviderAccessPage(): React.ReactElement {
-  const [memberId, setMemberId] = useState('');
+  const { activePatientId } = useAppContext();
+  const [memberId, setMemberId] = useState(activePatientId);
   const [matched, setMatched] = useState<string | null>(null);
   const [conditions, setConditions] = useState<ConditionVM[]>([]);
   const [msg, setMsg] = useState('');

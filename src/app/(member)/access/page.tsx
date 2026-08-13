@@ -5,6 +5,7 @@
  * Member view: Coverage, Conditions, and Prior Authorization status.
  * In demo/mock mode (NEXT_PUBLIC_USE_MOCK_DATA=true) seeded data is used
  * directly — no FHIR server required.
+ * Responds to activePatientId changes from the global patient switcher.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { fhirGet, getJson } from '@/lib/client/bff';
@@ -18,45 +19,66 @@ import {
 } from '@/lib/fhir/viewModels';
 import { flag } from '@/lib/flags/flags';
 import AppLayout from '@/components/AppLayout';
+import { useAppContext } from '@/lib/appContext';
 
-const DEFAULT_PATIENT = 'MARIA_SD_001';
+// ── Per-patient mock data (demo mode) ─────────────────────────────────────────
 
-// ── Mock seed data (demo mode only) ──────────────────────────────────────────
+type PatientMock = { coverage: CoverageVM[]; conditions: ConditionVM[]; pa: PaStatusVM[] };
 
-const MOCK_COVERAGE: CoverageVM[] = [
-  { id: 'cov-1', type: 'Medicaid Managed Care',   payer: 'South Dakota Medicaid', status: 'active',   period: '01/01/2024 – 12/31/2026' },
-  { id: 'cov-2', type: 'Supplemental Dental',      payer: 'DentaQuest',            status: 'active',   period: '01/01/2025 – 12/31/2025' },
-];
-
-const MOCK_CONDITIONS: ConditionVM[] = [
-  { id: 'cond-1', display: 'Type 2 Diabetes Mellitus',          clinicalStatus: 'active',   recordedDate: '03/12/2021' },
-  { id: 'cond-2', display: 'Chronic Low Back Pain',             clinicalStatus: 'active',   recordedDate: '11/05/2022' },
-  { id: 'cond-3', display: 'Hypertension',                      clinicalStatus: 'active',   recordedDate: '07/18/2020' },
-  { id: 'cond-4', display: 'Food Insecurity (SDOH Z59.4)',       clinicalStatus: 'active',   recordedDate: '01/09/2024' },
-  { id: 'cond-5', display: 'Caregiver Burden (Z63.9)',          clinicalStatus: 'active',   recordedDate: '05/22/2024' },
-];
-
-const MOCK_PA: PaStatusVM[] = [
-  {
-    id: 'dev-cr-approved',
-    service: 'MRI Lumbar Spine w/o Contrast (CPT 72148)',
-    status: 'approved',
-    denialReasons: [],
-    authNumber: 'AUTH-2026-08-MRI',
-    requestedDate: '08/12/2026',
-  },
-  {
-    id: 'pa-denied-001',
-    service: 'Outpatient Bariatric Consultation (CPT 43644)',
-    status: 'denied',
-    denialReasons: [
-      'BMI documentation not on file',
-      'Behavioral health pre-clearance required',
+const PATIENT_MOCK: Record<string, PatientMock> = {
+  'MARIA_SD_001': {
+    coverage: [
+      { id: 'cov-1', type: 'Medicaid Managed Care', payer: 'South Dakota Medicaid', status: 'active', period: '01/01/2024 – 12/31/2026' },
+      { id: 'cov-2', type: 'Supplemental Dental',   payer: 'DentaQuest',            status: 'active', period: '01/01/2025 – 12/31/2025' },
     ],
-    authNumber: 'AUTH-2026-06-BAR',
-    requestedDate: '06/03/2026',
+    conditions: [
+      { id: 'cond-1', display: 'Type 2 Diabetes Mellitus',    clinicalStatus: 'active', recordedDate: '03/12/2021' },
+      { id: 'cond-2', display: 'Chronic Low Back Pain',        clinicalStatus: 'active', recordedDate: '11/05/2022' },
+      { id: 'cond-3', display: 'Hypertension',                 clinicalStatus: 'active', recordedDate: '07/18/2020' },
+      { id: 'cond-4', display: 'Food Insecurity (SDOH Z59.4)', clinicalStatus: 'active', recordedDate: '01/09/2024' },
+      { id: 'cond-5', display: 'Caregiver Burden (Z63.9)',     clinicalStatus: 'active', recordedDate: '05/22/2024' },
+    ],
+    pa: [
+      { id: 'dev-cr-approved', service: 'MRI Lumbar Spine w/o Contrast (CPT 72148)', status: 'approved', denialReasons: [], authNumber: 'AUTH-2026-08-MRI', requestedDate: '08/12/2026' },
+      { id: 'pa-denied-001',   service: 'Outpatient Bariatric Consultation (CPT 43644)', status: 'denied', denialReasons: ['BMI documentation not on file', 'Behavioral health pre-clearance required'], authNumber: 'AUTH-2026-06-BAR', requestedDate: '06/03/2026' },
+    ],
   },
-];
+  'patient-001': {
+    coverage: [
+      { id: 'cov-1', type: 'Medicaid Managed Care', payer: 'UnitedHealthcare Community Plan', status: 'active', period: '01/01/2024 – 12/31/2026' },
+    ],
+    conditions: [
+      { id: 'cond-1', display: 'Congestive Heart Failure',  clinicalStatus: 'active', recordedDate: '06/14/2020' },
+      { id: 'cond-2', display: 'Chronic Kidney Disease',    clinicalStatus: 'active', recordedDate: '02/28/2022' },
+      { id: 'cond-3', display: 'Type 2 Diabetes Mellitus',  clinicalStatus: 'active', recordedDate: '11/03/2019' },
+    ],
+    pa: [
+      { id: 'pa-mgo-001', service: 'Echocardiogram (CPT 93306)', status: 'approved', denialReasons: [], authNumber: 'AUTH-2026-04-ECHO', requestedDate: '04/10/2026' },
+    ],
+  },
+  'patient-002': {
+    coverage: [
+      { id: 'cov-1', type: 'Medicaid Fee-for-Service', payer: 'Texas Medicaid (TMHP)', status: 'active', period: '07/01/2025 – 06/30/2027' },
+    ],
+    conditions: [
+      { id: 'cond-1', display: 'Major Depressive Disorder',    clinicalStatus: 'active',   recordedDate: '09/05/2021' },
+      { id: 'cond-2', display: 'Opioid Use Disorder',          clinicalStatus: 'active',   recordedDate: '03/17/2023' },
+      { id: 'cond-3', display: 'Hypertension',                 clinicalStatus: 'active',   recordedDate: '01/12/2020' },
+    ],
+    pa: [
+      { id: 'pa-dh-001', service: 'Inpatient Psychiatric Admission (CPT 99221)', status: 'pended' as PaStatusVM['status'], denialReasons: [], authNumber: 'AUTH-2026-07-PSY', requestedDate: '07/22/2026' },
+    ],
+  },
+};
+
+// Fallback for any patient not in the map
+const DEFAULT_MOCK: PatientMock = {
+  coverage: [
+    { id: 'cov-1', type: 'Medicaid Managed Care', payer: 'State Medicaid', status: 'active' },
+  ],
+  conditions: [],
+  pa: [],
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -72,17 +94,19 @@ interface Bundle {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PatientAccessPage(): React.ReactElement {
-  const [authed, setAuthed]       = useState<boolean | null>(null);
-  const [coverage, setCoverage]   = useState<CoverageVM[]>([]);
+  const { activePatientId } = useAppContext();
+  const [authed, setAuthed]         = useState<boolean | null>(null);
+  const [coverage, setCoverage]     = useState<CoverageVM[]>([]);
   const [conditions, setConditions] = useState<ConditionVM[]>([]);
-  const [paStatus, setPaStatus]   = useState<PaStatusVM[]>([]);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+  const [paStatus, setPaStatus]     = useState<PaStatusVM[]>([]);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
 
-  const loadMock = useCallback(() => {
-    setCoverage(MOCK_COVERAGE);
-    setConditions(MOCK_CONDITIONS);
-    setPaStatus(MOCK_PA);
+  const loadMock = useCallback((patientId: string) => {
+    const mock = PATIENT_MOCK[patientId] ?? DEFAULT_MOCK;
+    setCoverage(mock.coverage);
+    setConditions(mock.conditions);
+    setPaStatus(mock.pa);
   }, []);
 
   const loadLive = useCallback(async (patientId: string) => {
@@ -99,18 +123,19 @@ export default function PatientAccessPage(): React.ReactElement {
     setLoading(false);
   }, []);
 
+  // Re-run whenever the patient switcher changes
   useEffect(() => {
     if (isMockMode()) {
       setAuthed(true);
-      loadMock();
+      loadMock(activePatientId);
       return;
     }
     getJson<{ authenticated: boolean; patient?: string }>('/api/auth/session').then((r) => {
       const ok = !!r.data?.authenticated;
       setAuthed(ok);
-      if (ok) void loadLive(r.data?.patient ?? DEFAULT_PATIENT);
+      if (ok) void loadLive(r.data?.patient ?? activePatientId);
     });
-  }, [loadMock, loadLive]);
+  }, [activePatientId, loadMock, loadLive]);
 
   if (!flag('patientAccess')) {
     return (

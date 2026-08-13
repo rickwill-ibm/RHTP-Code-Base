@@ -7,11 +7,13 @@
  * BFF (`/api/financial-clearance`). Renders the result, links to the persisted
  * Evidence Record, and — when PA is required — offers the stage-3 handoff into
  * the existing Prior-Authorization (CRD → DTR → PAS) screens.
+ * Passes activePatientId from context so the clearance runs for the selected patient.
  */
 import { useState } from 'react';
 import { postJson } from '@/lib/client/bff';
 import type { MedicalNecessityVM } from '@/lib/goldenThread';
 import { MedicalNecessityPanel } from './MedicalNecessityPanel';
+import { useAppContext } from '@/lib/appContext';
 
 interface RunResult {
   evidenceId: string;
@@ -30,6 +32,7 @@ const PROVIDERS = [
 ];
 
 export function FinancialClearanceRunner(): React.ReactElement {
+  const { activePatientId } = useAppContext();
   const [orderCode, setOrderCode] = useState('72148');
   const [providerNpi, setProviderNpi] = useState(PROVIDERS[0].npi);
   const [running, setRunning] = useState(false);
@@ -39,7 +42,7 @@ export function FinancialClearanceRunner(): React.ReactElement {
   async function run(): Promise<void> {
     setRunning(true);
     setError(null);
-    const r = await postJson<RunResult>('/api/financial-clearance', { orderCode, providerNpi });
+    const r = await postJson<RunResult>('/api/financial-clearance', { orderCode, providerNpi, patientId: activePatientId });
     if (r.ok && r.data) setResult(r.data);
     else setError(r.error?.issue?.[0]?.diagnostics ?? 'Run failed');
     setRunning(false);
