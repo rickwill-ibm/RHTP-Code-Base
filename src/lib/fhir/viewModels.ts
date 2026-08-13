@@ -24,18 +24,23 @@ export interface CoverageVM {
   status: string;
   payer: string;
   type: string;
+  period?: string;
 }
 export function toCoverageVM(r: {
   id?: string;
   status?: string;
   type?: CodeableConcept;
   payor?: Reference[];
+  period?: { start?: string; end?: string };
 }): CoverageVM {
+  const start = r.period?.start?.slice(0, 10) ?? '';
+  const end   = r.period?.end?.slice(0, 10)   ?? '';
   return {
     id: r.id ?? '',
     status: r.status ?? 'unknown',
     payer: r.payor?.[0]?.display ?? 'Unknown payer',
     type: r.type?.text ?? codingText(r.type),
+    period: start && end ? `${start} – ${end}` : undefined,
   };
 }
 
@@ -43,16 +48,19 @@ export interface ConditionVM {
   id: string;
   display: string;
   clinicalStatus: string;
+  recordedDate?: string;
 }
 export function toConditionVM(r: {
   id?: string;
   code?: CodeableConcept;
   clinicalStatus?: CodeableConcept;
+  recordedDate?: string;
 }): ConditionVM {
   return {
     id: r.id ?? '',
     display: r.code?.text ?? codingText(r.code),
     clinicalStatus: codingText(r.clinicalStatus) || 'unknown',
+    recordedDate: r.recordedDate?.slice(0, 10),
   };
 }
 
@@ -62,6 +70,8 @@ export interface PaStatusVM {
   status: PaStatusLabel;
   service: string;
   denialReasons: string[];
+  authNumber?: string;
+  requestedDate?: string;
 }
 /** Project a FHIR ClaimResponse into a human-readable PA status. */
 export function toPaStatusVM(r: {
@@ -69,6 +79,7 @@ export function toPaStatusVM(r: {
   outcome?: string;
   type?: CodeableConcept;
   disposition?: string;
+  created?: string;
   error?: { code?: CodeableConcept }[];
 }): PaStatusVM {
   const status: PaStatusLabel =
@@ -84,6 +95,8 @@ export function toPaStatusVM(r: {
     status,
     service: r.type?.text ?? codingText(r.type),
     denialReasons: (r.error ?? []).map((e) => e.code?.text ?? codingText(e.code)).filter(Boolean),
+    authNumber: r.id,
+    requestedDate: r.created?.slice(0, 10),
   };
 }
 

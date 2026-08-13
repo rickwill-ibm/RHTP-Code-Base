@@ -1,9 +1,10 @@
 'use client';
 
 /**
- * Patient Access (plan Slice 1 — CORE). A member views their Coverage, clinical
- * conditions, and prior-authorization status — all through the BFF (/api/fhir),
- * never FHIR directly. Human-readable statuses; consent context surfaced.
+ * Patient Access — CMS-0057-F Patient Access API.
+ * Member view: Coverage, Conditions, and Prior Authorization status.
+ * In demo/mock mode (NEXT_PUBLIC_USE_MOCK_DATA=true) seeded data is used
+ * directly — no FHIR server required.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { fhirGet, getJson } from '@/lib/client/bff';
@@ -15,66 +16,123 @@ import {
   type ConditionVM,
   type PaStatusVM,
 } from '@/lib/fhir/viewModels';
-import { ConsentPanel } from '@/components/fhir/ConsentPanel';
-import { ProvenanceBadge } from '@/components/fhir/ProvenanceBadge';
-import { OperationOutcomeView } from '@/components/fhir/OperationOutcomeView';
-import type { OperationOutcome } from '@/lib/fhir/operationOutcome';
 import { flag } from '@/lib/flags/flags';
 import AppLayout from '@/components/AppLayout';
 
-// Patient id comes from the SMART session context; falls back to the seeded member.
 const DEFAULT_PATIENT = 'MARIA_SD_001';
+
+// ── Mock seed data (demo mode only) ──────────────────────────────────────────
+
+const MOCK_COVERAGE: CoverageVM[] = [
+  { id: 'cov-1', type: 'Medicaid Managed Care',   payer: 'South Dakota Medicaid', status: 'active',   period: '01/01/2024 – 12/31/2026' },
+  { id: 'cov-2', type: 'Supplemental Dental',      payer: 'DentaQuest',            status: 'active',   period: '01/01/2025 – 12/31/2025' },
+];
+
+const MOCK_CONDITIONS: ConditionVM[] = [
+  { id: 'cond-1', display: 'Type 2 Diabetes Mellitus',          clinicalStatus: 'active',   recordedDate: '03/12/2021' },
+  { id: 'cond-2', display: 'Chronic Low Back Pain',             clinicalStatus: 'active',   recordedDate: '11/05/2022' },
+  { id: 'cond-3', display: 'Hypertension',                      clinicalStatus: 'active',   recordedDate: '07/18/2020' },
+  { id: 'cond-4', display: 'Food Insecurity (SDOH Z59.4)',       clinicalStatus: 'active',   recordedDate: '01/09/2024' },
+  { id: 'cond-5', display: 'Caregiver Burden (Z63.9)',          clinicalStatus: 'active',   recordedDate: '05/22/2024' },
+];
+
+const MOCK_PA: PaStatusVM[] = [
+  {
+    id: 'dev-cr-approved',
+    service: 'MRI Lumbar Spine w/o Contrast (CPT 72148)',
+    status: 'approved',
+    denialReasons: [],
+    authNumber: 'AUTH-2026-08-MRI',
+    requestedDate: '08/12/2026',
+  },
+  {
+    id: 'pa-denied-001',
+    service: 'Outpatient Bariatric Consultation (CPT 43644)',
+    status: 'denied',
+    denialReasons: [
+      'BMI documentation not on file',
+      'Behavioral health pre-clearance required',
+    ],
+    authNumber: 'AUTH-2026-06-BAR',
+    requestedDate: '06/03/2026',
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const isMockMode = () =>
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true'
+    : false;
 
 interface Bundle {
   entry?: { resource?: Record<string, unknown> }[];
 }
 
-export default function PatientAccessPage(): React.ReactElement {
-  const [authed, setAuthed] = useState<boolean | null>(null);
-  const [coverage, setCoverage] = useState<CoverageVM[]>([]);
-  const [conditions, setConditions] = useState<ConditionVM[]>([]);
-  const [paStatus, setPaStatus] = useState<PaStatusVM[]>([]);
-  const [error, setError] = useState<OperationOutcome | null>(null);
-  const [loading, setLoading] = useState(false);
+// ── Component ─────────────────────────────────────────────────────────────────
 
-  const load = useCallback(async (patientId: string) => {
+export default function PatientAccessPage(): React.ReactElement {
+  const [authed, setAuthed]       = useState<boolean | null>(null);
+  const [coverage, setCoverage]   = useState<CoverageVM[]>([]);
+  const [conditions, setConditions] = useState<ConditionVM[]>([]);
+  const [paStatus, setPaStatus]   = useState<PaStatusVM[]>([]);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+
+  const loadMock = useCallback(() => {
+    setCoverage(MOCK_COVERAGE);
+    setConditions(MOCK_CONDITIONS);
+    setPaStatus(MOCK_PA);
+  }, []);
+
+  const loadLive = useCallback(async (patientId: string) => {
     setLoading(true);
     setError(null);
-    const cov = await fhirGet<Bundle>(`Coverage?beneficiary=Patient/${patientId}`);
+    const cov  = await fhirGet<Bundle>(`Coverage?beneficiary=Patient/${patientId}`);
     const cond = await fhirGet<Bundle>(`Condition?subject=Patient/${patientId}`);
-    const pa = await fhirGet<Bundle>(`ClaimResponse?patient=Patient/${patientId}`);
-    if (cov.data) setCoverage((cov.data.entry ?? []).map((e) => toCoverageVM(e.resource ?? {})));
-    if (cond.data)
-      setConditions((cond.data.entry ?? []).map((e) => toConditionVM(e.resource ?? {})));
-    if (pa.data) setPaStatus((pa.data.entry ?? []).map((e) => toPaStatusVM(e.resource ?? {})));
+    const pa   = await fhirGet<Bundle>(`ClaimResponse?patient=Patient/${patientId}`);
+    if (cov.data)  setCoverage((cov.data.entry  ?? []).map((e) => toCoverageVM(e.resource  ?? {})));
+    if (cond.data) setConditions((cond.data.entry ?? []).map((e) => toConditionVM(e.resource ?? {})));
+    if (pa.data)   setPaStatus((pa.data.entry    ?? []).map((e) => toPaStatusVM(e.resource  ?? {})));
     const firstErr = cov.error ?? cond.error ?? pa.error;
-    if (firstErr) setError(firstErr);
+    if (firstErr) setError(firstErr.issue?.[0]?.diagnostics ?? 'Failed to load health records.');
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (isMockMode()) {
+      setAuthed(true);
+      loadMock();
+      return;
+    }
     getJson<{ authenticated: boolean; patient?: string }>('/api/auth/session').then((r) => {
       const ok = !!r.data?.authenticated;
       setAuthed(ok);
-      if (ok) void load(r.data?.patient ?? DEFAULT_PATIENT);
+      if (ok) void loadLive(r.data?.patient ?? DEFAULT_PATIENT);
     });
-  }, [load]);
+  }, [loadMock, loadLive]);
 
-  if (!flag('patientAccess')) return <main className="p-6">Patient Access is not enabled.</main>;
+  if (!flag('patientAccess')) {
+    return (
+      <AppLayout>
+        <main className="p-6 text-sm text-slate-600">Patient Access is not enabled.</main>
+      </AppLayout>
+    );
+  }
 
   if (authed === false) {
     return (
       <AppLayout>
-        <main className="p-6">
-          <h1 className="text-xl font-semibold">Your health information</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Please sign in to view your coverage, conditions, and prior-authorization status.
+        <main className="mx-auto max-w-[1100px] px-6 py-8">
+          <h1 className="text-lg font-bold text-gray-900">Patient Access</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Sign in to view your coverage, conditions, and prior authorization status.
           </p>
           <a
             href="/api/auth/login"
-            className="mt-3 inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#1669c1] px-4 py-2 text-sm font-bold text-white hover:bg-[#0f52a0] transition-colors"
           >
-            Sign in (SMART)
+            Sign in
           </a>
         </main>
       </AppLayout>
@@ -83,101 +141,165 @@ export default function PatientAccessPage(): React.ReactElement {
 
   return (
     <AppLayout>
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Your health information</h1>
-        <ProvenanceBadge source="Payer FHIR (Patient Access API)" />
-      </header>
+      {/* Header */}
+      <div className="border-b border-gray-200 bg-white px-6 pt-4 pb-0">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Patient Access</h1>
+            <p className="text-xs text-gray-500">
+              Coverage · Conditions · Prior Authorization status · CMS-0057-F compliant
+            </p>
+          </div>
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
+            CMS-0057-F
+          </span>
+        </div>
+      </div>
 
-      <ConsentPanel
-        consent={{
-          status: 'active',
-          purpose: 'patient-request',
-          scope: 'patient/*.read',
-          granularBoundaries: ['42 CFR Part 2'],
-        }}
-      />
+      <main className="mx-auto max-w-[1100px] px-6 py-8 pb-24 space-y-5">
 
-      {error ? <OperationOutcomeView outcome={error} /> : null}
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : null}
+        {/* Consent context */}
+        <ConsentCard />
 
-      <Section title="Coverage">
-        {coverage.length === 0 ? (
-          <Empty />
-        ) : (
-          coverage.map((c) => (
-            <Row key={c.id} left={c.type || 'Coverage'} right={`${c.payer} · ${c.status}`} />
-          ))
+        {/* Error */}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <span className="font-bold">Unable to load records</span> — {error}
+          </div>
         )}
-      </Section>
 
-      <Section title="Conditions">
-        {conditions.length === 0 ? (
-          <Empty />
-        ) : (
-          conditions.map((c) => <Row key={c.id} left={c.display} right={c.clinicalStatus} />)
+        {loading && (
+          <p className="text-sm text-gray-400">Loading health records…</p>
         )}
-      </Section>
 
-      <Section title="Prior-authorization status">
-        {paStatus.length === 0 ? (
-          <Empty />
-        ) : (
-          paStatus.map((p) => (
-            <div key={p.id} className="border-b py-2 text-sm last:border-0">
-              <div className="flex justify-between">
-                <span>{p.service || 'Service'}</span>
-                <StatusPill status={p.status} />
-              </div>
-              {p.denialReasons.length ? (
-                <ul className="mt-1 list-disc pl-5 text-xs text-red-700">
-                  {p.denialReasons.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-              ) : null}
+        {/* Coverage */}
+        <Section title="Coverage" count={coverage.length}>
+          {coverage.length === 0 ? <Empty /> : (
+            <div className="divide-y divide-gray-100">
+              {coverage.map((c) => (
+                <div key={c.id} className="flex items-center justify-between py-3 gap-4 flex-wrap">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{c.type || 'Coverage'}</p>
+                    <p className="text-xs text-gray-500">{c.payer}{c.period ? ` · ${c.period}` : ''}</p>
+                  </div>
+                  <StatusBadge label={c.status} color={c.status === 'active' ? 'green' : 'gray'} />
+                </div>
+              ))}
             </div>
-          ))
-        )}
-      </Section>
-    </main>
+          )}
+        </Section>
+
+        {/* Conditions */}
+        <Section title="Conditions" count={conditions.length}>
+          {conditions.length === 0 ? <Empty /> : (
+            <div className="divide-y divide-gray-100">
+              {conditions.map((c) => (
+                <div key={c.id} className="flex items-center justify-between py-3 gap-4 flex-wrap">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{c.display}</p>
+                    {c.recordedDate && <p className="text-xs text-gray-400">Recorded {c.recordedDate}</p>}
+                  </div>
+                  <StatusBadge label={c.clinicalStatus} color={c.clinicalStatus === 'active' ? 'blue' : 'gray'} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* Prior Authorization */}
+        <Section title="Prior Authorization Status" count={paStatus.length}>
+          {paStatus.length === 0 ? <Empty /> : (
+            <div className="divide-y divide-gray-100">
+              {paStatus.map((p) => (
+                <div key={p.id} className="py-3">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{p.service || 'Service'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {p.authNumber ? `Auth # ${p.authNumber}` : ''}
+                        {p.requestedDate ? ` · Requested ${p.requestedDate}` : ''}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      label={p.status}
+                      color={p.status === 'approved' ? 'green' : p.status === 'denied' ? 'red' : 'amber'}
+                    />
+                  </div>
+                  {p.denialReasons.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {p.denialReasons.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-red-700">
+                          <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold">✗</span>
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+      </main>
     </AppLayout>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}): React.ReactElement {
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ConsentCard() {
   return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
-      <div className="rounded border border-slate-200 p-3">{children}</div>
-    </section>
-  );
-}
-function Row({ left, right }: { left: string; right: string }): React.ReactElement {
-  return (
-    <div className="flex justify-between border-b py-2 text-sm last:border-0">
-      <span>{left}</span>
-      <span className="text-slate-600">{right}</span>
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-100 bg-gray-50 px-4 py-2.5">
+        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Data Access &amp; Consent</h2>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-4 py-3 sm:grid-cols-4 text-sm">
+        {[
+          { label: 'Consent Status', value: 'Active' },
+          { label: 'Purpose of Use', value: 'Patient Request' },
+          { label: 'Scope', value: 'patient/*.read' },
+          { label: 'Regulation', value: '42 CFR Part 2' },
+        ].map((row) => (
+          <div key={row.label}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{row.label}</p>
+            <p className="mt-0.5 font-semibold text-gray-800">{row.value}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-function Empty(): React.ReactElement {
-  return <p className="text-sm text-slate-400">No records.</p>;
+
+function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-100 bg-gray-50 px-4 py-2.5 flex items-center justify-between">
+        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{title}</h2>
+        <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-bold text-gray-500">{count}</span>
+      </div>
+      <div className="px-4 pb-1">{children}</div>
+    </div>
+  );
 }
-function StatusPill({ status }: { status: PaStatusVM['status'] }): React.ReactElement {
-  const style =
-    status === 'approved'
-      ? 'bg-green-50 text-green-700'
-      : status === 'denied'
-        ? 'bg-red-50 text-red-700'
-        : status === 'pending'
-          ? 'bg-amber-50 text-amber-700'
-          : 'bg-slate-100 text-slate-600';
-  return <span className={`rounded px-2 py-0.5 text-xs capitalize ${style}`}>{status}</span>;
+
+function Empty() {
+  return <p className="py-4 text-sm text-gray-400">No records.</p>;
+}
+
+const BADGE_COLORS: Record<string, string> = {
+  green: 'bg-green-50 text-green-700 border-green-200',
+  blue:  'bg-blue-50 text-blue-700 border-blue-200',
+  amber: 'bg-amber-50 text-amber-700 border-amber-200',
+  red:   'bg-red-50 text-red-700 border-red-200',
+  gray:  'bg-gray-100 text-gray-500 border-gray-200',
+};
+
+function StatusBadge({ label, color }: { label: string; color: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold capitalize flex-shrink-0 ${BADGE_COLORS[color] ?? BADGE_COLORS.gray}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {label}
+    </span>
+  );
 }
