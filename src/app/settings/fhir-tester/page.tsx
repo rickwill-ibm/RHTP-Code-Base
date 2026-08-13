@@ -12,6 +12,38 @@ const CERNER_FHIR_BASE = 'https://fhir-ehr-code.cerner.com/r4/ec2458f2-1e24-41c8
 const LOCAL_FHIR_BASE =
   process.env.NEXT_PUBLIC_FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
 
+// In demo/mock mode there is no FHIR server — return a realistic stub
+// instead of letting the fetch fail with "Failed to fetch".
+const isMockMode = () => process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
+
+function mockFhirResponse(method: string, path: string, body?: object): { statusCode: number; body: string; latencyMs: number } {
+  const latencyMs = Math.floor(Math.random() * 60) + 20; // 20-80 ms simulated
+  // POST / PUT → echo back a minimal created/updated resource
+  if (method === 'POST' || method === 'PUT') {
+    const resourceType = path.split('/')[0] ?? 'Resource';
+    const id = `mock-${resourceType.toLowerCase()}-${Date.now()}`;
+    const echo = { ...(body as object), resourceType, id, meta: { versionId: '1', lastUpdated: new Date().toISOString() } };
+    return { statusCode: method === 'POST' ? 201 : 200, body: JSON.stringify(echo, null, 2), latencyMs };
+  }
+  // GET Patient list
+  if (path.startsWith('Patient?')) {
+    const bundle = { resourceType: 'Bundle', type: 'searchset', total: FHIR_PATIENTS_FALLBACK.length, entry: FHIR_PATIENTS_FALLBACK.map((p) => ({ resource: { resourceType: 'Patient', id: p.id, name: [{ family: p.name.split(' ').pop(), given: p.name.split(' ').slice(0, -1) }] } })) };
+    return { statusCode: 200, body: JSON.stringify(bundle, null, 2), latencyMs };
+  }
+  // GET Encounter list
+  if (path.startsWith('Encounter?')) {
+    const bundle = { resourceType: 'Bundle', type: 'searchset', total: 2, entry: [{ resource: { resourceType: 'Encounter', id: 'enc-mock-001' } }, { resource: { resourceType: 'Encounter', id: 'enc-mock-002' } }] };
+    return { statusCode: 200, body: JSON.stringify(bundle, null, 2), latencyMs };
+  }
+  // GET single Patient
+  if (path.startsWith('Patient/')) {
+    return { statusCode: 200, body: JSON.stringify(MOCK_PATIENT_RESPONSE, null, 2), latencyMs };
+  }
+  // Fallback — empty bundle
+  const fallback = { resourceType: 'Bundle', type: 'searchset', total: 0, entry: [] };
+  return { statusCode: 200, body: JSON.stringify(fallback, null, 2), latencyMs };
+}
+
 // ─── Real FHIR fetch helper ───────────────────────────────────────────────────
 
 async function realFhirRequest(
@@ -19,6 +51,7 @@ async function realFhirRequest(
   path: string,
   body?: object,
 ): Promise<{ statusCode: number; body: string; latencyMs: number }> {
+  if (isMockMode()) return mockFhirResponse(method, path, body);
   const url = `${LOCAL_FHIR_BASE}/${path.replace(/^\//, '')}`;
   const start = Date.now();
   const res = await fetch(url, {

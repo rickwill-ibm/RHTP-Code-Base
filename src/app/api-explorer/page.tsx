@@ -486,10 +486,10 @@ export default function ApiExplorerPage(): React.ReactElement {
           </div>
         </div>
 
-        {/* Endpoint cards */}
+        {/* Endpoint cards — key includes patientId so state resets on patient switch */}
         <div className="space-y-3">
           {endpoints.map((ep) => (
-            <EndpointCard key={ep.id} ep={ep} patientId={activePatientId} />
+            <EndpointCard key={`${ep.id}-${activePatientId}`} ep={ep} patientId={activePatientId} />
           ))}
         </div>
       </main>
