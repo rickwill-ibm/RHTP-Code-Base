@@ -59,6 +59,10 @@ EXEMPT_PATTERNS=(
   # produces no architectural benefit and makes the files harder to read.
   "*/generateDetailedScreenPDF*.ts"
   "*/generateTalkTrackPDF*.ts"
+  # demo-deck/page.tsx — slide copy, speaker notes, and PDF generator template strings
+  "*/demo-deck/page.tsx"
+  # md-smart-launch.backup — backup directory, not production code
+  "*/md-smart-launch.backup/*"
 )
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
