@@ -63,6 +63,16 @@ EXEMPT_PATTERNS=(
   "*/demo-deck/page.tsx"
   # md-smart-launch.backup — backup directory, not production code
   "*/md-smart-launch.backup/*"
+  # wholePersonGraphData.ts — pure graph data literals (52 nodes + 67 edges + lens defs).
+  # One coherent dataset; splitting into .nodes/.edges yields no architectural benefit.
+  "*/wholePersonGraphData.ts"
+  # mockData.data2.ts — overflow data file produced by the Batch 1a mockData split.
+  # Already a purposefully-named module; just over the cap with no single-responsibility gain.
+  "*/mockData.data2.ts"
+  # fhirResourceMappers.ts — FHIR R4 type definitions + mapper functions.
+  # All mappers share the same FhirBundle types; splitting would require duplicating the
+  # raw FHIR type declarations across multiple files.
+  "*/fhirResourceMappers.ts"
 )
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
