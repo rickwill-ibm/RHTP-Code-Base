@@ -149,7 +149,10 @@ export default function RegionViewPage() {
   const avgGapClosure = Math.round(REGIONS.reduce((a, r) => a + r.gapClosure, 0) / REGIONS.length);
   const avgSocialScreening = Math.round(REGIONS.reduce((a, r) => a + r.socialScreeningRate, 0) / REGIONS.length);
   const avgBhAccess = Math.round(REGIONS.reduce((a, r) => a + r.bhAccessRate, 0) / REGIONS.length);
-  const totalGainShare = '$1.27M';
+  const totalGainShareNum = REGIONS.reduce((a, r) => a + r.gainShareNum, 0);
+  const totalGainShare = totalGainShareNum >= 1_000_000
+    ? `$${(totalGainShareNum / 1_000_000).toFixed(2)}M`
+    : `$${(totalGainShareNum / 1_000).toFixed(0)}K`;
 
   return (
     <AppLayout

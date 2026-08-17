@@ -35,24 +35,42 @@ const MIPS_ADJUSTMENTS: MIPSAdjustment[] = [
 
 // ─── KPI Strip ────────────────────────────────────────────────────────────────
 function KPIStrip({ program }: { program: 'STARS' | 'HEDIS' | 'MIPS' }) {
+  // ── Derived from data arrays ────────────────────────────────────────────────
+  const starsOpenGaps    = STARS_MEASURES.reduce((a, m) => a + m.gapCount, 0);
+  const starsBonus       = STARS_MEASURES.reduce((a, m) => a + m.bonusEstimate, 0);
+  const starsInProgress  = STARS_MEASURES.filter((m) => m.status === 'in-progress').length;
+  const starsAvgRating   = (STARS_MEASURES.reduce((a, m) => a + m.currentRating, 0) / STARS_MEASURES.length).toFixed(1);
+
+  const hedisAvgCompliance = (HEDIS_MEASURES.reduce((a, m) => a + m.complianceRate, 0) / HEDIS_MEASURES.length).toFixed(1);
+  const hedisPatientsDue   = HEDIS_MEASURES.reduce((a, m) => a + (m.patientsDue - m.patientsCompliant), 0);
+  const hedisOpen          = HEDIS_MEASURES.filter((m) => m.status === 'open').length;
+  const hedisInProgress    = HEDIS_MEASURES.filter((m) => m.status === 'in-progress').length;
+
+  const mipsAvgScore     = Math.round(MIPS_ADJUSTMENTS.reduce((a, m) => a + m.compositeScore, 0) / MIPS_ADJUSTMENTS.length);
+  const mipsPenalty      = MIPS_ADJUSTMENTS.filter((m) => m.adjustmentPct < 0).reduce((a, m) => a + m.adjustmentAmount, 0);
+  const mipsBonus        = MIPS_ADJUSTMENTS.filter((m) => m.adjustmentPct > 0).reduce((a, m) => a + m.adjustmentAmount, 0);
+  const mipsPending      = MIPS_ADJUSTMENTS.filter((m) => m.status !== 'closed').length;
+  const mipsPenaltyCount = MIPS_ADJUSTMENTS.filter((m) => m.adjustmentPct < 0).length;
+  const mipsBonusCount   = MIPS_ADJUSTMENTS.filter((m) => m.adjustmentPct > 0).length;
+
   const kpis = {
     STARS: [
-      { label: 'Avg Star Rating', value: '3.2', sub: 'Target: 4.0', color: '#b45309', icon: 'StarIcon' },
-      { label: 'Open Measure Gaps', value: '308', sub: 'Across 4 measures', color: '#da1e28', icon: 'ExclamationTriangleIcon' },
-      { label: 'Bonus at Risk', value: '$713K', sub: 'If gaps not closed', color: '#da1e28', icon: 'CurrencyDollarIcon' },
-      { label: 'Measures In-Progress', value: '1', sub: 'of 4 active', color: '#0043ce', icon: 'ArrowPathIcon' },
+      { label: 'Avg Star Rating',      value: starsAvgRating,                                                  sub: 'Target: 4.0',                                          color: '#b45309', icon: 'StarIcon' },
+      { label: 'Open Measure Gaps',    value: starsOpenGaps.toLocaleString(),                                  sub: `Across ${STARS_MEASURES.length} measures`,             color: '#da1e28', icon: 'ExclamationTriangleIcon' },
+      { label: 'Bonus at Risk',        value: `$${(starsBonus / 1000).toFixed(0)}K`,                          sub: 'If gaps not closed',                                   color: '#da1e28', icon: 'CurrencyDollarIcon' },
+      { label: 'Measures In-Progress', value: String(starsInProgress),                                         sub: `of ${STARS_MEASURES.length} active`,                  color: '#0043ce', icon: 'ArrowPathIcon' },
     ],
     HEDIS: [
-      { label: 'Avg Compliance Rate', value: '61.5%', sub: 'Target: 78%', color: '#da1e28', icon: 'ChartBarIcon' },
-      { label: 'Patients Due', value: '1,264', sub: 'Across 4 measures', color: '#b45309', icon: 'UserGroupIcon' },
-      { label: 'Measures Open', value: '3', sub: 'of 4 active', color: '#da1e28', icon: 'DocumentTextIcon' },
-      { label: 'Measures In-Progress', value: '1', sub: 'Certification pending', color: '#0043ce', icon: 'ArrowPathIcon' },
+      { label: 'Avg Compliance Rate',  value: `${hedisAvgCompliance}%`,                                        sub: 'Target: 78%',                                          color: '#da1e28', icon: 'ChartBarIcon' },
+      { label: 'Patients Due',         value: hedisPatientsDue.toLocaleString(),                               sub: `Across ${HEDIS_MEASURES.length} measures`,             color: '#b45309', icon: 'UserGroupIcon' },
+      { label: 'Measures Open',        value: String(hedisOpen),                                               sub: `of ${HEDIS_MEASURES.length} active`,                  color: '#da1e28', icon: 'DocumentTextIcon' },
+      { label: 'Measures In-Progress', value: String(hedisInProgress),                                         sub: 'Certification pending',                                color: '#0043ce', icon: 'ArrowPathIcon' },
     ],
     MIPS: [
-      { label: 'Avg Composite Score', value: '65', sub: 'Threshold: 75', color: '#b45309', icon: 'ChartBarIcon' },
-      { label: 'Pending Adjustments', value: '3', sub: 'Notices to review', color: '#da1e28', icon: 'DocumentMagnifyingGlassIcon' },
-      { label: 'Penalty Exposure', value: '$203K', sub: 'Across 2 notices', color: '#da1e28', icon: 'ExclamationTriangleIcon' },
-      { label: 'Bonus Earned', value: '$67.4K', sub: '1 positive adjustment', color: '#24a148', icon: 'CurrencyDollarIcon' },
+      { label: 'Avg Composite Score',  value: String(mipsAvgScore),                                            sub: 'Threshold: 75',                                        color: '#b45309', icon: 'ChartBarIcon' },
+      { label: 'Pending Adjustments',  value: String(mipsPending),                                             sub: 'Notices to review',                                    color: '#da1e28', icon: 'DocumentMagnifyingGlassIcon' },
+      { label: 'Penalty Exposure',     value: `$${(mipsPenalty / 1000).toFixed(0)}K`,                         sub: `Across ${mipsPenaltyCount} notice${mipsPenaltyCount !== 1 ? 's' : ''}`, color: '#da1e28', icon: 'ExclamationTriangleIcon' },
+      { label: 'Bonus Earned',         value: `$${(mipsBonus / 1000).toFixed(1)}K`,                           sub: `${mipsBonusCount} positive adjustment${mipsBonusCount !== 1 ? 's' : ''}`, color: '#24a148', icon: 'CurrencyDollarIcon' },
     ],
   };
 
@@ -320,12 +338,18 @@ const BH_MEASURES: BHMeasure[] = [
 function BHKPIStrip() {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 py-4 bg-white border-b border-carbon-gray-20">
-      {[
-        { label: 'Avg BH Compliance', value: `${Math.round(BH_MEASURES.reduce((a, m) => a + m.complianceRate, 0) / BH_MEASURES.length)}%`, sub: 'Target: 71%', color: '#b45309', icon: 'ChartBarIcon' },
-        { label: 'Patients Due', value: String(BH_MEASURES.reduce((a, m) => a + (m.patientsDue - m.patientsCompliant), 0)), sub: 'Across 4 BH measures', color: '#da1e28', icon: 'UserGroupIcon' },
-        { label: 'FUH 7-Day Rate', value: '48%', sub: 'Target: 72% — gap: 24pts', color: '#da1e28', icon: 'ExclamationTriangleIcon' },
-        { label: 'AMM Continuation', value: '62%', sub: 'In-progress workflow', color: '#007d79', icon: 'ArrowPathIcon' },
-      ].map(kpi => (
+      {(() => {
+        const fuh = BH_MEASURES.find((m) => m.measureId === 'FUH');
+        const amm = BH_MEASURES.find((m) => m.measureId === 'AMM');
+        const avgCompliance = Math.round(BH_MEASURES.reduce((a, m) => a + m.complianceRate, 0) / BH_MEASURES.length);
+        const patientsDue   = BH_MEASURES.reduce((a, m) => a + (m.patientsDue - m.patientsCompliant), 0);
+        return [
+          { label: 'Avg BH Compliance', value: `${avgCompliance}%`,                                          sub: 'Target: 71%',                                                                                                  color: '#b45309', icon: 'ChartBarIcon' },
+          { label: 'Patients Due',       value: String(patientsDue),                                          sub: `Across ${BH_MEASURES.length} BH measures`,                                                                    color: '#da1e28', icon: 'UserGroupIcon' },
+          { label: 'FUH 7-Day Rate',     value: fuh ? `${fuh.complianceRate}%` : '—',                        sub: fuh ? `Target: ${fuh.targetRate}% — gap: ${fuh.targetRate - fuh.complianceRate}pts` : 'No FUH data',            color: '#da1e28', icon: 'ExclamationTriangleIcon' },
+          { label: 'AMM Continuation',   value: amm ? `${amm.complianceRate}%` : '—',                        sub: amm ? (amm.status === 'in-progress' ? 'In-progress workflow' : `Target: ${amm.targetRate}%`) : 'No AMM data',   color: '#007d79', icon: 'ArrowPathIcon' },
+        ];
+      })().map(kpi => (
         <div key={kpi.label} className="flex items-start gap-3">
           <div className="w-8 h-8 flex items-center justify-center bg-carbon-gray-10 flex-shrink-0 mt-0.5">
             <Icon name={kpi.icon as any} size={16} style={{ color: kpi.color }} />
@@ -441,8 +465,8 @@ function SocialKPIStrip() {
       {[
         { label: 'Avg Completion Rate', value: `${avgCompletion}%`, sub: 'Target: 79%', color: '#b45309', icon: 'ChartBarIcon' },
         { label: 'Population Gap', value: totalGap.toLocaleString(), sub: 'Across 5 measures', color: '#da1e28', icon: 'UserGroupIcon' },
-        { label: 'PRAPARE Screening', value: '61%', sub: 'Target: 80% — gap: 19pts', color: '#da1e28', icon: 'ClipboardDocumentCheckIcon' },
-        { label: 'CHW Visit Rate', value: '82%', sub: 'Near target — 3pts gap', color: '#198038', icon: 'HomeIcon' },
+        (() => { const m = SOCIAL_MEASURES.find((s) => s.measureId === 'PRAPARE'); return { label: 'PRAPARE Screening', value: m ? `${m.completionRate}%` : '—', sub: m ? `Target: ${m.targetRate}% — gap: ${m.targetRate - m.completionRate}pts` : 'No data', color: '#da1e28', icon: 'ClipboardDocumentCheckIcon' }; })(),
+        (() => { const m = SOCIAL_MEASURES.find((s) => s.measureId === 'CHW-VISIT'); return { label: 'CHW Visit Rate', value: m ? `${m.completionRate}%` : '—', sub: m ? `Target: ${m.targetRate}% — gap: ${m.targetRate - m.completionRate}pts` : 'No data', color: m && m.completionRate >= m.targetRate * 0.9 ? '#198038' : '#b45309', icon: 'HomeIcon' }; })(),
       ].map(kpi => (
         <div key={kpi.label} className="flex items-start gap-3">
           <div className="w-8 h-8 flex items-center justify-center bg-carbon-gray-10 flex-shrink-0 mt-0.5">
