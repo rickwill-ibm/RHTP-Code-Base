@@ -250,7 +250,16 @@ export default function SocialNeedsDashboardPage() {
           { label: 'Screening Rate',          value: `${screeningRate}%`,          sub: 'Target: 80%',              color: '#b45309', icon: 'ClipboardDocumentCheckIcon' },
           { label: 'Patients w/ Unmet Needs', value: unmetNeeds.toLocaleString(),  sub: `${screened > 0 ? ((unmetNeeds / screened) * 100).toFixed(1) : 0}% of screened`, color: '#da1e28', icon: 'ExclamationTriangleIcon' },
           { label: 'Dual-Need Cohort',        value: dualNeed.toLocaleString(),    sub: 'Clinical + social gaps',   color: '#6929c4', icon: 'UserGroupIcon' },
-          { label: 'Social Referral Completion', value: '69.3%',                   sub: 'CBO network avg',          color: '#198038', icon: 'CheckBadgeIcon' },
+          {
+            label: 'Social Referral Completion',
+            value: (funnelData[4]?.value ?? 0) > 0
+              ? `${((funnelData[5]?.value ?? 0) / (funnelData[4]?.value ?? 1) * 100).toFixed(1)}%`
+              : '—',
+            sub: (funnelData[4]?.value ?? 0) > 0
+              ? `${funnelData[5]?.value ?? 0} of ${funnelData[4]?.value ?? 0} referrals resolved`
+              : 'No referrals in scope',
+            color: '#198038', icon: 'CheckBadgeIcon',
+          },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white border border-carbon-gray-20 p-4 flex items-start gap-3">
             <div className="w-8 h-8 flex items-center justify-center bg-carbon-gray-10 flex-shrink-0">
