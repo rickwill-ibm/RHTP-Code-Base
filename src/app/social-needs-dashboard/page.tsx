@@ -315,13 +315,33 @@ export default function SocialNeedsDashboardPage() {
           <div className="bg-white border border-carbon-gray-20 p-4">
             <p className="text-sm font-semibold text-carbon-gray-100 mb-4">Funnel Metrics</p>
             <div className="space-y-3">
-              {[
-                { label: 'Screening Completion Rate', value: '67.9%', target: '80%', color: '#b45309' },
-                { label: 'Need Identification Rate', value: '56.1%', target: '—', color: '#da1e28' },
-                { label: 'Task Creation Rate', value: '87.3%', target: '95%', color: '#0043ce' },
-                { label: 'CBO Acceptance Rate', value: '79.9%', target: '85%', color: '#6929c4' },
-                { label: 'Resolution Rate', value: '69.1%', target: '75%', color: '#198038' },
-              ].map(m => (
+              {([
+                {
+                  label: 'Screening Completion Rate',
+                  value: panelSize > 0 ? `${((funnelData[1]?.value ?? 0) / panelSize * 100).toFixed(1)}%` : '—',
+                  target: '80%', color: '#b45309',
+                },
+                {
+                  label: 'Need Identification Rate',
+                  value: (funnelData[1]?.value ?? 0) > 0 ? `${((funnelData[2]?.value ?? 0) / (funnelData[1]?.value ?? 1) * 100).toFixed(1)}%` : '—',
+                  target: '—', color: '#da1e28',
+                },
+                {
+                  label: 'Task Creation Rate',
+                  value: (funnelData[2]?.value ?? 0) > 0 ? `${((funnelData[3]?.value ?? 0) / (funnelData[2]?.value ?? 1) * 100).toFixed(1)}%` : '—',
+                  target: '95%', color: '#0043ce',
+                },
+                {
+                  label: 'CBO Acceptance Rate',
+                  value: (funnelData[3]?.value ?? 0) > 0 ? `${((funnelData[4]?.value ?? 0) / (funnelData[3]?.value ?? 1) * 100).toFixed(1)}%` : '—',
+                  target: '85%', color: '#6929c4',
+                },
+                {
+                  label: 'Resolution Rate',
+                  value: (funnelData[4]?.value ?? 0) > 0 ? `${((funnelData[5]?.value ?? 0) / (funnelData[4]?.value ?? 1) * 100).toFixed(1)}%` : '—',
+                  target: '75%', color: '#198038',
+                },
+              ] as { label: string; value: string; target: string; color: string }[]).map(m => (
                 <div key={m.label} className="flex items-center justify-between py-2 border-b border-carbon-gray-10">
                   <span className="text-xs text-carbon-gray-70">{m.label}</span>
                   <div className="flex items-center gap-3">

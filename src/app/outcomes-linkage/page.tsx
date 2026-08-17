@@ -111,12 +111,24 @@ export default function OutcomesLinkagePage() {
     savings:    Math.round(d.savings    * regionScale),
   }));
 
-  const totalPatients = filteredOutcomes.reduce((a, c) => a + c.patientsIntervened, 0);
-  const totalSavings  = filteredOutcomes.reduce((a, c) => a + c.costSavings, 0);
-  const roiRatio      = totalSavings > 0 && scaledRoiTrend[0]?.investment > 0
-    ? (scaledRoiTrend[scaledRoiTrend.length - 1].savings /
-       scaledRoiTrend[scaledRoiTrend.length - 1].investment).toFixed(2)
+  const totalPatients   = filteredOutcomes.reduce((a, c) => a + c.patientsIntervened, 0);
+  const totalSavings    = filteredOutcomes.reduce((a, c) => a + c.costSavings, 0);
+
+  // ROI = cumulative savings ÷ cumulative investment across all trend months
+  const totalInvestment = scaledRoiTrend.reduce((a, d) => a + d.investment, 0);
+  const totalTrendSavings = scaledRoiTrend.reduce((a, d) => a + d.savings, 0);
+  const roiRatio = totalInvestment > 0
+    ? (totalTrendSavings / totalInvestment).toFixed(2)
     : '—';
+
+  // Avg ED Diversion Rate — average reduction% from Housing and BH rows in filtered set
+  const edRows = filteredOutcomes.filter((r) => r.domain === 'Housing' || r.domain === 'BH');
+  const avgEdDiversionRate = edRows.length > 0
+    ? Math.round(edRows.reduce((a, r) => a + Math.abs(r.reduction), 0) / edRows.length)
+    : null;
+  const edDiversionLabel = edRows.length > 0
+    ? edRows.map((r) => r.domain === 'Housing' ? 'Housing' : 'BH').join(' + ') + ' interventions'
+    : 'No ED-related interventions in scope';
 
   return (
     <AppLayout
@@ -195,7 +207,7 @@ export default function OutcomesLinkagePage() {
         {[
           { label: 'Total Patients Intervened', value: totalPatients.toLocaleString(), sub: `Across ${filteredOutcomes.length} intervention${filteredOutcomes.length !== 1 ? 's' : ''}`, color: '#0043ce', icon: 'UserGroupIcon' },
           { label: 'Estimated Cost Savings', value: `$${(totalSavings / 1000).toFixed(0)}K`, sub: 'Annualized, 6-month window', color: '#198038', icon: 'CurrencyDollarIcon' },
-          { label: 'Avg ED Diversion Rate', value: '50%', sub: 'Housing + BH interventions', color: '#da1e28', icon: 'ArrowUturnLeftIcon' },
+          { label: 'Avg ED Diversion Rate', value: avgEdDiversionRate !== null ? `${avgEdDiversionRate}%` : 'N/A', sub: edDiversionLabel, color: '#da1e28', icon: 'ArrowUturnLeftIcon' },
           { label: 'ROI Ratio', value: `${roiRatio}x`, sub: '$1 invested → savings returned', color: '#6929c4', icon: 'ChartBarIcon' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white border border-carbon-gray-20 p-4 flex items-start gap-3">
@@ -219,7 +231,7 @@ export default function OutcomesLinkagePage() {
           <p className="text-xs text-[#0043ce] mt-0.5">
             South Dakota DHSS social interventions across housing, food, behavioral health, and transportation — delivered through RHTP-funded programs
             ({rhtpProgram === RHTP_PROGRAMS[0] ? 'all programs' : rhtpProgram}
-            {region !== REGIONS[0] ? `, ${region}` : ''}) — generated an estimated <strong>${(totalSavings / 1000).toFixed(0)}K in clinical cost avoidance</strong> over 6 months — a {roiRatio}x return on social program investment. Housing stability alone reduced ED visits by 50% for {filteredOutcomes.find(r => r.domain === 'Housing')?.patientsIntervened ?? 89} patients.
+            {region !== REGIONS[0] ? `, ${region}` : ''}) — generated an estimated <strong>${(totalSavings / 1000).toFixed(0)}K in clinical cost avoidance</strong> over 6 months — a {roiRatio}x return on social program investment.{filteredOutcomes.find(r => r.domain === 'Housing') ? ` Housing stability alone reduced ED visits by ${filteredOutcomes.find(r => r.domain === 'Housing')?.reduction}% for ${filteredOutcomes.find(r => r.domain === 'Housing')?.patientsIntervened} patients.` : ''}
           </p>
         </div>
       </div>
