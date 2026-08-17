@@ -105,29 +105,42 @@ export default function OutcomesLinkagePage() {
       costSavings:        Math.round(row.costSavings * regionScale),
     }));
 
+  // ROI trend scaled by region AND proportionally by program scope
+  // Program scale = fraction of total savings attributable to selected program's domains
+  const programSavingsFraction = (() => {
+    if (rhtpProgram === RHTP_PROGRAMS[0]) return 1;
+    const inScopeTotal = OUTCOMES_DATA
+      .filter((r) => (PROGRAM_DOMAINS[rhtpProgram] ?? []).includes(r.domain))
+      .reduce((a, r) => a + r.costSavings, 0);
+    const grandTotal = OUTCOMES_DATA.reduce((a, r) => a + r.costSavings, 0);
+    return grandTotal > 0 ? inScopeTotal / grandTotal : 1;
+  })();
+
   const scaledRoiTrend = ROI_TREND.map((d) => ({
     ...d,
-    investment: Math.round(d.investment * regionScale),
-    savings:    Math.round(d.savings    * regionScale),
+    investment: Math.round(d.investment * regionScale * programSavingsFraction),
+    savings:    Math.round(d.savings    * regionScale * programSavingsFraction),
   }));
 
-  const totalPatients   = filteredOutcomes.reduce((a, c) => a + c.patientsIntervened, 0);
-  const totalSavings    = filteredOutcomes.reduce((a, c) => a + c.costSavings, 0);
+  const totalPatients = filteredOutcomes.reduce((a, c) => a + c.patientsIntervened, 0);
+  const totalSavings  = filteredOutcomes.reduce((a, c) => a + c.costSavings, 0);
 
-  // ROI = cumulative savings ÷ cumulative investment across all trend months
+  // ROI = total savings from filtered outcomes ÷ estimated investment (from scaled trend)
+  // Using filteredOutcomes savings as numerator ensures program scope affects the ratio
   const totalInvestment = scaledRoiTrend.reduce((a, d) => a + d.investment, 0);
-  const totalTrendSavings = scaledRoiTrend.reduce((a, d) => a + d.savings, 0);
   const roiRatio = totalInvestment > 0
-    ? (totalTrendSavings / totalInvestment).toFixed(2)
+    ? (totalSavings / totalInvestment).toFixed(2)
     : '—';
 
-  // Avg ED Diversion Rate — average reduction% from Housing and BH rows in filtered set
+  // Avg ED Diversion Rate — weighted by patients from Housing + BH rows in filtered set
+  // Uses patient-weighted average so region (which scales patientsIntervened) affects the result
   const edRows = filteredOutcomes.filter((r) => r.domain === 'Housing' || r.domain === 'BH');
-  const avgEdDiversionRate = edRows.length > 0
-    ? Math.round(edRows.reduce((a, r) => a + Math.abs(r.reduction), 0) / edRows.length)
+  const edTotalPatients = edRows.reduce((a, r) => a + r.patientsIntervened, 0);
+  const avgEdDiversionRate = edTotalPatients > 0
+    ? Math.round(edRows.reduce((a, r) => a + Math.abs(r.reduction) * r.patientsIntervened, 0) / edTotalPatients)
     : null;
   const edDiversionLabel = edRows.length > 0
-    ? edRows.map((r) => r.domain === 'Housing' ? 'Housing' : 'BH').join(' + ') + ' interventions'
+    ? edRows.map((r) => r.domain === 'Housing' ? 'Housing' : 'BH').join(' + ') + ` (${edTotalPatients} patients)`
     : 'No ED-related interventions in scope';
 
   return (
