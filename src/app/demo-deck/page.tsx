@@ -197,7 +197,7 @@ const DEMO_PERSONAS: DemoPersona[] = [
       {
         stepNum: 9,
         route: '/stars-hedis-mips',
-        screenLabel: 'Care Manager Attribution',
+        screenLabel: 'Quality Gaps & Attribution',
         storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs',
         speakerNotes: 'The quality and compliance screen covers all five measure sets: STARS, HEDIS, MIPS, BH-specific measures, and Social program outcomes. This is the compliance officer\'s home screen.',
         keyTalkingPoints: [
@@ -639,7 +639,7 @@ const DEMO_PERSONAS: DemoPersona[] = [
       {
         stepNum: 29,
         route: '/stars-hedis-mips',
-        screenLabel: 'Care Manager Attribution',
+        screenLabel: 'Quality Gaps & Attribution',
         storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs',
         speakerNotes: 'The quality analyst reviews all five measure sets — STARS, HEDIS, MIPS, BH-specific, and Social program outcomes — to identify compliance gaps and prioritize interventions.',
         keyTalkingPoints: [

@@ -106,7 +106,7 @@ const PERSONAS: Persona[] = [
     screens: [
       { route: '/provider-level', label: 'Program Networks', storyBeat: 'Clinical / BH / CBO network tabs — org-level performance with domain-appropriate metrics per tab' },
       { route: '/physician-view', label: 'Care Team Members', storyBeat: 'PCPs + BH counselors + CHW supervisors — role-typed metrics, not just physician gap closure' },
-      { route: '/stars-hedis-mips', label: 'Care Manager Attribution', storyBeat: 'Clinical + BH + Social program quality measures — five tabs, one accountability framework' },
+      { route: '/stars-hedis-mips', label: 'Quality Gaps & Attribution', storyBeat: 'Clinical + BH + Social program quality measures — five tabs, one accountability framework' },
     ],
     sampleData: [
       { label: 'Active Regions', value: '4 Regions', highlight: false },
@@ -306,7 +306,7 @@ const PERSONAS: Persona[] = [
     sidebarGroup: 'Clinical + Analytics',
     screens: [
       { route: '/care-gap-closure-verification', label: 'Care Gap Closure & Verification', storyBeat: 'Evidence submitted — procedure, provenance, FHIR resource, EDW submission timeline' },
-      { route: '/stars-hedis-mips', label: 'Care Manager Attribution', storyBeat: 'Five-tab quality framework: STARS + HEDIS + MIPS + BH Quality + Social Programs' },
+      { route: '/stars-hedis-mips', label: 'Quality Gaps & Attribution', storyBeat: 'Five-tab quality framework: STARS + HEDIS + MIPS + BH Quality + Social Programs' },
       { route: '/outcomes-linkage', label: 'Outcomes Linkage', storyBeat: 'Social ROI — executive closing proof for whole-person program investment' },
       { route: '/executive-outcomes-dashboard', label: 'Executive Dashboard', storyBeat: 'Closed loop — one patient intervention rolling up to network and state-level outcomes' },
     ],

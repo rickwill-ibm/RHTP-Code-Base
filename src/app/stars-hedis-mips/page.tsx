@@ -140,7 +140,7 @@ function STARSTable({ onSelect, onCreateCohort, overlay = {} }: { onSelect: (m: 
                   </button>
                   <button onClick={() => onCreateCohort({ measureKey: m.measureId, measureName: m.measureName, contractName: m.contractName, program: 'STARS', openGapCount: m.gapCount })} className="flex items-center gap-1 px-3 py-1.5 bg-[#0043ce] text-white text-2xs font-semibold hover:bg-[#002d9c] transition-colors whitespace-nowrap">
                     <Icon name="UserGroupIcon" size={10} />
-                    Create Cohort &amp; Auto-Assign
+                    Assign to Care Manager
                   </button>
                 </div>
               </td>
@@ -214,7 +214,7 @@ function HEDISTable({ onSelect, onCreateCohort, overlay = {} }: { onSelect: (m: 
                     </button>
                     <button onClick={() => onCreateCohort({ measureKey: m.measureId, measureName: m.measureName, contractName: m.contractName, program: 'HEDIS', openGapCount: live ? (live.denominator - live.numerator) : (m.patientsDue - m.patientsCompliant) })} className="flex items-center gap-1 px-3 py-1.5 bg-[#6929c4] text-white text-2xs font-semibold hover:bg-[#491d8b] transition-colors whitespace-nowrap">
                       <Icon name="UserGroupIcon" size={10} />
-                      Create Cohort &amp; Auto-Assign
+                      Assign to Care Manager
                     </button>
                   </div>
                 </td>
@@ -396,7 +396,7 @@ function BHTable({ onCreateCohort }: { onCreateCohort: (d: MeasureDescriptor) =>
                     </button>
                     <button onClick={() => onCreateCohort({ measureKey: m.measureId, measureName: m.measureName, contractName: m.contractName, program: 'BH', openGapCount: m.patientsDue - m.patientsCompliant })} className="flex items-center gap-1 px-3 py-1.5 bg-[#0043ce] text-white text-2xs font-semibold hover:bg-[#002d9c] transition-colors whitespace-nowrap">
                       <Icon name="UserGroupIcon" size={10} />
-                      Create Cohort &amp; Auto-Assign
+                      Assign to Care Manager
                     </button>
                   </div>
                 </td>
@@ -514,7 +514,7 @@ function SocialTable({ onCreateCohort }: { onCreateCohort: (d: MeasureDescriptor
                     </button>
                     <button onClick={() => onCreateCohort({ measureKey: m.measureId, measureName: m.measureName, contractName: m.programName, program: 'Social', openGapCount: m.populationDue - m.populationCompliant })} className="flex items-center gap-1 px-3 py-1.5 bg-[#0043ce] text-white text-2xs font-semibold hover:bg-[#002d9c] transition-colors whitespace-nowrap">
                       <Icon name="UserGroupIcon" size={10} />
-                      Create Cohort &amp; Auto-Assign
+                      Assign to Care Manager
                     </button>
                   </div>
                 </td>
@@ -689,8 +689,8 @@ export default function STARSHEDISMIPSPage() {
 
   return (
     <AppLayout
-      pageTitle="Care Manager Attribution"
-      breadcrumbs={[{ label: 'TCOC Platform' }, { label: 'Care Manager Attribution' }]}
+      pageTitle="Quality Gaps & Attribution"
+      breadcrumbs={[{ label: 'TCOC Platform' }, { label: 'Quality Gaps & Attribution' }]}
     >
       {fhirSource && (
         <div className="flex items-center gap-2 mb-3 px-4 py-2 border-b border-carbon-gray-20">

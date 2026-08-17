@@ -23,7 +23,7 @@ export const navItems: NavItem[] = [
   { key: 'nav-regions', label: 'Regions', icon: 'MapPinIcon', href: '/region-view', group: 'RHTP Program' },
   { key: 'nav-providers', label: 'Program Networks', icon: 'BuildingOffice2Icon', href: '/provider-level', group: 'RHTP Program' },
   { key: 'nav-panel', label: 'Panel & Cohort', icon: 'UserGroupIcon', href: '/panel-cohort-view', badge: 38, group: 'RHTP Program' },
-  { key: 'nav-stars', label: 'Care Manager Attribution', icon: 'StarIcon', href: '/stars-hedis-mips', group: 'RHTP Program' },
+  { key: 'nav-stars', label: 'Quality Gaps & Attribution', icon: 'StarIcon', href: '/stars-hedis-mips', group: 'RHTP Program' },
   { key: 'nav-social-dashboard-rhtp', label: 'Social Needs Dashboard', icon: 'ChartBarIcon', href: '/social-needs-dashboard', group: 'RHTP Program' },
   { key: 'nav-outcomes-linkage-rhtp', label: 'Outcomes Linkage', icon: 'ArrowTrendingDownIcon', href: '/outcomes-linkage', group: 'RHTP Program' },
   // CMS-0057-F

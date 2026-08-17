@@ -55,7 +55,7 @@ const DEMO_PERSONAS: DemoPersona[] = [
     steps: [
       { stepNum: 7, route: '/provider-level', label: 'Program Networks', storyBeat: 'Clinical / BH / CBO network tabs — org-level performance' },
       { stepNum: 8, route: '/physician-view', label: 'Care Team Members', storyBeat: 'PCPs + BH counselors + CHW supervisors — role-typed metrics' },
-      { stepNum: 9, route: '/stars-hedis-mips', label: 'Care Manager Attribution', storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs' },
+      { stepNum: 9, route: '/stars-hedis-mips', label: 'Quality Gaps & Attribution', storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs' },
     ],
   },
   {
@@ -142,7 +142,7 @@ const DEMO_PERSONAS: DemoPersona[] = [
     initials: 'QA',
     steps: [
       { stepNum: 29, route: '/care-gap-closure-verification', label: 'Care Gap Closure & Verification', storyBeat: 'Multi-program evidence chain — FHIR provenance' },
-      { stepNum: 30, route: '/stars-hedis-mips', label: 'Care Manager Attribution', storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs' },
+      { stepNum: 30, route: '/stars-hedis-mips', label: 'Quality Gaps & Attribution', storyBeat: 'Clinical + BH + Social program quality measures — 5 tabs' },
       { stepNum: 31, route: '/outcomes-linkage', label: 'Outcomes Linkage', storyBeat: 'Social ROI — executive closing proof' },
       { stepNum: 32, route: '/executive-outcomes-dashboard', label: 'Executive Dashboard', storyBeat: 'Closed loop — patient → network → state outcome' },
       { stepNum: 33, route: '/api-explorer', label: 'CMS-0057-F API Explorer', storyBeat: 'Live BFF endpoint testing — 5 provision tabs, 14 endpoints, compliance annotations' },
