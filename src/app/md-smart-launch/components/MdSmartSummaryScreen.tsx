@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { mockPatients, mockHCCSuspects, mockCareGaps, referralStore } from '@/lib/mockData';
@@ -11,8 +11,19 @@ import ReferralModal, { type ReferralFormData } from './ReferralModal';
 import GapClosureMetricsPanel from './GapClosureMetricsPanel';
 import FhirResourceViewer from './FhirResourceViewer';
 import { getFhirClient, getFhirMockMode } from '@/lib/services/fhirClient';
+import {
+  type FhirRef, type SummaryComplexity,
+  VISIT_REASONS, JOURNEY_PHASES, CURRENT_PHASE_KEY, SDOH_BADGES,
+  CARE_GAPS_ENHANCED, MEDS_DATA, LABS_DATA, CDI_OPPORTUNITIES,
+  CHRONIC_CONDITIONS, RECENT_ACTIVITY, VITALS_TREND, ACTIVE_REFERRALS,
+  SOURCE_BADGE, GAP_STATUS_STYLE, REFERRAL_STATUS_STYLE, ENCOUNTER_TABS,
+} from './MdSmartSummaryScreen.data';
+import {
+  Sparkline, CloseGapModal, ConfirmDocumentModal,
+  ReferralTriageMenu, paginate, PanelPager,
+} from './MdSmartSummaryScreen.helpers';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface MdSmartSummaryScreenProps {
   launchContext: SmartLaunchContext;
   cdsCards: CdsCard[];
@@ -21,572 +32,8 @@ interface MdSmartSummaryScreenProps {
   onOpenCdsAlerts?: () => void;
 }
 
-// ─── FHIR resource reference shape ───────────────────────────────────────────
-interface FhirRef { resourceType: string; resourceId: string; label: string; }
-
-// ─── Visit reasons with FHIR backing ─────────────────────────────────────────
-const VISIT_REASONS = [
-  {
-    id: 'vr-diabetes',
-    label: 'Diabetes Follow-Up',
-    badge: 'Primary reason',
-    badgeColor: 'text-[#706e6b]',
-    leftBorder: 'border-l-4 border-[#0070d2]',
-    clinicalNotes: 'T2DM (E11.65) — A1C 9.2% as of 2026-02-10 (Labcorp). Target <8%, previous 8.8% (2025-08), trend worsening. Metformin 500 mg BID PDC 61% — intervention recommended. CKD co-management with Nephrology referral pending. Furosemide 20 mg QD for volume management.',
-    fhir: { resourceType: 'Condition', resourceId: 'condition-t2dm-maria', label: 'Condition: T2DM (E11.65)' } as FhirRef,
-  },
-  {
-    id: 'vr-transition',
-    label: 'High Risk Transition',
-    badge: 'Needs review',
-    badgeColor: 'text-[#c87400]',
-    leftBorder: 'border-l-4 border-[#c87400]',
-    clinicalNotes: '47-day high-risk transition phase. 2 ER visits in 60 days (last: 03/29/2026 — acute HF exacerbation). Post-acute follow-up overdue by 7 days. Urgency score 82/100. Social risk 53↑, housing unstable, food insecurity. Consider intensive outreach and transitional care protocol.',
-    fhir: { resourceType: 'Flag', resourceId: 'flag-high-risk-maria', label: 'Flag: High-Risk Transition' } as FhirRef,
-  },
-  {
-    id: 'vr-ckd',
-    label: 'CKD Worsening',
-    badge: 'Monitor closely',
-    badgeColor: 'text-[#c87400]',
-    leftBorder: 'border-l-4 border-[#c87400]',
-    clinicalNotes: 'CKD Stage 3b (N18.32) — eGFR 42 mL/min/1.73m² (2026-03-15, declining from 48 in 2025-12). K+ 5.1 mEq/L — hyperkalemia risk. Potassium Chloride adherence 55% PDC. Nephrology consult recommended. Avoid NSAIDs and nephrotoxic agents. Annual urine microalbumin due.',
-    fhir: { resourceType: 'Condition', resourceId: 'condition-ckd-maria', label: 'Condition: CKD Stage 3b (N18.32)' } as FhirRef,
-  },
-  {
-    id: 'vr-a1c',
-    label: 'A1C 9.2%',
-    badge: 'Out of range',
-    badgeColor: 'text-[#c23934]',
-    leftBorder: 'border-l-4 border-[#c23934]',
-    clinicalNotes: 'HbA1c 9.2% drawn 2026-02-10 at Labcorp (LOINC 4548-4). Target <8.0%. Previous results: 8.8% (2025-08), 8.5% (2025-02). Trend: worsening over 18 months. Metformin adherence 61% PDC. Consider Ozempic titration or specialist endocrinology referral. HEDIS CDC-001 gap open 112 days.',
-    fhir: { resourceType: 'Observation', resourceId: 'obs-a1c-maria-20260210', label: 'Observation: HbA1c 9.2% (LOINC 4548-4)' } as FhirRef,
-  },
-];
-
-type GapStatusType = 'In Process' | 'Not Started' | 'Waiting on Patient';
-type SummaryComplexity = 'Concise' | 'Moderate-Detail' | 'High-Detail';
-type CloseGapStep = 1 | 2 | 3;
-type ConfirmDocStep = 1 | 2 | 3;
-type ReferralStatus = 'Not Sent' | 'Pending' | 'Scheduled' | 'Completed';
-
-// ─── Static Data ──────────────────────────────────────────────────────────────
-const JOURNEY_PHASES = [
-  { key: 'stable-management', label: 'Stable', color: 'bg-[#24a148]', textColor: 'text-[#24a148]', borderColor: 'border-[#24a148]', bgLight: 'bg-[#defbe6]' },
-  { key: 'gap-in-care', label: 'Gap in Care', color: 'bg-[#f1c21b]', textColor: 'text-[#b45309]', borderColor: 'border-[#f1c21b]', bgLight: 'bg-[#fdf6dd]' },
-  { key: 'deteriorating', label: 'Deteriorating', color: 'bg-[#ff832b]', textColor: 'text-[#ff832b]', borderColor: 'border-[#ff832b]', bgLight: 'bg-[#fff2e8]' },
-  { key: 'high-risk-transition', label: 'High-Risk Transition', color: 'bg-[#da1e28]', textColor: 'text-[#da1e28]', borderColor: 'border-[#da1e28]', bgLight: 'bg-[#fce9e9]' },
-  { key: 'post-acute-recovery', label: 'Post-Acute', color: 'bg-[#0070d2]', textColor: 'text-[#0070d2]', borderColor: 'border-[#0070d2]', bgLight: 'bg-[#edf5ff]' },
-];
-
-const CURRENT_PHASE_KEY = 'high-risk-transition';
-
-const SDOH_BADGES = [
-  { label: 'Social Risk', value: '53→', color: 'bg-[#ffe0e0] text-[#da1e28] border-[#ffb3b8]' },
-  { label: 'Food Risk', value: 'High', color: 'bg-[#fdf6dd] text-[#b45309] border-[#f1c21b]' },
-  { label: 'Housing', value: 'Unstable', color: 'bg-[#fdf6dd] text-[#b45309] border-[#f1c21b]' },
-];
-
-const CARE_GAPS_ENHANCED = [
-  { id: 'cg-001', name: 'A1C Control — Diabetes', program: 'HEDIS', cmsMips: 'CDC-001', priority: 'High', status: 'In Process' as GapStatusType, daysOpen: 112 },
-  { id: 'cg-002', name: 'SDoH Screening', program: 'MIPS', cmsMips: 'MIPS-487', priority: 'Medium', status: 'In Process' as GapStatusType, daysOpen: 67 },
-  { id: 'cg-003', name: 'Mental/Behavioral Health', program: 'MIPS', cmsMips: 'MIPS-134', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 45 },
-  { id: 'cg-004', name: 'Statin Therapy — CVD', program: 'HEDIS', cmsMips: 'SPC-438', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 89 },
-  { id: 'cg-005', name: 'Controlling Hypertension', program: 'HEDIS', cmsMips: 'CBP-236', priority: 'High', status: 'Waiting on Patient' as GapStatusType, daysOpen: 134 },
-  { id: 'cg-006', name: 'Colorectal Cancer Screening', program: 'HEDIS', cmsMips: 'COL-113', priority: 'Medium', status: 'Not Started' as GapStatusType, daysOpen: 22 },
-];
-
-const MEDS_DATA = [
-  {
-    name: 'Lisinopril 10mg',
-    freq: 'QD',
-    adherence: 78,
-    flag: false,
-    ndc: '68180-0513-01',
-    prescriber: 'Dr. Sarah Chen, MD',
-    datePrescribed: '2024-08-15',
-    dosage: '10mg',
-    quantity: '90 tablets',
-    refills: '3 remaining'
-  },
-  {
-    name: 'Metformin 500mg',
-    freq: 'BID',
-    adherence: 61,
-    flag: true,
-    ndc: '00093-7214-01',
-    prescriber: 'Dr. Michael Rodriguez, MD',
-    datePrescribed: '2024-06-20',
-    dosage: '500mg',
-    quantity: '180 tablets',
-    refills: '2 remaining'
-  },
-  {
-    name: 'Atorvastatin 40mg',
-    freq: 'QHS',
-    adherence: 84,
-    flag: false,
-    ndc: '00071-0156-23',
-    prescriber: 'Dr. Sarah Chen, MD',
-    datePrescribed: '2024-09-10',
-    dosage: '40mg',
-    quantity: '90 tablets',
-    refills: '5 remaining'
-  },
-  {
-    name: 'Furosemide 20mg',
-    freq: 'QD',
-    adherence: 72,
-    flag: false,
-    ndc: '00054-3280-25',
-    prescriber: 'Dr. James Wilson, MD',
-    datePrescribed: '2024-07-05',
-    dosage: '20mg',
-    quantity: '90 tablets',
-    refills: '4 remaining'
-  },
-  {
-    name: 'Potassium Chloride 20mEq',
-    freq: 'QD',
-    adherence: 55,
-    flag: true,
-    ndc: '00054-4109-25',
-    prescriber: 'Dr. James Wilson, MD',
-    datePrescribed: '2024-07-05',
-    dosage: '20mEq',
-    quantity: '90 tablets',
-    refills: '1 remaining'
-  },
-];
-
-const LABS_DATA = [
-  { name: 'A1C', value: '9.2%', date: '2026-02-10', flag: true, ref: '<7.0%' },
-  { name: 'eGFR', value: '42', date: '2026-03-15', flag: true, ref: '>60' },
-  { name: 'K+', value: '5.1 mEq/L', date: '2026-04-01', flag: true, ref: '3.5–5.0' },
-  { name: 'LDL', value: '118 mg/dL', date: '2026-02-10', flag: false, ref: '<100' },
-  { name: 'BNP', value: '210 pg/mL', date: '2026-03-20', flag: true, ref: '<100' },
-  { name: 'BP', value: '158/96', date: '2026-04-01', flag: true, ref: '<130/80' },
-];
-
-const CDI_OPPORTUNITIES = [
-  {
-    id: 'cdi-001',
-    condition: 'T2DM with CKD Stage 3',
-    icd: 'E11.65 + N18.32',
-    hcc: 'HCC 18 + HCC 136',
-    confidence: 91,
-    rafDelta: '+0.42',
-    revenueDelta: '$3,200',
-    evidenceSources: ['EMR', 'Claims', 'HIE'],
-    justification: 'Claims data and LPR confirm active T2DM with CKD Stage 3b. A1C 9.2% and eGFR 42 support combined coding. Both conditions require separate HCC capture for accurate RAF.',
-    signals: [
-      { label: 'A1C', value: '9.2% (2026-02-10)', source: 'EMR', flagged: true },
-      { label: 'eGFR', value: '42 (2026-03-15)', source: 'EMR', flagged: true },
-      { label: 'Claims DX', value: 'E11.65 coded 2025-11-14', source: 'Claims', flagged: false },
-      { label: 'HIE Record', value: 'Nephrology note 2025-12-01', source: 'HIE', flagged: false },
-    ],
-    icd10Guidance: 'Use E11.65 (T2DM with hyperglycemia) + N18.32 (CKD Stage 3b). Dual coding required for HCC 136 capture.',
-    currentCode: 'E11 (Type 2 Diabetes)',
-    suggestedCode: 'E11.65 (T2D with hyperglycemia + CKD)',
-  },
-  {
-    id: 'cdi-002',
-    condition: 'Heart Failure — HFpEF',
-    icd: 'I50.30',
-    hcc: 'HCC 85',
-    confidence: 87,
-    rafDelta: '+0.28',
-    revenueDelta: '$2,100',
-    evidenceSources: ['EMR', 'Claims'],
-    justification: 'Echo confirms EF 55% consistent with HFpEF. BNP 210 pg/mL elevated. Prior year claims coded I50.9 (unspecified) — specificity upgrade required for HCC 85 capture.',
-    signals: [
-      { label: 'Echo EF', value: '55% (2026-01-15)', source: 'EMR', flagged: false },
-      { label: 'BNP', value: '210 pg/mL (2026-03-20)', source: 'EMR', flagged: true },
-      { label: 'Prior Claim', value: 'I50.9 coded 2025-09-10', source: 'Claims', flagged: false },
-    ],
-    icd10Guidance: 'Upgrade from I50.9 to I50.30 (HFpEF, unspecified). Confirm systolic function preserved on echo documentation.',
-    currentCode: 'I50.9 (Heart Failure, unspecified)',
-    suggestedCode: 'I50.30 (HFpEF, unspecified)',
-  },
-  {
-    id: 'cdi-003',
-    condition: 'Atrial Fibrillation',
-    icd: 'I48.91',
-    hcc: 'HCC 96',
-    confidence: 79,
-    rafDelta: '+0.19',
-    revenueDelta: '$1,450',
-    evidenceSources: ['EMR', 'HIE'],
-    justification: 'ECG on 2026-01-20 confirms persistent AFib. Not coded in current encounter. HCC 96 requires annual recapture — last coded 2025-08-12.',
-    signals: [
-      { label: 'ECG', value: 'Persistent AFib (2026-01-20)', source: 'EMR', flagged: true },
-      { label: 'Last Coded', value: 'I48.91 — 2025-08-12', source: 'Claims', flagged: false },
-    ],
-    icd10Guidance: 'Use I48.91 (unspecified AFib). Annual recapture required — HCC 96 does not carry forward.',
-    currentCode: 'Not coded this encounter',
-    suggestedCode: 'I48.91 (Unspecified AFib)',
-  },
-];
-
-const CHRONIC_CONDITIONS = [
-  { code: 'T2DM', label: 'Type 2 Diabetes', icd: 'E11.65', hcc: 'HCC 18', acuity: 'critical', metric: 'A1C 9.2%', trend: 'worsening' },
-  { code: 'CKD', label: 'CKD Stage 3b', icd: 'N18.32', hcc: 'HCC 136', acuity: 'critical', metric: 'eGFR 42', trend: 'worsening' },
-  { code: 'HTN', label: 'Hypertension', icd: 'I10', hcc: 'HCC 85', acuity: 'high', metric: 'BP 158/96', trend: 'stable' },
-  { code: 'HF', label: 'Heart Failure (HFpEF)', icd: 'I50.30', hcc: 'HCC 85', acuity: 'high', metric: 'EF 55%', trend: 'stable' },
-];
-
-const RECENT_ACTIVITY = [
-  { date: '04/01/2026', type: 'Lab', desc: 'BMP + A1C drawn', flag: true },
-  { date: '03/29/2026', type: 'ER', desc: 'ER visit — chest pain', flag: true },
-  { date: '03/19/2026', type: 'Visit', desc: 'Diabetes F/U — Dr. Whitfield', flag: false },
-  { date: '03/17/2026', type: 'BP', desc: 'BP Check 158/96', flag: true },
-  { date: '02/18/2026', type: 'ER', desc: 'ER visit — dyspnea', flag: true },
-];
-
-const VITALS_TREND = [
-  { label: 'BP Systolic', unit: 'mmHg', values: [142, 148, 155, 158], dates: ['Q3 25', 'Q4 25', 'Q1 26', 'Apr 26'], flag: true },
-  { label: 'A1C', unit: '%', values: [8.1, 8.6, 9.0, 9.2], dates: ['Q3 25', 'Q4 25', 'Q1 26', 'Apr 26'], flag: true },
-  { label: 'eGFR', unit: 'mL/min', values: [51, 48, 44, 42], dates: ['Q3 25', 'Q4 25', 'Q1 26', 'Apr 26'], flag: true },
-];
-
-const ACTIVE_REFERRALS = [
-  { id: 'ref-001', specialty: 'Cardiology', provider: 'Dr. Patel', tier: 'Tier 1', status: 'Pending' as ReferralStatus, urgency: 'Routine', date: '2026-03-28', reason: 'HFpEF follow-up, BNP elevation' },
-  { id: 'ref-002', specialty: 'Nephrology', provider: 'Unassigned', tier: '—', status: 'Not Sent' as ReferralStatus, urgency: 'Urgent', date: '2026-04-01', reason: 'CKD Stage 3b progression, eGFR 42' },
-  { id: 'ref-003', specialty: 'Ophthalmology', provider: 'Dr. Chen', tier: 'Tier 2', status: 'Scheduled' as ReferralStatus, urgency: 'Routine', date: '2026-04-15', reason: 'Annual diabetic eye exam' },
-  { id: 'ref-004', specialty: 'Endocrinology', provider: 'Dr. Reyes', tier: 'Tier 1', status: 'Completed' as ReferralStatus, urgency: 'Routine', date: '2026-02-20', reason: 'T2DM management — A1C 9.2%' },
-];
-
-const SOURCE_BADGE: Record<string, string> = {
-  EMR: 'bg-[#d0e2ff] text-[#0070d2]',
-  Claims: 'bg-[#fdf6dd] text-[#b45309]',
-  HIE: 'bg-[#defbe6] text-[#0e6027]',
-  LPR: 'bg-[#f6f2ff] text-[#6929c4]',
-};
-
-const GAP_STATUS_STYLE: Record<GapStatusType, { dot: string; badge: string; label: string }> = {
-  'In Process': { dot: 'bg-[#0070d2]', badge: 'bg-[#d0e2ff] text-[#0070d2]', label: 'In Process' },
-  'Not Started': { dot: 'bg-carbon-gray-40', badge: 'bg-carbon-gray-20 text-[#706e6b]', label: 'Not Started' },
-  'Waiting on Patient': { dot: 'bg-[#f1c21b]', badge: 'bg-[#fdf6dd] text-[#b45309]', label: 'Waiting on Patient' },
-};
-
-const REFERRAL_STATUS_STYLE: Record<ReferralStatus, { dot: string; badge: string }> = {
-  'Not Sent': { dot: 'bg-carbon-gray-40', badge: 'bg-carbon-gray-20 text-[#706e6b]' },
-  'Pending': { dot: 'bg-[#f1c21b]', badge: 'bg-[#fdf6dd] text-[#b45309]' },
-  'Scheduled': { dot: 'bg-[#0070d2]', badge: 'bg-[#d0e2ff] text-[#0070d2]' },
-  'Completed': { dot: 'bg-[#24a148]', badge: 'bg-[#defbe6] text-[#0e6027]' },
-};
-
-const ENCOUNTER_TABS = [
-  { key: 'summary', label: 'Summary' },
-  { key: 'results', label: 'Results' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'plan', label: 'Plan' },
-  { key: 'return', label: 'Γå⌐ Return to Cerner' },
-];
-
-// ─── Sparkline Component ──────────────────────────────────────────────────────
-function Sparkline({ values, flag }: { values: number[]; flag: boolean }) {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const w = 90;
-  const h = 28;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 6) - 3;
-    return `${x},${y}`;
-  });
-  const color = flag ? '#da1e28' : '#24a148';
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
-      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-      {values.map((v, i) => {
-        const x = (i / (values.length - 1)) * w;
-        const y = h - ((v - min) / range) * (h - 6) - 3;
-        return <circle key={i} cx={x} cy={y} r="2.5" fill={color} />;
-      })}
-    </svg>
-  );
-}
-
-// ─── Close Gap Modal ──────────────────────────────────────────────────────────
-function CloseGapModal({ gap, onClose, onComplete }: { gap: typeof CARE_GAPS_ENHANCED[0]; onClose: () => void; onComplete: (gapId: string) => void }) {
-  const [step, setStep] = useState<CloseGapStep>(1);
-  const [method, setMethod] = useState('');
-  const [sources, setSources] = useState<string[]>([]);
-  const [note, setNote] = useState('');
-  const [attested, setAttested] = useState(false);
-  const METHODS = ['Performed in this encounter', 'Performed previously — date picker', 'Patient declined — reason required', 'Medically excluded — exclusion code required'];
-  const SOURCES = ['EMR', 'HIE', 'CLAIMS', 'Patient Report'];
-  const toggleSource = (s: string) => setSources((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="px-5 py-4 border-b border-carbon-gray-20 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-bold text-[#3e3e3c]">Close Care Gap</p>
-            <p className="text-2xs text-[#706e6b] mt-0.5">Mrs. Alex Kirby — {gap.name} · {gap.cmsMips}</p>
-          </div>
-          <button onClick={onClose} className="text-[#706e6b] hover:text-[#3e3e3c] p-1"><Icon name="XMarkIcon" size={16} /></button>
-        </div>
-        <div className="flex border-b border-carbon-gray-20">
-          {[{ n: 1, label: 'Closure Method' }, { n: 2, label: 'Evidence & Documentation' }, { n: 3, label: 'Confirm & Sign' }].map(({ n, label }) => (
-            <div key={n} className={`flex-1 flex items-center gap-2 px-4 py-2.5 text-2xs font-semibold border-b-2 transition-colors ${step === n ? 'border-[#0070d2] text-[#0070d2] bg-[#edf5ff]' : step > n ? 'border-[#24a148] text-[#24a148]' : 'border-transparent text-[#8a8886]'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold flex-shrink-0 ${step === n ? 'bg-[#0070d2] text-white' : step > n ? 'bg-[#24a148] text-white' : 'bg-carbon-gray-20 text-[#706e6b]'}`}>{step > n ? 'OK' : n}</span>
-              {label}
-            </div>
-          ))}
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {step === 1 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-[#3e3e3c] mb-3">How was this gap addressed?</p>
-              {METHODS.map((m) => (
-                <label key={m} className="flex items-center gap-3 px-3 py-2.5 border border-carbon-gray-20 cursor-pointer hover:bg-carbon-gray-10 transition-colors">
-                  <input type="radio" name="method" value={m} checked={method === m} onChange={() => setMethod(m)} className="accent-[#0070d2]" />
-                  <span className="text-xs text-[#3e3e3c]">{m}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-[#3e3e3c] mb-2">Supporting Sources</p>
-                <div className="flex gap-2 flex-wrap">
-                  {SOURCES.map((s) => (
-                    <button key={s} onClick={() => toggleSource(s)} className={`text-xs font-semibold px-3 py-1.5 border transition-colors ${sources.includes(s) ? 'bg-[#0070d2] text-white border-[#0070d2]' : 'bg-white text-[#706e6b] border-carbon-gray-30 hover:border-[#0070d2]'}`}>{s}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-[#3e3e3c] mb-2">Clinical Note</p>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Enter clinical note supporting gap closure..." className="w-full border border-carbon-gray-30 px-3 py-2 text-xs text-[#3e3e3c] resize-none focus:outline-none focus:border-[#0070d2]" />
-              </div>
-            </div>
-          )}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="bg-[#f4f6f9] border border-carbon-gray-20 px-4 py-3 space-y-2">
-                <p className="text-xs font-semibold text-[#3e3e3c] mb-2">Closure Summary</p>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">Gap</span><span className="font-medium text-[#3e3e3c]">{gap.name}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">Measure</span><span className="font-medium text-[#3e3e3c]">{gap.cmsMips}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">Method</span><span className="font-medium text-[#3e3e3c]">{method || '—'}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">Evidence Sources</span><span className="font-medium text-[#3e3e3c]">{sources.join(', ') || '—'}</span></div>
-              </div>
-              <div className="bg-[#defbe6] border border-[#a7f0ba] px-3 py-2 flex items-center gap-2">
-                <Icon name="TrophyIcon" size={12} className="text-[#0e6027]" />
-                <p className="text-2xs text-[#0e6027] font-semibold">MIPS Quality Score Impact: Est. +4 pts upon closure</p>
-              </div>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} className="mt-0.5 accent-[#0070d2]" />
-                <span className="text-2xs text-[#706e6b] leading-relaxed">I attest that the information provided is accurate and complete to the best of my clinical knowledge. This documentation will be submitted to the payer for quality measure credit.</span>
-              </label>
-            </div>
-          )}
-        </div>
-        <div className="px-5 py-3 border-t border-carbon-gray-20 flex items-center justify-between">
-          <button onClick={onClose} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-10 transition-colors">Cancel</button>
-          <div className="flex items-center gap-2">
-            {step > 1 && <button onClick={() => setStep((s) => (s - 1) as CloseGapStep)} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-10 transition-colors">← Back</button>}
-            {step < 3 ? (
-              <button onClick={() => setStep((s) => (s + 1) as CloseGapStep)} disabled={step === 1 && !method} className="text-xs px-4 py-1.5 bg-[#0070d2] text-white hover:bg-[#005fb2] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
-            ) : (
-              <button onClick={() => { onComplete(gap.id); onClose(); }} disabled={!attested} className="text-xs px-4 py-1.5 bg-[#0e6027] text-white hover:bg-[#0a4d1e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Confirm & Close Gap</button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Confirm & Document Modal ─────────────────────────────────────────────────
-function ConfirmDocumentModal({ cdi, onClose, onComplete }: { cdi: typeof CDI_OPPORTUNITIES[0]; onClose: () => void; onComplete: (cdiId: string) => void }) {
-  const [step, setStep] = useState<ConfirmDocStep>(1);
-  const [icdOverride, setIcdOverride] = useState(cdi.suggestedCode);
-  const [submitTarget, setSubmitTarget] = useState<'EMR' | 'Payer' | 'Both'>('Both');
-  const [attested, setAttested] = useState(false);
-  const rafDeltaNum = parseFloat(cdi.rafDelta);
-  const revenueNum = parseInt(cdi.revenueDelta.replace(/[$,]/g, ''));
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="px-5 py-4 border-b border-carbon-gray-20 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-bold text-[#3e3e3c]">Confirm Diagnosis & Document</p>
-            <p className="text-2xs text-[#706e6b] mt-0.5">Mrs. Alex Kirby — {cdi.condition}</p>
-          </div>
-          <button onClick={onClose} className="text-[#706e6b] hover:text-[#3e3e3c] p-1"><Icon name="XMarkIcon" size={16} /></button>
-        </div>
-        <div className="flex border-b border-carbon-gray-20">
-          {[{ n: 1, label: 'Evidence Review' }, { n: 2, label: 'ICD-10 Confirmation' }, { n: 3, label: 'Sign & Submit' }].map(({ n, label }) => (
-            <div key={n} className={`flex-1 flex items-center gap-2 px-4 py-2.5 text-2xs font-semibold border-b-2 transition-colors ${step === n ? 'border-[#b45309] text-[#b45309] bg-[#fdf6dd]' : step > n ? 'border-[#24a148] text-[#24a148]' : 'border-transparent text-[#8a8886]'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold flex-shrink-0 ${step === n ? 'bg-[#b45309] text-white' : step > n ? 'bg-[#24a148] text-white' : 'bg-carbon-gray-20 text-[#706e6b]'}`}>{step > n ? 'OK' : n}</span>
-              {label}
-            </div>
-          ))}
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {step === 1 && (
-            <div className="space-y-3">
-              <div className="flex gap-2 flex-wrap mb-3">{cdi.evidenceSources.map((src) => (<span key={src} className={`text-2xs font-semibold px-2 py-0.5 ${SOURCE_BADGE[src] || 'bg-carbon-gray-20 text-[#706e6b]'}`}>{src}</span>))}</div>
-              <div className="space-y-1.5">{cdi.signals.map((sig, i) => (<div key={i} className={`flex items-center gap-2 px-3 py-2 text-2xs border ${sig.flagged ? 'bg-[#fff8f8] border-[#ffb3b8]' : 'bg-white border-carbon-gray-20'}`}><span className={`font-semibold px-1.5 py-0.5 text-2xs ${SOURCE_BADGE[sig.source] || ''}`}>{sig.source}</span><span className="text-[#706e6b]">{sig.label}:</span><span className={`font-medium ${sig.flagged ? 'text-[#da1e28]' : 'text-[#3e3e3c]'}`}>{sig.value}</span></div>))}</div>
-              <div className="bg-white border border-carbon-gray-20 px-3 py-2"><p className="text-2xs font-semibold text-[#706e6b] mb-1 uppercase tracking-wide">Clinical Justification</p><p className="text-2xs text-[#706e6b] leading-relaxed">{cdi.justification}</p></div>
-              <div className="flex items-center gap-4 bg-[#f4f6f9] px-3 py-2">
-                <div><p className="text-2xs text-[#706e6b]">Confidence</p><p className="text-sm font-bold font-mono text-[#24a148]">{cdi.confidence}%</p></div>
-                <div><p className="text-2xs text-[#706e6b]">RAF Delta</p><p className="text-sm font-bold font-mono text-[#0e6027]">{cdi.rafDelta}</p></div>
-                <div><p className="text-2xs text-[#706e6b]">Revenue at Risk</p><p className="text-sm font-bold font-mono text-[#b45309]">{cdi.revenueDelta}</p></div>
-              </div>
-            </div>
-          )}
-          {step === 2 && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="bg-[#f4f6f9] border border-carbon-gray-20 px-3 py-2.5"><p className="text-2xs text-[#706e6b] mb-0.5">Current Code</p><p className="text-xs font-mono font-semibold text-[#3e3e3c]">{cdi.currentCode}</p></div>
-                <div className="bg-[#defbe6] border border-[#a7f0ba] px-3 py-2.5"><p className="text-2xs text-[#0e6027] mb-0.5">Suggested Specificity Upgrade</p><p className="text-xs font-mono font-semibold text-[#0e6027]">{cdi.suggestedCode}</p></div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-[#3e3e3c] mb-1.5">Override / Modify ICD-10</p>
-                <input type="text" value={icdOverride} onChange={(e) => setIcdOverride(e.target.value)} className="w-full border border-carbon-gray-30 px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#b45309]" />
-              </div>
-              <div className="bg-[#fdf6dd] border border-[#f1c21b] px-4 py-3">
-                <p className="text-2xs font-semibold text-[#b45309] mb-2">RAF Impact Estimate</p>
-                <div className="flex items-center gap-6">
-                  <div><p className="text-2xs text-[#706e6b]">RAF Delta</p><p className="text-lg font-bold font-mono text-[#0e6027]">{rafDeltaNum > 0 ? '+' : ''}{rafDeltaNum.toFixed(2)}</p></div>
-                  <div><p className="text-2xs text-[#706e6b]">Est. Revenue Impact</p><p className="text-lg font-bold font-mono text-[#b45309]">${revenueNum.toLocaleString()}</p></div>
-                  <div><p className="text-2xs text-[#706e6b]">Submission Deadline</p><p className="text-xs font-semibold text-[#3e3e3c]">Dec 31, 2026</p></div>
-                </div>
-              </div>
-            </div>
-          )}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="bg-[#f4f6f9] border border-carbon-gray-20 px-4 py-3 space-y-2">
-                <p className="text-xs font-semibold text-[#3e3e3c] mb-2">Submission Summary</p>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">Condition</span><span className="font-medium text-[#3e3e3c]">{cdi.condition}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">ICD-10 Code</span><span className="font-mono font-medium text-[#3e3e3c]">{icdOverride}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">RAF Delta</span><span className="font-mono font-semibold text-[#0e6027]">{cdi.rafDelta}</span></div>
-                <div className="flex justify-between text-2xs"><span className="text-[#706e6b]">Revenue Impact</span><span className="font-mono font-semibold text-[#b45309]">{cdi.revenueDelta}</span></div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-[#3e3e3c] mb-2">Submit To</p>
-                <div className="flex gap-2">
-                  {(['EMR', 'Payer', 'Both'] as const).map((t) => (
-                    <button key={t} onClick={() => setSubmitTarget(t)} className={`text-xs font-semibold px-4 py-2 border transition-colors ${submitTarget === t ? 'bg-[#0070d2] text-white border-[#0070d2]' : 'bg-white text-[#706e6b] border-carbon-gray-30 hover:border-[#0070d2]'}`}>{t}</button>
-                  ))}
-                </div>
-              </div>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} className="mt-0.5 accent-[#0070d2]" />
-                <span className="text-2xs text-[#706e6b] leading-relaxed">I attest that this diagnosis is supported by clinical evidence documented in the medical record and meets the criteria for the specified ICD-10 code.</span>
-              </label>
-            </div>
-          )}
-        </div>
-        <div className="px-5 py-3 border-t border-carbon-gray-20 flex items-center justify-between">
-          <button onClick={onClose} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-10 transition-colors">Cancel</button>
-          <div className="flex items-center gap-2">
-            {step > 1 && <button onClick={() => setStep((s) => (s - 1) as ConfirmDocStep)} className="text-xs px-3 py-1.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-10 transition-colors">← Back</button>}
-            {step < 3 ? (
-              <button onClick={() => setStep((s) => (s + 1) as ConfirmDocStep)} className="text-xs px-4 py-1.5 bg-[#b45309] text-white hover:bg-[#8a3d07] transition-colors">Next →</button>
-            ) : (
-              <button onClick={() => { onComplete(cdi.id); onClose(); }} disabled={!attested} className="text-xs px-4 py-1.5 bg-[#0e6027] text-white hover:bg-[#0a4d1e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Sign & Submit to {submitTarget}</button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Referral Triage Actions ──────────────────────────────────────────────────
-function ReferralTriageMenu({ referral, onAction }: { referral: typeof ACTIVE_REFERRALS[0]; onAction: (refId: string, action: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const actions: Record<ReferralStatus, Array<{ label: string; icon: string; color: string }>> = {
-    'Not Sent': [
-      { label: 'Approve & Send', icon: 'CheckCircleIcon', color: 'text-[#0e6027]' },
-      { label: 'Modify', icon: 'PencilSquareIcon', color: 'text-[#0070d2]' },
-      { label: 'Cancel', icon: 'XCircleIcon', color: 'text-[#da1e28]' },
-    ],
-    'Pending': [
-      { label: 'Upgrade Urgency', icon: 'ArrowUpCircleIcon', color: 'text-[#da1e28]' },
-      { label: 'Add Clinical Note', icon: 'PencilSquareIcon', color: 'text-[#0070d2]' },
-      { label: 'Cancel', icon: 'XCircleIcon', color: 'text-[#da1e28]' },
-      { label: 'Reassign Provider', icon: 'ArrowPathIcon', color: 'text-[#b45309]' },
-    ],
-    'Scheduled': [
-      { label: 'Add Note', icon: 'PencilSquareIcon', color: 'text-[#0070d2]' },
-      { label: 'View Appointment', icon: 'CalendarIcon', color: 'text-[#0070d2]' },
-      { label: 'Cancel', icon: 'XCircleIcon', color: 'text-[#da1e28]' },
-    ],
-    'Completed': [
-      { label: 'View Outcome', icon: 'DocumentTextIcon', color: 'text-[#0070d2]' },
-      { label: 'Create Follow-up', icon: 'PlusCircleIcon', color: 'text-[#0e6027]' },
-    ],
-  };
-  const menuActions = actions[referral.status];
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="text-2xs font-semibold px-2 py-1 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-10 transition-colors flex items-center gap-1 whitespace-nowrap"
-      >
-        Actions <Icon name={open ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={9} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-0.5 z-20 bg-white border border-carbon-gray-20 shadow-lg min-w-[160px]">
-          {menuActions.map((act) => (
-            <button
-              key={act.label}
-              onClick={() => { onAction(referral.id, act.label); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-2xs hover:bg-carbon-gray-10 transition-colors text-left"
-            >
-              <Icon name={act.icon as any} size={11} className={act.color} />
-              <span className="text-[#3e3e3c]">{act.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Pagination helpers (module-level) ───────────────────────────────────────
-const PAGE_SIZE = 5;
-
-function paginate<T>(arr: T[], page: number): T[] {
-  return arr.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-}
-
-function PanelPager({ total, page, onPage }: { total: number; page: number; onPage: (p: number) => void }) {
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  if (totalPages <= 1) return null;
-  return (
-    <div className="border-t border-carbon-gray-20 px-3 py-1.5 flex items-center justify-between bg-[#f4f6f9] flex-shrink-0">
-      <button
-        onClick={() => onPage(page - 1)}
-        disabled={page === 0}
-        className="text-2xs font-semibold px-2 py-0.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        ← Prev
-      </button>
-      <span className="text-2xs text-[#706e6b]">
-        {page + 1} / {totalPages}
-        <span className="ml-1 text-[#8a8886]">({total} total)</span>
-      </span>
-      <button
-        onClick={() => onPage(page + 1)}
-        disabled={page >= totalPages - 1}
-        className="text-2xs font-semibold px-2 py-0.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        Next →
-      </button>
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Removed: data + sub-components now live in .data.ts and .helpers.tsx â”€â”€â”€â”€â”€
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditEntry, onOpenOrderEntry, onOpenCdsAlerts }: MdSmartSummaryScreenProps) {
   // Get Maria Redhawk from patient registry using FHIR ID
   const registryPatient = getPatientByFhirId(launchContext.patientId);
@@ -605,7 +52,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
   } : patient;
   const patientPhotoInitial = displayPatient.name?.charAt(0) || 'P';
 
-  // ── FHIR-backed Coverage & Consent ──────────────────────────────────────────
+  // â”€â”€ FHIR-backed Coverage & Consent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Defaults (mock / fallback values shown until FHIR fetch resolves)
   const [coverageData, setCoverageData] = useState<{
     primary: string; memberId: string; secondary: string; pcp: string;
@@ -677,16 +124,16 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
     closureRequirement: gap.name,
   })) || []; // Empty array if registry patient not found - DO NOT use mockCareGaps
   
-  console.log('≡ƒöì DEBUG - Final Care Gaps Count:', careGaps.length);
-  console.log('≡ƒöì DEBUG - Care Gap Names:', careGaps.map(g => g.measureName));
+  console.log('â‰¡Æ’Ã¶Ã¬ DEBUG - Final Care Gaps Count:', careGaps.length);
+  console.log('â‰¡Æ’Ã¶Ã¬ DEBUG - Care Gap Names:', careGaps.map(g => g.measureName));
 
-  // ── FHIR viewer modal state ──────────────────────────────────────────────
+  // â”€â”€ FHIR viewer modal state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [fhirViewer, setFhirViewer] = useState<FhirRef | null>(null);
 
-  // ── Visit reason accordion state ─────────────────────────────────────────
+  // â”€â”€ Visit reason accordion state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
 
-  // ── Care-gaps panel scroll ref ───────────────────────────────────────────
+  // â”€â”€ Care-gaps panel scroll ref â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const careGapsRef = useRef<HTMLDivElement>(null);
 
   const [activeEncounterTab, setActiveEncounterTab] = useState('summary');
@@ -712,7 +159,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [referralSuccess, setReferralSuccess] = useState<string | null>(null);
 
-  // ── Pagination state (5 rows per page) ──────────────────────────────────
+  // â”€â”€ Pagination state (5 rows per page) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [chronicPage, setChronicPage] = useState(0);
   const [medsPage, setMedsPage] = useState(0);
   const [gapsPage, setGapsPage] = useState(0);
@@ -769,7 +216,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
       });
 
       console.log('Care plan generated successfully:', generated?.title);
-      console.log(`Γ£à ${referralStore.getAllReferrals().length} referrals created and ready for doctor approval`);
+      console.log(`Î“Â£Ã  ${referralStore.getAllReferrals().length} referrals created and ready for doctor approval`);
 
       setGeneratedPlan(generated);
       setShowGeneratedPlan(true);
@@ -795,7 +242,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
     );
 
     if (switchToSpecialist) {
-      console.log('≡ƒöä Navigating to Specialist Inbox...');
+      console.log('â‰¡Æ’Ã¶Ã¤ Navigating to Specialist Inbox...');
       router.push('/specialist-inbox');
     } else {
       // Stay on page, close the care plan form
@@ -869,12 +316,12 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
   // Demo Reset Handler
   const handleDemoReset = useCallback(() => {
     const confirmed = window.confirm(
-      '≡ƒöä Reset Demo Data?\n\n' +
+      'â‰¡Æ’Ã¶Ã¤ Reset Demo Data?\n\n' +
       'This will:\n' +
-      '• Clear all created referrals (except initial 3 samples)\n' +
-      '• Reset all care gaps to "Open" status\n' +
-      '• Clear gainshare records\n' +
-      '• Reset quality metrics to baseline\n\n' +
+      'â€¢ Clear all created referrals (except initial 3 samples)\n' +
+      'â€¢ Reset all care gaps to "Open" status\n' +
+      'â€¢ Clear gainshare records\n' +
+      'â€¢ Reset quality metrics to baseline\n\n' +
       'This is useful for running the demo multiple times.\n\n' +
       'Continue with reset?'
     );
@@ -884,7 +331,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
       setClosedGaps([]);
       setConfirmedCdis([]);
       setReferralSuccess(null);
-      alert('Γ£à Demo data has been reset!\n\nYou can now run through the demo workflow again.');
+      alert('Î“Â£Ã  Demo data has been reset!\n\nYou can now run through the demo workflow again.');
       onAuditEntry?.('demo-reset', { timestamp: new Date().toISOString() });
     }
   }, [onAuditEntry]);
@@ -916,7 +363,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#f3f2f1]">
 
-      {/* ── FHIR Resource Viewer modal ────────────────────────────────────── */}
+      {/* â”€â”€ FHIR Resource Viewer modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {fhirViewer && (
         <FhirResourceViewer
           resourceType={fhirViewer.resourceType}
@@ -926,10 +373,10 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
         />
       )}
 
-      {/* ── ER/Admission Alert Banner ─────────────────────────────────────── */}
+      {/* â”€â”€ ER/Admission Alert Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-[#fef3cd] border-b border-[#e8a200] px-4 py-2 flex items-center gap-3 flex-shrink-0">
         <Icon name="ExclamationTriangleIcon" size={14} className="text-[#c87400]" />
-        <span className="text-xs font-medium text-[#3e2800]">Recent ER utilization noted (03/29/2026) · 2 visits in 60 days</span>
+        <span className="text-xs font-medium text-[#3e2800]">Recent ER utilization noted (03/29/2026) Â· 2 visits in 60 days</span>
         <button
           onClick={() => setFhirViewer({ resourceType: 'Flag', resourceId: 'flag-high-risk-maria', label: 'Flag: High-Risk Transition' })}
           className="ml-auto text-xs font-semibold px-3 py-1 border border-[#c87400] bg-white text-[#c87400] hover:bg-[#fef3cd] transition-colors flex-shrink-0"
@@ -938,7 +385,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
         </button>
       </div>
 
-      {/* ── Gap Closure Metrics Panel (shows when gaps are closed) ─────────── */}
+      {/* â”€â”€ Gap Closure Metrics Panel (shows when gaps are closed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex-shrink-0">
         <GapClosureMetricsPanel
           patientId={displayPatient.id}
@@ -946,7 +393,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
         />
       </div>
 
-      {/* ── Encounter-phase top tabs + Complexity selector ────────────────── */}
+      {/* â”€â”€ Encounter-phase top tabs + Complexity selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-[#14304a] border-b border-[#1c4060] flex items-center flex-shrink-0 px-2">
         {ENCOUNTER_TABS.map((tab) => (
           <button
@@ -965,11 +412,11 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
         </div>
       </div>
 
-      {/* ── Scrollable content ────────────────────────────────────────────── */}
+      {/* â”€â”€ Scrollable content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-3 space-y-3 bg-[#f3f2f1]">
 
-          {/* ── EMR-STYLE PATIENT HEADER ───────────────────────────────────── */}
+          {/* â”€â”€ EMR-STYLE PATIENT HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="sticky top-0 z-20 bg-[#f3f2f1] -mx-3 px-3 pb-3">
             <div className="bg-white border border-[#dddbda] shadow-sm">
             <div className="px-3 py-1.5 border-b border-[#dddbda] bg-[#f4f6f9]">
@@ -987,20 +434,20 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                   </div>
                   <div className="flex items-center gap-3 text-2xs flex-wrap mt-0.5">
                     <span><span className="text-[#706e6b] mr-0.5">DOB</span><span className="font-medium text-[#3e3e3c]">{patient.dob}</span></span>
-                    <span><span className="text-[#706e6b] mr-0.5">Age/Sex</span><span className="font-medium text-[#3e3e3c]">{patient.age} · {patient.gender}</span></span>
+                    <span><span className="text-[#706e6b] mr-0.5">Age/Sex</span><span className="font-medium text-[#3e3e3c]">{patient.age} Â· {patient.gender}</span></span>
                     <span><span className="text-[#706e6b] mr-0.5">MRN</span><span className="font-medium font-mono text-[#3e3e3c]">{patient.mrn}</span></span>
                     <span><span className="text-[#706e6b] mr-0.5">Enc</span><span className="font-medium font-mono text-[#3e3e3c]">{launchContext.encounterId}</span></span>
                     <span><span className="text-[#706e6b] mr-0.5">Allergies</span><span className="font-medium text-[#c23934]">Penicillin, Sulfa</span></span>
                   </div>
                 </div>
-                {/* Coverage + Consents — two equal columns */}
+                {/* Coverage + Consents â€” two equal columns */}
                 <div className="flex items-stretch gap-0 flex-shrink-0 border-l border-[#dddbda] ml-1">
                   {/* Coverage */}
                   <div className="text-2xs px-3 py-0.5">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <p className="text-2xs font-semibold uppercase tracking-wide text-[#16325c] leading-none">Coverage</p>
                       {fhirCoverageRef && (
-                        <button onClick={() => setFhirViewer(fhirCoverageRef)} className="text-2xs text-[#0070d2] hover:underline leading-none">→ FHIR</button>
+                        <button onClick={() => setFhirViewer(fhirCoverageRef)} className="text-2xs text-[#0070d2] hover:underline leading-none">â†’ FHIR</button>
                       )}
                     </div>
                     <div className="space-y-0.5">
@@ -1025,7 +472,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <p className="text-2xs font-semibold uppercase tracking-wide text-[#16325c] leading-none">Consents &amp; Social</p>
                       {fhirConsentRef && (
-                        <button onClick={() => setFhirViewer(fhirConsentRef)} className="text-2xs text-[#0070d2] hover:underline leading-none">→ FHIR</button>
+                        <button onClick={() => setFhirViewer(fhirConsentRef)} className="text-2xs text-[#0070d2] hover:underline leading-none">â†’ FHIR</button>
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-wrap mb-0.5">
@@ -1080,7 +527,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                           );
                         })}
                       </div>
-                      <p className="text-xs font-bold text-[#3e3e3c] mb-1">High-Risk Transition · 47 days in phase</p>
+                      <p className="text-xs font-bold text-[#3e3e3c] mb-1">High-Risk Transition Â· 47 days in phase</p>
                       <p className="text-2xs text-[#706e6b] leading-relaxed mb-2">Recent ER utilization, deteriorating chronic condition control, and multiple open care gaps indicate elevated near-term risk. Trajectory: <span className="font-semibold text-[#da1e28]">Worsening</span></p>
                       <p className="text-2xs text-[#706e6b]"><span className="font-medium">Next milestone:</span> Post-acute follow-up due within 7 days</p>
                     </div>
@@ -1091,7 +538,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                         <p className="text-2xs text-[#706e6b]">/100</p>
                       </div>
                       <div className="grid grid-cols-1 gap-1">
-                        {[{ label: 'A1C', value: '9.2% (2026-02-10)' }, { label: 'ER Visits (90d)', value: '2 visits — $11,000' }, { label: 'BP Control', value: '158/96 (2026-04-01)' }, { label: 'Med Adherence', value: '61% PDC' }].map((sig, i) => (
+                        {[{ label: 'A1C', value: '9.2% (2026-02-10)' }, { label: 'ER Visits (90d)', value: '2 visits â€” $11,000' }, { label: 'BP Control', value: '158/96 (2026-04-01)' }, { label: 'Med Adherence', value: '61% PDC' }].map((sig, i) => (
                           <div key={i} className="flex items-center gap-1.5 px-2 py-1 border bg-white border-carbon-gray-20 text-2xs">
                             <div className="w-1 h-1 rounded-full bg-[#da1e28] flex-shrink-0" />
                             <span className="text-[#706e6b] truncate">{sig.label}:</span>
@@ -1106,7 +553,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
             </div>
           </div>
 
-          {/* ── TODAY'S VISIT / ACTIONS REQUIRED ───────────────────────────── */}
+          {/* â”€â”€ TODAY'S VISIT / ACTIONS REQUIRED â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {patient && (hccSuspects.length > 0 || careGaps.length > 0) && (
             <div className="bg-white border border-[#dddbda] shadow-sm">
               <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#dddbda]">
@@ -1139,7 +586,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                                 onClick={() => setFhirViewer(vr.fhir)}
                                 className="text-2xs font-semibold text-[#0070d2] hover:underline"
                               >
-                                → View {vr.fhir.resourceType} in FHIR
+                                â†’ View {vr.fhir.resourceType} in FHIR
                               </button>
                             </div>
                           )}
@@ -1159,7 +606,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                       <p className="text-2xs font-semibold uppercase tracking-wide text-[#706e6b]">Clinician Worklist</p>
                     </div>
                     <div className="divide-y divide-[#edf1f4] text-sm text-[#3e3e3c]">
-                      {/* P1 — CDS Alerts row */}
+                      {/* P1 â€” CDS Alerts row */}
                       {cdsCards.length > 0 && (
                         <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-[#fff8f8]">
                           <div className="flex items-center gap-1.5">
@@ -1169,7 +616,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                           <button onClick={onOpenCdsAlerts} className="text-2xs font-semibold text-[#c23934] hover:text-[#a51f1a]">Review alerts</button>
                         </div>
                       )}
-                      {/* P5 — Care Gaps: "Open actions" scrolls to care gaps panel */}
+                      {/* P5 â€” Care Gaps: "Open actions" scrolls to care gaps panel */}
                       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                         <span className="font-medium">{careGaps.length} Care Gaps</span>
                         <button
@@ -1179,7 +626,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                           Open actions
                         </button>
                       </div>
-                      {/* P5 — HCC Suspects: "Review documentation" opens FHIR CDI viewer */}
+                      {/* P5 â€” HCC Suspects: "Review documentation" opens FHIR CDI viewer */}
                       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                         <span className="font-medium">{hccSuspects.length} HCC Suspects</span>
                         <button
@@ -1236,7 +683,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
             </div>
           )}
 
-          {/* ── Patient History Summary/Details (Collapsible) ── */}
+          {/* â”€â”€ Patient History Summary/Details (Collapsible) â”€â”€ */}
           <div className="bg-white border border-[#dddbda] shadow-sm">
             {/* Collapsible Header */}
             <button
@@ -1328,7 +775,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                       <h4 className="text-xs font-bold text-[#3e3e3c]">FHIR Chart Review</h4>
                     </div>
                     <p className="text-2xs text-[#706e6b]">
-                      Open the patient’s detailed FHIR resources in a dedicated drawer to review conditions, medications, labs, allergies, procedures, encounters, immunizations, and care plans without crowding the main summary.
+                      Open the patientâ€™s detailed FHIR resources in a dedicated drawer to review conditions, medications, labs, allergies, procedures, encounters, immunizations, and care plans without crowding the main summary.
                     </p>
                   </div>
                   <button
@@ -1344,7 +791,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
           </div>
 
 
-          {/* ── PRIMARY CLINICAL ROW ───────────────────────────────────────── */}
+          {/* â”€â”€ PRIMARY CLINICAL ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="grid grid-cols-3 gap-3 items-start">
             {/* CONDITIONS */}
             <div className="bg-white border border-[#dddbda] shadow-sm flex flex-col">
@@ -1360,11 +807,11 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-0.5 ${cond.acuity === 'critical' ? 'bg-[#da1e28]' : 'bg-[#f1c21b]'}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-[#3e3e3c] leading-tight">{cond.label}</p>
-                        <p className="text-2xs text-[#706e6b] mt-0.5">{cond.icd} · <span className="font-mono">{cond.hcc}</span></p>
+                        <p className="text-2xs text-[#706e6b] mt-0.5">{cond.icd} Â· <span className="font-mono">{cond.hcc}</span></p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={`text-2xs font-mono font-bold ${cond.acuity === 'critical' ? 'text-[#da1e28]' : 'text-[#b45309]'}`}>{cond.metric}</span>
                           <span className={`text-2xs px-1.5 py-0.5 font-medium border ${cond.trend === 'worsening' ? 'bg-[#fce9e9] text-[#c23934] border-[#f5a9a9]' : 'bg-[#f0fff4] text-[#0e6027] border-[#b6e2c2]'}`}>
-                            {cond.trend === 'worsening' ? 'Γåô Worsening' : '→ Stable'}
+                            {cond.trend === 'worsening' ? 'Î“Ã¥Ã´ Worsening' : 'â†’ Stable'}
                           </span>
                         </div>
                       </div>
@@ -1431,7 +878,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                         <div className="text-right">
                           <span className={`text-sm font-bold font-mono ${vt.flag ? 'text-[#da1e28]' : 'text-[#24a148]'}`}>{vt.values[vt.values.length - 1]}</span>
                           <span className="text-2xs text-[#706e6b] ml-1">{vt.unit}</span>
-                          {vt.flag && <span className="ml-1 text-2xs font-bold text-[#da1e28]">→</span>}
+                          {vt.flag && <span className="ml-1 text-2xs font-bold text-[#da1e28]">â†’</span>}
                         </div>
                       </div>
                       <Sparkline values={vt.values} flag={vt.flag} />
@@ -1450,7 +897,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
             </div>
           </div>
 
-          {/* ── SECONDARY CLINICAL / ADMIN ROW ─────────────────────────────── */}
+          {/* â”€â”€ SECONDARY CLINICAL / ADMIN ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="grid grid-cols-3 gap-3 items-start">
             {/* OPEN CARE GAPS */}
             <div ref={careGapsRef} className="bg-white border border-[#dddbda] shadow-sm flex flex-col">
@@ -1535,7 +982,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-1 min-w-0">
                           <p className="text-2xs font-semibold text-[#3e3e3c]">{ref.specialty}</p>
-                          <p className="text-2xs text-[#706e6b] truncate">{ref.provider}{ref.tier !== '—' ? ` · ${ref.tier}` : ''}</p>
+                          <p className="text-2xs text-[#706e6b] truncate">{ref.provider}{ref.tier !== 'â€”' ? ` Â· ${ref.tier}` : ''}</p>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <div className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
@@ -1591,7 +1038,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                             <div className="flex items-start justify-between gap-1 mb-1">
                               <div className="min-w-0">
                                 <p className="text-2xs font-semibold text-[#3e3e3c] leading-tight">{cdi.condition}</p>
-                                <p className="text-2xs text-[#706e6b]">{cdi.icd} · {cdi.hcc}</p>
+                                <p className="text-2xs text-[#706e6b]">{cdi.icd} Â· {cdi.hcc}</p>
                               </div>
                               <span className="text-2xs font-mono font-bold text-[#0e6027] flex-shrink-0">{cdi.rafDelta}</span>
                             </div>
@@ -1622,7 +1069,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                                   <span className="text-2xs font-semibold text-[#24a148] flex items-center gap-1"><Icon name="CheckCircleIcon" size={11} /> Confirmed</span>
                                 ) : (
                                   <button onClick={() => setConfirmDocTarget(cdi)} className="text-2xs font-semibold px-2.5 py-1.5 bg-[#0e6027] text-white hover:bg-[#0a4d1e] transition-colors flex items-center gap-1">
-                                    <Icon name="CheckIcon" size={10} /> Confirm & Document →
+                                    <Icon name="CheckIcon" size={10} /> Confirm & Document â†’
                                   </button>
                                 )}
                                 <button onClick={() => setExpandedCdi(null)} className="text-2xs px-2 py-1.5 border border-carbon-gray-30 text-[#706e6b] hover:bg-carbon-gray-10 transition-colors">Defer</button>
@@ -1639,7 +1086,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
             </div>
           </div>
 
-          {/* ── RECENT CLINICAL ACTIVITY TIMELINE ──────────────────────────── */}
+          {/* â”€â”€ RECENT CLINICAL ACTIVITY TIMELINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="bg-white border border-[#dddbda] shadow-sm flex flex-col">
             <div className="px-3 py-2.5 border-b border-[#dddbda] flex items-center gap-2 flex-shrink-0 bg-[#f4f6f9]">
               <Icon name="ClockIcon" size={13} className="text-[#0070d2]" />
@@ -1670,7 +1117,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
             <PanelPager total={RECENT_ACTIVITY.length} page={activityPage} onPage={setActivityPage} />
           </div>
 
-          {/* ── COMPACT FINANCIALS PANEL ────────────────────────────────────── */}
+          {/* â”€â”€ COMPACT FINANCIALS PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="bg-white border border-[#dddbda]">
             <div className="px-4 py-3 border-b border-carbon-gray-20 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -1681,7 +1128,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-2xs text-[#706e6b]">Contract:</span>
                   <span className="text-2xs font-semibold text-[#3e3e3c]">Humana MA-PD 2026 VBP</span>
-                  <span className="text-2xs text-[#706e6b]">·</span>
+                  <span className="text-2xs text-[#706e6b]">Â·</span>
                   <span className="text-2xs text-[#706e6b]">{canViewFinancials ? 'Financial signals visible' : 'Toggle to enable VBP financial signals'}</span>
                 </div>
               </div>
@@ -1704,17 +1151,17 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                   <div className="bg-[#fdf6dd] border border-[#f1c21b] px-3 py-2.5">
                     <p className="text-2xs text-[#706e6b] mb-1">RAF Revenue at Risk</p>
                     <p className="text-xl font-bold font-mono text-[#b45309]">${(totalRevenueAtRisk / 1000).toFixed(1)}K</p>
-                    <p className="text-2xs text-[#706e6b] mt-1">{CDI_OPPORTUNITIES.length} HCC suspects · RAF +{totalRafAtRisk.toFixed(2)}</p>
+                    <p className="text-2xs text-[#706e6b] mt-1">{CDI_OPPORTUNITIES.length} HCC suspects Â· RAF +{totalRafAtRisk.toFixed(2)}</p>
                   </div>
                   <div className="bg-[#defbe6] border border-[#a7f0ba] px-3 py-2.5">
                     <p className="text-2xs text-[#706e6b] mb-1">VBP Projected Savings</p>
                     <p className="text-xl font-bold font-mono text-[#0e6027]">$4,200</p>
-                    <p className="text-2xs text-[#706e6b] mt-1">Gap closure — 5 measures</p>
+                    <p className="text-2xs text-[#706e6b] mt-1">Gap closure â€” 5 measures</p>
                   </div>
                   <div className="bg-[#edf5ff] border border-[#97c1ff] px-3 py-2.5">
                     <p className="text-2xs text-[#706e6b] mb-1">Prior Auth Signals</p>
                     <p className="text-xl font-bold font-mono text-[#0070d2]">2 pending</p>
-                    <p className="text-2xs text-[#706e6b] mt-1">Nephrology · Renal US</p>
+                    <p className="text-2xs text-[#706e6b] mt-1">Nephrology Â· Renal US</p>
                   </div>
                   <div className="bg-[#f6f2ff] border border-[#d4bbff] px-3 py-2.5">
                     <p className="text-2xs text-[#706e6b] mb-1">MIPS Quality Impact</p>
@@ -1753,7 +1200,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
             <div className="border-t border-[#d4bbff] bg-[#f6f2ff] px-4 py-2.5 flex items-start gap-2">
               <Icon name="ShieldCheckIcon" size={12} className="text-[#6929c4] flex-shrink-0 mt-0.5" />
               <p className="text-2xs text-[#6929c4] leading-relaxed">
-                <span className="font-semibold">VBP Disclaimer:</span> Incentives per 2026 VBP contract with Humana MA-PD. Subject to CMS AKS VBE safe harbor and Stark VBE exception. Quality-based only — not tied to referral volume or patient steering. Financial signals are for care coordination purposes only.
+                <span className="font-semibold">VBP Disclaimer:</span> Incentives per 2026 VBP contract with Humana MA-PD. Subject to CMS AKS VBE safe harbor and Stark VBE exception. Quality-based only â€” not tied to referral volume or patient steering. Financial signals are for care coordination purposes only.
               </p>
             </div>
 
@@ -1768,7 +1215,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
         </div>
       </div>
 
-      {/* ── MODALS ─────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ MODALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {closeGapTarget && (
         <CloseGapModal gap={closeGapTarget} onClose={() => setCloseGapTarget(null)} onComplete={handleGapClose} />
       )}
@@ -1905,7 +1352,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                             </div>
                             <div className="flex items-center gap-4 text-2xs text-[#706e6b]">
                               <span>Onset: {condition.onset}</span>
-                              <span>•</span>
+                              <span>â€¢</span>
                               <span>Status: {condition.status}</span>
                             </div>
                           </div>
@@ -1923,7 +1370,7 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
                                 <p className="text-xs font-semibold text-[#3e3e3c]">{med.name}</p>
-                                <p className="text-2xs text-[#706e6b] mt-0.5">Frequency: {med.freq} • Dosage: {med.dosage}</p>
+                                <p className="text-2xs text-[#706e6b] mt-0.5">Frequency: {med.freq} â€¢ Dosage: {med.dosage}</p>
                               </div>
                               <div className="text-right">
                                 <p className={`text-xs font-bold ${med.flag ? 'text-[#da1e28]' : 'text-[#24a148]'}`}>
@@ -2084,9 +1531,9 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
                                 <p className="text-xs text-[#706e6b] mb-2">{generatedPlan.description}</p>
                                 <div className="flex items-center gap-4 text-2xs text-[#706e6b]">
                                   <span>Created: {new Date().toLocaleDateString()}</span>
-                                  <span>•</span>
+                                  <span>â€¢</span>
                                   <span>Type: AI-Generated Comprehensive Plan</span>
-                                  <span>•</span>
+                                  <span>â€¢</span>
                                   <span>Status: Active</span>
                                 </div>
                               </div>
