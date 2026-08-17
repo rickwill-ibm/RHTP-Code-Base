@@ -52,6 +52,54 @@ const REGIONS = ['All Regions', 'Jackson County', 'Clay County', 'Platte County'
 
 const PROVIDERS = ['All Providers / Networks', 'Truman Medical Centers', 'Saint Luke\'s Health System', 'Children\'s Mercy', 'KCCHC (FQHC)', 'Rural Health Network — Ray/Cass'];
 
+// ─── Per-region scale factors (applied when a single region is selected) ─────
+const REGION_SCALE: Record<string, number> = {
+  'Jackson County': 0.22,
+  'Clay County':    0.16,
+  'Platte County':  0.12,
+  'Cass County':    0.18,
+  'Ray County':     0.09,
+};
+
+// Per-provider scale factors
+const PROVIDER_SCALE: Record<string, number> = {
+  'Truman Medical Centers':             0.31,
+  "Saint Luke's Health System":         0.27,
+  "Children's Mercy":                   0.18,
+  'KCCHC (FQHC)':                       0.13,
+  'Rural Health Network — Ray/Cass':    0.09,
+};
+
+// Program scale factors
+const PROGRAM_SCALE: Record<string, number> = {
+  'RHTP — Medicaid 1115 Waiver':        0.48,
+  'RHTP — BH Block Grant (SAMHSA)':     0.19,
+  'RHTP — CHW Outreach Program':        0.16,
+  'RHTP — Social Needs Navigation':     0.14,
+};
+
+function scaleFunnel(base: typeof FUNNEL_DATA, factor: number) {
+  return base.map((d) => ({ ...d, value: Math.round(d.value * factor) }));
+}
+
+function scaleDomains(base: typeof DOMAIN_PREVALENCE, factor: number) {
+  const total = Math.round(3291 * factor);
+  return base.map((d) => ({
+    ...d,
+    count: Math.round(d.count * factor),
+    pct: total > 0 ? parseFloat(((d.count * factor / total) * 100).toFixed(1)) : 0,
+  }));
+}
+
+function scaleTrend(base: typeof DUAL_NEED_TREND, factor: number) {
+  return base.map((d) => ({
+    ...d,
+    clinical_only: Math.round(d.clinical_only * factor),
+    social_only:   Math.round(d.social_only   * factor),
+    dual_need:     Math.round(d.dual_need     * factor),
+  }));
+}
+
 export default function SocialNeedsDashboardPage() {
   const [activeTab, setActiveTab] = useState<'funnel' | 'domains' | 'dual' | 'regions'>('funnel');
   const [rhtpProgram, setRhtpProgram] = useState(RHTP_PROGRAMS[0]);
@@ -78,6 +126,34 @@ export default function SocialNeedsDashboardPage() {
   const [provider, setProvider] = useState(PROVIDERS[0]);
 
   const isFiltered = rhtpProgram !== RHTP_PROGRAMS[0] || region !== REGIONS[0] || provider !== PROVIDERS[0];
+
+  // ── Derive a combined scale factor from active selections ──────────────────
+  const scaleFactor = (() => {
+    let f = 1.0;
+    if (region      !== REGIONS[0])       f *= REGION_SCALE[region]   ?? 1;
+    if (provider    !== PROVIDERS[0])     f *= PROVIDER_SCALE[provider] ?? 1;
+    if (rhtpProgram !== RHTP_PROGRAMS[0]) f *= PROGRAM_SCALE[rhtpProgram] ?? 1;
+    // Re-normalise: if region + provider both selected, avoid double-squashing below 5%
+    return Math.max(f, 0.03);
+  })();
+
+  // ── Filtered datasets ──────────────────────────────────────────────────────
+  const funnelData   = isFiltered ? scaleFunnel(FUNNEL_DATA, scaleFactor)       : FUNNEL_DATA;
+  const domainData   = isFiltered ? scaleDomains(DOMAIN_PREVALENCE, scaleFactor) : DOMAIN_PREVALENCE;
+  const trendData    = isFiltered ? scaleTrend(DUAL_NEED_TREND, scaleFactor)    : DUAL_NEED_TREND;
+
+  // Regional view: if a specific region is selected, show only that row
+  const regionData = region !== REGIONS[0]
+    ? REGION_DATA.filter((r) => r.region === region.replace(' County', ''))
+    : REGION_DATA;
+
+  // ── Filtered KPIs ─────────────────────────────────────────────────────────
+  const panelSize      = Math.round(4847 * scaleFactor);
+  const screened       = funnelData[1]?.value ?? 0;
+  const unmetNeeds     = funnelData[2]?.value ?? 0;
+  const dualNeed       = trendData[trendData.length - 1]?.dual_need ?? 0;
+  const screeningRate  = screened > 0 && panelSize > 0 ? ((screened / panelSize) * 100).toFixed(1) : '0.0';
+  const screenedStr    = screened > 0 ? screened.toLocaleString() : '0';
 
   return (
     <AppLayout
@@ -159,7 +235,7 @@ export default function SocialNeedsDashboardPage() {
             {provider === PROVIDERS[0] ? 'All Providers' : provider}
           </span>
           <span className="text-2xs text-[#0043ce] px-2 py-0.5 border border-[#0043ce]">
-            Panel: 4,847 attributed lives · Data as of Jun 2026
+            Panel: {panelSize.toLocaleString()} attributed lives · Data as of Jun 2026
           </span>
         </div>
       </div>
@@ -167,10 +243,10 @@ export default function SocialNeedsDashboardPage() {
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {[
-          { label: 'Screening Rate', value: '67.9%', sub: 'Target: 80%', color: '#b45309', icon: 'ClipboardDocumentCheckIcon' },
-          { label: 'Patients w/ Unmet Needs', value: '1,847', sub: '38.1% of screened', color: '#da1e28', icon: 'ExclamationTriangleIcon' },
-          { label: 'Dual-Need Cohort', value: '412', sub: 'Clinical + social gaps', color: '#6929c4', icon: 'UserGroupIcon' },
-          { label: 'Social Referral Completion', value: '69.3%', sub: 'CBO network avg', color: '#198038', icon: 'CheckBadgeIcon' },
+          { label: 'Screening Rate',          value: `${screeningRate}%`,          sub: 'Target: 80%',              color: '#b45309', icon: 'ClipboardDocumentCheckIcon' },
+          { label: 'Patients w/ Unmet Needs', value: unmetNeeds.toLocaleString(),  sub: `${screened > 0 ? ((unmetNeeds / screened) * 100).toFixed(1) : 0}% of screened`, color: '#da1e28', icon: 'ExclamationTriangleIcon' },
+          { label: 'Dual-Need Cohort',        value: dualNeed.toLocaleString(),    sub: 'Clinical + social gaps',   color: '#6929c4', icon: 'UserGroupIcon' },
+          { label: 'Social Referral Completion', value: '69.3%',                   sub: 'CBO network avg',          color: '#198038', icon: 'CheckBadgeIcon' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white border border-carbon-gray-20 p-4 flex items-start gap-3">
             <div className="w-8 h-8 flex items-center justify-center bg-carbon-gray-10 flex-shrink-0">
@@ -211,8 +287,8 @@ export default function SocialNeedsDashboardPage() {
               {provider !== PROVIDERS[0] ? `, ${provider}` : ''}).
             </p>
             <div className="space-y-2">
-              {FUNNEL_DATA.map((item, idx) => {
-                const pct = Math.round((item.value / FUNNEL_DATA[0].value) * 100);
+              {funnelData.map((item, idx) => {
+                const pct = funnelData[0].value > 0 ? Math.round((item.value / funnelData[0].value) * 100) : 0;
                 return (
                   <div key={item.name}>
                     <div className="flex items-center justify-between text-xs mb-1">
@@ -222,9 +298,9 @@ export default function SocialNeedsDashboardPage() {
                     <div className="h-6 bg-carbon-gray-10 relative">
                       <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: item.fill }} />
                     </div>
-                    {idx < FUNNEL_DATA.length - 1 && (
+                    {idx < funnelData.length - 1 && (
                       <div className="text-2xs text-carbon-gray-50 text-right mt-0.5">
-                        Drop-off: {FUNNEL_DATA[idx].value - FUNNEL_DATA[idx + 1].value} ({Math.round(((FUNNEL_DATA[idx].value - FUNNEL_DATA[idx + 1].value) / FUNNEL_DATA[idx].value) * 100)}%)
+                        Drop-off: {funnelData[idx].value - funnelData[idx + 1].value} ({funnelData[idx].value > 0 ? Math.round(((funnelData[idx].value - funnelData[idx + 1].value) / funnelData[idx].value) * 100) : 0}%)
                       </div>
                     )}
                   </div>
@@ -260,12 +336,12 @@ export default function SocialNeedsDashboardPage() {
         <div className="bg-white border border-carbon-gray-20 p-4">
           <p className="text-sm font-semibold text-carbon-gray-100 mb-1">Most Prevalent Social Needs — Attributed Panel</p>
           <p className="text-2xs text-carbon-gray-50 mb-4">
-            Count and % of <strong>screened patients (3,291)</strong> within the selected scope
+            Count and % of <strong>screened patients ({screenedStr})</strong> within the selected scope
             ({rhtpProgram === RHTP_PROGRAMS[0] ? 'all RHTP programs' : rhtpProgram}
             {region !== REGIONS[0] ? `, ${region}` : ''}). Patients may have multiple needs.
           </p>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={DOMAIN_PREVALENCE} layout="vertical" margin={{ left: 20, right: 40 }}>
+            <BarChart data={domainData} layout="vertical" margin={{ left: 20, right: 40 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="domain" tick={{ fontSize: 11 }} width={130} />
@@ -285,7 +361,7 @@ export default function SocialNeedsDashboardPage() {
             <div className="flex items-start gap-3">
               <Icon name="UserGroupIcon" size={20} style={{ color: '#6929c4' }} />
               <div>
-                <p className="text-sm font-semibold text-[#31135e]">Dual-Need Cohort — 412 Patients</p>
+                <p className="text-sm font-semibold text-[#31135e]">Dual-Need Cohort — {dualNeed.toLocaleString()} Patients</p>
                 <p className="text-xs text-[#6929c4] mt-0.5">
                   Patients with both open clinical care gaps AND unmet social needs within the selected RHTP scope
                   ({rhtpProgram === RHTP_PROGRAMS[0] ? 'all programs' : rhtpProgram}
@@ -297,7 +373,7 @@ export default function SocialNeedsDashboardPage() {
           <div className="bg-white border border-carbon-gray-20 p-4">
             <p className="text-sm font-semibold text-carbon-gray-100 mb-4">Dual-Need Cohort Growth Trend</p>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={DUAL_NEED_TREND}>
+              <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
@@ -332,7 +408,7 @@ export default function SocialNeedsDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {REGION_DATA.map(r => (
+              {regionData.map(r => (
                 <tr key={r.region} className="border-b border-carbon-gray-10 hover:bg-carbon-gray-10 transition-colors">
                   <td className="px-4 py-3 font-medium text-carbon-gray-100">{r.region} County</td>
                   <td className="px-4 py-3 text-center">

@@ -48,6 +48,23 @@ const RHTP_PROGRAMS = [
 
 const REGIONS = ['All Regions', 'Jackson County', 'Clay County', 'Platte County', 'Cass County', 'Ray County'];
 
+// Domains included per program (all others are excluded when a program is selected)
+const PROGRAM_DOMAINS: Record<string, string[]> = {
+  'RHTP — Medicaid 1115 Waiver':     ['Housing', 'Food', 'Transport'],
+  'RHTP — BH Block Grant (SAMHSA)':  ['BH', 'Social'],
+  'RHTP — CHW Outreach Program':     ['Care Coord', 'Food'],
+  'RHTP — Social Needs Navigation':  ['Housing', 'Social', 'Transport'],
+};
+
+// Regional scale factors (fraction of total attributed panel in each county)
+const REGION_SCALE: Record<string, number> = {
+  'Jackson County': 0.22,
+  'Clay County':    0.16,
+  'Platte County':  0.12,
+  'Cass County':    0.18,
+  'Ray County':     0.09,
+};
+
 export default function OutcomesLinkagePage() {
   const [activeTab, setActiveTab] = useState<'table' | 'roi' | 'scatter'>('table');
   const [rhtpProgram, setRhtpProgram] = useState(RHTP_PROGRAMS[0]);
@@ -72,10 +89,34 @@ export default function OutcomesLinkagePage() {
   }, []);
   const [region, setRegion] = useState(REGIONS[0]);
 
-  const totalSavings = OUTCOMES_DATA.reduce((a, c) => a + c.costSavings, 0);
-  const totalPatients = OUTCOMES_DATA.reduce((a, c) => a + c.patientsIntervened, 0);
-
   const isFiltered = rhtpProgram !== RHTP_PROGRAMS[0] || region !== REGIONS[0];
+
+  // ── Derive filtered + scaled outcomes data ────────────────────────────────
+  const regionScale = region !== REGIONS[0] ? (REGION_SCALE[region] ?? 1) : 1;
+
+  const filteredOutcomes = OUTCOMES_DATA
+    .filter((row) =>
+      rhtpProgram === RHTP_PROGRAMS[0] ||
+      (PROGRAM_DOMAINS[rhtpProgram] ?? []).includes(row.domain)
+    )
+    .map((row) => ({
+      ...row,
+      patientsIntervened: Math.max(1, Math.round(row.patientsIntervened * regionScale)),
+      costSavings:        Math.round(row.costSavings * regionScale),
+    }));
+
+  const scaledRoiTrend = ROI_TREND.map((d) => ({
+    ...d,
+    investment: Math.round(d.investment * regionScale),
+    savings:    Math.round(d.savings    * regionScale),
+  }));
+
+  const totalPatients = filteredOutcomes.reduce((a, c) => a + c.patientsIntervened, 0);
+  const totalSavings  = filteredOutcomes.reduce((a, c) => a + c.costSavings, 0);
+  const roiRatio      = totalSavings > 0 && scaledRoiTrend[0]?.investment > 0
+    ? (scaledRoiTrend[scaledRoiTrend.length - 1].savings /
+       scaledRoiTrend[scaledRoiTrend.length - 1].investment).toFixed(2)
+    : '—';
 
   return (
     <AppLayout
@@ -144,7 +185,7 @@ export default function OutcomesLinkagePage() {
             {region === REGIONS[0] ? 'All Regions' : region}
           </span>
           <span className="text-2xs text-[#198038] px-2 py-0.5 border border-[#198038]">
-            683 patients intervened · Jan–Jun 2026 · Estimated savings: $902K
+            {totalPatients} patients intervened · Jan–Jun 2026 · Estimated savings: ${(totalSavings / 1000).toFixed(0)}K
           </span>
         </div>
       </div>
@@ -152,10 +193,10 @@ export default function OutcomesLinkagePage() {
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {[
-          { label: 'Total Patients Intervened', value: totalPatients.toLocaleString(), sub: 'Across 6 interventions', color: '#0043ce', icon: 'UserGroupIcon' },
+          { label: 'Total Patients Intervened', value: totalPatients.toLocaleString(), sub: `Across ${filteredOutcomes.length} intervention${filteredOutcomes.length !== 1 ? 's' : ''}`, color: '#0043ce', icon: 'UserGroupIcon' },
           { label: 'Estimated Cost Savings', value: `$${(totalSavings / 1000).toFixed(0)}K`, sub: 'Annualized, 6-month window', color: '#198038', icon: 'CurrencyDollarIcon' },
           { label: 'Avg ED Diversion Rate', value: '50%', sub: 'Housing + BH interventions', color: '#da1e28', icon: 'ArrowUturnLeftIcon' },
-          { label: 'ROI Ratio', value: '2.47x', sub: '$1 invested → $2.47 saved', color: '#6929c4', icon: 'ChartBarIcon' },
+          { label: 'ROI Ratio', value: `${roiRatio}x`, sub: '$1 invested → savings returned', color: '#6929c4', icon: 'ChartBarIcon' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white border border-carbon-gray-20 p-4 flex items-start gap-3">
             <div className="w-8 h-8 flex items-center justify-center bg-carbon-gray-10 flex-shrink-0">
@@ -178,7 +219,7 @@ export default function OutcomesLinkagePage() {
           <p className="text-xs text-[#0043ce] mt-0.5">
             South Dakota DHSS social interventions across housing, food, behavioral health, and transportation — delivered through RHTP-funded programs
             ({rhtpProgram === RHTP_PROGRAMS[0] ? 'all programs' : rhtpProgram}
-            {region !== REGIONS[0] ? `, ${region}` : ''}) — generated an estimated <strong>$902K in clinical cost avoidance</strong> over 6 months — a 2.47x return on social program investment. Housing stability alone reduced ED visits by 50% for 89 patients.
+            {region !== REGIONS[0] ? `, ${region}` : ''}) — generated an estimated <strong>${(totalSavings / 1000).toFixed(0)}K in clinical cost avoidance</strong> over 6 months — a {roiRatio}x return on social program investment. Housing stability alone reduced ED visits by 50% for {filteredOutcomes.find(r => r.domain === 'Housing')?.patientsIntervened ?? 89} patients.
           </p>
         </div>
       </div>
@@ -214,7 +255,9 @@ export default function OutcomesLinkagePage() {
               </tr>
             </thead>
             <tbody>
-              {OUTCOMES_DATA.map((row, idx) => {
+              {filteredOutcomes.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-xs text-carbon-gray-50">No interventions recorded for the selected program scope.</td></tr>
+              ) : filteredOutcomes.map((row, idx) => {
                 const ev = EVIDENCE_CONFIG[row.evidence];
                 const domainColor = DOMAIN_COLORS[row.domain];
                 const isImprovement = row.reduction > 0;
@@ -247,7 +290,7 @@ export default function OutcomesLinkagePage() {
             </tbody>
             <tfoot>
               <tr className="bg-carbon-gray-10 border-t border-carbon-gray-20 font-semibold">
-                <td className="px-4 py-3 text-carbon-gray-100" colSpan={2}>Total</td>
+                <td className="px-4 py-3 text-carbon-gray-100" colSpan={2}>Total ({filteredOutcomes.length} interventions)</td>
                 <td className="px-4 py-3 text-center font-mono">{totalPatients}</td>
                 <td colSpan={3} />
                 <td className="px-4 py-3 text-right font-mono font-bold text-[#198038]">${(totalSavings / 1000).toFixed(0)}K</td>
@@ -268,7 +311,7 @@ export default function OutcomesLinkagePage() {
             {region !== REGIONS[0] ? `, ${region}` : ''}).
           </p>
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={ROI_TREND}>
+            <LineChart data={scaledRoiTrend}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
@@ -286,7 +329,7 @@ export default function OutcomesLinkagePage() {
         <div className="bg-white border border-carbon-gray-20 p-4">
           <p className="text-sm font-semibold text-carbon-gray-100 mb-4">Cost Savings by Intervention Domain</p>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={OUTCOMES_DATA.map(d => ({ name: d.intervention, savings: d.costSavings, domain: d.domain }))}>
+            <BarChart data={filteredOutcomes.map(d => ({ name: d.intervention, savings: d.costSavings, domain: d.domain }))}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
