@@ -142,10 +142,14 @@ export default function SocialNeedsDashboardPage() {
   const domainData   = isFiltered ? scaleDomains(DOMAIN_PREVALENCE, scaleFactor) : DOMAIN_PREVALENCE;
   const trendData    = isFiltered ? scaleTrend(DUAL_NEED_TREND, scaleFactor)    : DUAL_NEED_TREND;
 
-  // Regional view: if a specific region is selected, show only that row
-  const regionData = region !== REGIONS[0]
+  // Regional view: filter to selected region, then scale unmetNeeds by the full factor
+  const regionData = (region !== REGIONS[0]
     ? REGION_DATA.filter((r) => r.region === region.replace(' County', ''))
-    : REGION_DATA;
+    : REGION_DATA
+  ).map((r) => ({
+    ...r,
+    unmetNeeds: Math.max(1, Math.round(r.unmetNeeds * scaleFactor)),
+  }));
 
   // ── Filtered KPIs ─────────────────────────────────────────────────────────
   const panelSize      = Math.round(4847 * scaleFactor);
@@ -394,7 +398,8 @@ export default function SocialNeedsDashboardPage() {
           <div className="px-4 py-3 border-b border-carbon-gray-20">
             <p className="text-sm font-semibold text-carbon-gray-100">Social Needs by Region</p>
             <p className="text-2xs text-carbon-gray-50 mt-0.5">
-              Screening rate vs 80% target per county within the selected RHTP program scope.
+              Screening rate vs 80% target per county within the selected RHTP program scope
+              {provider !== PROVIDERS[0] ? ` — unmet needs scoped to ${provider}` : ''}.
             </p>
           </div>
           <table className="w-full text-xs">
