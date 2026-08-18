@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
 
 const OUTCOMES_DATA = [
@@ -354,12 +354,19 @@ export default function OutcomesLinkagePage() {
         <div className="bg-white border border-carbon-gray-20 p-4">
           <p className="text-sm font-semibold text-carbon-gray-100 mb-4">Cost Savings by Intervention Domain</p>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={filteredOutcomes.map(d => ({ name: d.intervention, savings: d.costSavings, domain: d.domain }))}>
+            <BarChart
+              key={`${rhtpProgram}::${region}`}
+              data={filteredOutcomes.map(d => ({ name: d.intervention, savings: d.costSavings, domain: d.domain }))}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
               <Tooltip formatter={(v: any) => [`$${(v / 1000).toFixed(0)}K`, 'Savings']} />
-              <Bar dataKey="savings" fill="#198038" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="savings" radius={[2, 2, 0, 0]}>
+                {filteredOutcomes.map((d, i) => (
+                  <Cell key={i} fill={DOMAIN_COLORS[d.domain] ?? '#198038'} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -296,6 +296,14 @@ function CareTeamMembersContent() {
   const filtered = roleFilter === 'All' ? allMembers : allMembers.filter((m) => m.role === roleFilter);
   const roles: Array<MemberRole | 'All'> = ['All', 'Clinical PCP', 'BH Counselor', 'CHW Supervisor', 'Specialist'];
 
+  // Clear selectedMember when role filter changes so the benchmarking panel
+  // always shows the first member in the newly-filtered list, not a stale pick.
+  const prevRoleFilterRef = React.useRef(roleFilter);
+  if (prevRoleFilterRef.current !== roleFilter) {
+    prevRoleFilterRef.current = roleFilter;
+    setSelectedMember(null);
+  }
+
   const totalPatients = allMembers.reduce((a, m) => a + m.attributedPatients, 0);
   const clinicalMembers = allMembers.filter((m) => m.role === 'Clinical PCP');
   const bhMembers = allMembers.filter((m) => m.role === 'BH Counselor');
@@ -327,7 +335,8 @@ function CareTeamMembersContent() {
     router.push(`/panel-cohort-view?${params.toString()}`);
   };
 
-  const activeMember = selectedMember || allMembers[0];
+  // activeMember: prefer the explicitly selected one, else the first visible (filtered) member
+  const activeMember = selectedMember ?? filtered[0] ?? allMembers[0];
 
   return (
     <AppLayout
