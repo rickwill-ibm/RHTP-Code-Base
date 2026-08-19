@@ -1,8 +1,12 @@
 import React from 'react';
 import { mockPatients } from '@/lib/mockData';
 
-export default function CohortKPIStrip() {
-  const pts = mockPatients?.filter((p) => p?.contractId === 'contract-001');
+export default function CohortKPIStrip({ physicianName }: { physicianName?: string }) {
+  const contractPts = mockPatients?.filter((p) => p?.contractId === 'contract-001');
+  // When drilled to a specific physician, scope KPIs to that physician's panel only
+  const pts = physicianName
+    ? contractPts?.filter((p) => p?.primaryCareProvider === physicianName)
+    : contractPts;
   const criticalCount = pts?.filter((p) => p?.riskTier === 'Critical')?.length;
   const highCount = pts?.filter((p) => p?.riskTier === 'High')?.length;
   const totalHCCValue = pts?.reduce((a, p) => a + p?.hccSuspectValue, 0);

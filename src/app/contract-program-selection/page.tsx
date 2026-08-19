@@ -152,7 +152,7 @@ export default function ContractProgramSelectionPage() {
 
       {activeView === 'overview' && (
         <div className="px-6 pb-6 space-y-4 pt-4">
-          <NetworkGraphPanel />
+          <NetworkGraphPanel programType={programType} />
           <ProgramContractPanel programType={programType} />
         </div>
       )}

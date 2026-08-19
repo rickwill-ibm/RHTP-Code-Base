@@ -337,7 +337,7 @@ export default function OutcomesLinkagePage() {
             {region !== REGIONS[0] ? `, ${region}` : ''}).
           </p>
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={scaledRoiTrend}>
+            <LineChart key={`roi::${rhtpProgram}::${region}`} data={scaledRoiTrend}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />

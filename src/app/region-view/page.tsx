@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { getFhirMockMode, getFhirClient } from '@/lib/services/fhirClient';
@@ -121,9 +121,12 @@ function MetricBar({ value, target, color, label }: { value: number; target: num
   );
 }
 
-export default function RegionViewPage() {
+function RegionViewContent() {
   const router = useRouter();
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(
+    searchParams.get('selected')
+  );
   const [fhirSource, setFhirSource] = useState(false);
   const [fhirRegionCount, setFhirRegionCount] = useState(0);
   const fhirLoadedRef = useRef(false);
@@ -285,7 +288,7 @@ export default function RegionViewPage() {
                 }`}
                 onClick={() => {
                   setSelectedRegion(region.id);
-                  router.push(`/provider-level?region=${region.id}&regionName=${encodeURIComponent(region.name)}`);
+                  router.push(`/provider-level?region=${region.id}&regionName=${encodeURIComponent(region.name)}&from=region-view`);
                 }}
               >
                 {/* Card header */}
@@ -353,5 +356,13 @@ export default function RegionViewPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function RegionViewPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-carbon-gray-50 text-sm">Loading regions…</div>}>
+      <RegionViewContent />
+    </Suspense>
   );
 }

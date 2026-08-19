@@ -901,6 +901,13 @@ function StoryTellingOverlay({ onClose }: { onClose: () => void }) {
   const isChapterStart =
     stepIndex === 0 || STORY_STEPS[stepIndex - 1].chapter !== step.chapter;
 
+  // Lock body scroll while overlay is mounted
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   // Navigate to the current step's route whenever we enter 'step' phase
   useEffect(() => {
     if (phase === 'step') {

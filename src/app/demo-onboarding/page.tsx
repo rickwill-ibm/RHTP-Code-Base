@@ -935,9 +935,11 @@ function ReferencePanel({
   onJumpToStep: (idx: number) => void;
 }) {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [expandedIndex, setExpandedIndex] = useState<number | null>(currentStepIndex);
   const [activeTab, setActiveTab] = useState<'notes' | 'data' | 'cues'>('notes');
   const searchRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-expand current step when it changes
   useEffect(() => {
@@ -949,7 +951,14 @@ function ReferencePanel({
     searchRef.current?.focus();
   }, []);
 
-  const q = query.toLowerCase().trim();
+  // Debounce search — wait 150ms after last keystroke before filtering
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedQuery(query), 150);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
+  const q = debouncedQuery.toLowerCase().trim();
   const filtered = q
     ? ALL_SCREEN_REFS.filter(
         (r) =>
@@ -1279,6 +1288,13 @@ function DemoTrackOverlay({
   const [talkingPointIndex, setTalkingPointIndex] = useState(0);
   const [showAllPoints, setShowAllPoints] = useState(false);
   const [refPanelOpen, setRefPanelOpen] = useState(false);
+
+  // Lock body scroll while overlay is mounted
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
   const step = DEMO_TRACK_STEPS[stepIndex];
   const totalSteps = DEMO_TRACK_STEPS.length;

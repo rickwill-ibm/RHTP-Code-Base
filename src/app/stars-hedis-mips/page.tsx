@@ -1,5 +1,7 @@
 'use client';
+// Tab state is mirrored in ?tab= query param so deep-links and refresh restore the active program.
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import Icon from '@/components/ui/AppIcon';
 import { toast } from 'sonner';
@@ -584,7 +586,20 @@ function extractMeasureId(url: string): string | null {
 }
 
 export default function STARSHEDISMIPSPage() {
-  const [activeProgram, setActiveProgram] = useState<Program>('STARS');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') ?? 'STARS') as Program;
+  const [activeProgram, setActiveProgram] = useState<Program>(
+    Object.keys(PROGRAM_CONFIG).includes(initialTab) ? initialTab : 'STARS'
+  );
+
+  // Mirror active tab into URL without pushing a new history entry
+  const handleSetProgram = React.useCallback((prog: Program) => {
+    setActiveProgram(prog);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set('tab', prog);
+    router.replace(`/stars-hedis-mips?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
   const [fhirSource, setFhirSource] = useState(false);
   const [fhirMeasureCount, setFhirMeasureCount] = useState(0);
   // Live FHIR MeasureReport overlays: measureId → { numerator, denominator, complianceRate }
@@ -732,7 +747,7 @@ export default function STARSHEDISMIPSPage() {
             return (
               <button
                 key={prog}
-                onClick={() => setActiveProgram(prog)}
+                onClick={() => handleSetProgram(prog)}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors border ${
                   isActive ? 'text-white border-transparent' : 'bg-white border-carbon-gray-20 text-carbon-gray-70 hover:bg-carbon-gray-10'
                 }`}
