@@ -136,6 +136,7 @@ export default function RegionViewPage() {
       .then((bundle: any) => {
         const count = (bundle?.entry ?? [])
           .map((e: any) => e?.resource)
+          .filter(Boolean)
           .filter((r: any) => r?.resourceType === 'Organization' &&
             r?.extension?.some((x: any) => x.url?.includes('org-type') && x.valueString === 'region'))
           .length;

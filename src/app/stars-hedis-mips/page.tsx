@@ -601,6 +601,7 @@ export default function STARSHEDISMIPSPage() {
       .then((bundle: any) => {
         const reports: any[] = (bundle?.entry ?? [])
           .map((e: any) => e?.resource)
+          .filter(Boolean)
           .filter((r: any) => r?.resourceType === 'MeasureReport');
         const count = reports.length;
         if (count > 0) {

@@ -115,6 +115,7 @@ export default function SocialNeedsDashboardPage() {
       .then((bundle: any) => {
         const count = (bundle?.entry ?? [])
           .map((e: any) => e?.resource)
+          .filter(Boolean)
           .filter((r: any) => r?.resourceType === 'Observation' &&
             r?.extension?.some((x: any) => x.url?.includes('obs-type') && x.valueString === 'sdoh-prevalence'))
           .length;
@@ -374,7 +375,7 @@ export default function SocialNeedsDashboardPage() {
             {region !== REGIONS[0] ? `, ${region}` : ''}). Patients may have multiple needs.
           </p>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={domainData} layout="vertical" margin={{ left: 20, right: 40 }}>
+            <BarChart key={`domains::${rhtpProgram}::${region}::${provider}`} data={domainData} layout="vertical" margin={{ left: 20, right: 40 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="domain" tick={{ fontSize: 11 }} width={130} />
@@ -406,7 +407,7 @@ export default function SocialNeedsDashboardPage() {
           <div className="bg-white border border-carbon-gray-20 p-4">
             <p className="text-sm font-semibold text-carbon-gray-100 mb-4">Dual-Need Cohort Growth Trend</p>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={trendData}>
+              <LineChart key={`dual::${rhtpProgram}::${region}::${provider}`} data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />

@@ -85,6 +85,7 @@ export default function BenefitEnrollmentPage() {
       .then((bundle: any) => {
         const resources = (bundle?.entry ?? [])
           .map((e: any) => e?.resource)
+          .filter(Boolean)
           .filter((r: any) => r?.resourceType === 'Coverage');
         if (resources.length > 0) {
           setEnrollments(resources.map(mapFhirCoverage));

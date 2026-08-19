@@ -123,6 +123,7 @@ export default function ConsentSovereigntyPanelPage() {
         const entries: any[] = bundle?.entry ?? [];
         const resources = entries
           .map((e: any) => e?.resource)
+          .filter(Boolean)
           .filter((r: any) => r?.resourceType === 'Consent');
         if (resources.length > 0) {
           setConsentRecords(resources.map(mapFhirConsent));

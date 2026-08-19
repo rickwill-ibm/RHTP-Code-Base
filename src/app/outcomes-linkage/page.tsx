@@ -80,6 +80,7 @@ export default function OutcomesLinkagePage() {
       .then((bundle: any) => {
         const count = (bundle?.entry ?? [])
           .map((e: any) => e?.resource)
+          .filter(Boolean)
           .filter((r: any) => r?.resourceType === 'Observation' &&
             r?.extension?.some((x: any) => x.url?.includes('obs-type') && x.valueString === 'outcomes-roi'))
           .length;

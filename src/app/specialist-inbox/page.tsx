@@ -361,6 +361,7 @@ export default function SpecialistInboxPage() {
         }).then((bundle: any) => {
           const issues: any[] = (bundle?.entry ?? [])
             .map((e: any) => e?.resource)
+            .filter(Boolean)
             .filter((r: any) => r?.resourceType === 'DetectedIssue');
           // Update the first matching DetectedIssue (or the one linked to this task)
           const issue = issues.find((i: any) =>
