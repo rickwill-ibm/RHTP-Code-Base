@@ -124,9 +124,6 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
     closureRequirement: gap.name,
   })) || []; // Empty array if registry patient not found - DO NOT use mockCareGaps
   
-  console.log('â‰¡Æ’Ã¶Ã¬ DEBUG - Final Care Gaps Count:', careGaps.length);
-  console.log('â‰¡Æ’Ã¶Ã¬ DEBUG - Care Gap Names:', careGaps.map(g => g.measureName));
-
   // â”€â”€ FHIR viewer modal state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [fhirViewer, setFhirViewer] = useState<FhirRef | null>(null);
 
@@ -193,12 +190,6 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     try {
-      console.log('Starting care plan generation with:', {
-        patient: patient?.id,
-        hccSuspectsCount: hccSuspects?.length,
-        careGapsCount: careGaps?.length
-      });
-
       // Use holistic care plan for Maria Redhawk, standard for others
       const generated = (patient.id === 'patient-001' || patient.name.toLowerCase().includes('maria'))
         ? generateHolisticCarePlan({
@@ -215,23 +206,17 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
         clinicalData: null,
       });
 
-      console.log('Care plan generated successfully:', generated?.title);
-      console.log(`Î“Â£Ã  ${referralStore.getAllReferrals().length} referrals created and ready for doctor approval`);
-
       setGeneratedPlan(generated);
       setShowGeneratedPlan(true);
       onAuditEntry?.('care-plan-generated', { patientId: patient.id, planTitle: generated.title });
     } catch (error) {
-      console.error('FULL Error generating care plan:', error);
-      console.error('Error stack:', (error as Error)?.stack);
-      alert(`Failed to generate care plan: ${(error as Error)?.message || 'Unknown error'}. Check console for details.`);
+      alert(`Failed to generate care plan: ${(error as Error)?.message || 'Unknown error'}.`);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleSaveCarePlan = (planData: any) => {
-    console.log('Doctor approved and sent care plan:', planData);
     onAuditEntry?.('care-plan-saved', { patientId: patient.id });
     
     // Show confirmation dialog with option to switch to Specialist View
@@ -242,7 +227,6 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
     );
 
     if (switchToSpecialist) {
-      console.log('â‰¡Æ’Ã¶Ã¤ Navigating to Specialist Inbox...');
       router.push('/specialist-inbox');
     } else {
       // Stay on page, close the care plan form
@@ -789,7 +773,6 @@ export default function MdSmartSummaryScreen({ launchContext, cdsCards, onAuditE
               </div>
             )}
           </div>
-
 
           {/* â”€â”€ PRIMARY CLINICAL ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="grid grid-cols-3 gap-3 items-start">

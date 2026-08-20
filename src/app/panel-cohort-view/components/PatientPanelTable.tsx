@@ -163,7 +163,7 @@ interface PatientPanelTableProps {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PatientPanelTable({ filters, onFiltersChange, selectedPatients, onSelectionChange }: PatientPanelTableProps) {
+export default function PatientPanelTable({ filters, onFiltersChange, selectedPatients, onSelectionChange, physicianName }: PatientPanelTableProps & { physicianName?: string }) {
   const router = useRouter();
   const { setActivePatientId, useMockData } = useAppContext();
   const [page, setPage] = useState(1);
@@ -224,6 +224,11 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
 
   const filteredPatients = useMemo(() => {
     let result = [...basePatients];
+
+    // Scope to the attributed physician panel when drilled from a physician row
+    if (physicianName) {
+      result = result.filter((p) => p.primaryCareProvider === physicianName);
+    }
 
     if (filters.search.trim()) {
       const q = filters.search.toLowerCase();

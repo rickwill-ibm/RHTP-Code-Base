@@ -91,7 +91,13 @@ function PanelCohortContent() {
       <CohortKPIStrip physicianName={physicianName || undefined} />
       <PanelActionBar selectedPatients={selectedPatients} onClearSelection={() => setSelectedPatients(new Set())} />
       <PanelFilterBar filters={filters} onFiltersChange={setFilters} />
-      <PatientPanelTable filters={filters} onFiltersChange={setFilters} selectedPatients={selectedPatients} onSelectionChange={setSelectedPatients} />
+      <PatientPanelTable
+        filters={filters}
+        onFiltersChange={setFilters}
+        selectedPatients={selectedPatients}
+        onSelectionChange={setSelectedPatients}
+        physicianName={physicianName || undefined}
+      />
     </AppLayout>
   );
 }
