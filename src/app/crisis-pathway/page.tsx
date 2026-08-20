@@ -613,6 +613,15 @@ export default function CrisisPathwayPage() {
               </button>
             </div>
             <div className="divide-y divide-carbon-gray-10">
+              {ACTIVE_CRISES.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-10 h-10 rounded-full bg-[#defbe6] flex items-center justify-center mb-3">
+                    <Icon name="CheckCircleIcon" size={22} className="text-[#24a148]" />
+                  </div>
+                  <p className="text-sm font-semibold text-carbon-gray-100 mb-1">No Active Crisis Events</p>
+                  <p className="text-xs text-carbon-gray-50">All patients are stable. Use the button above to log a new crisis event.</p>
+                </div>
+              )}
               {ACTIVE_CRISES.map(cr => {
                 const acuity = ACUITY_CONFIG[cr.acuity];
                 return (
