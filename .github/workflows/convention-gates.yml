@@ -1,0 +1,41 @@
+# Convention gates — AI-CODING-CONVENTIONS.md v2 §18
+# Fails the PR on: type errors, NEW size violations or ratchet regressions,
+# lint errors, or failing unit tests. Legacy files frozen in
+# quality-baseline.json do not fail the build unless they grow.
+
+name: Convention Gates
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  gates:
+    name: types / sizes+ratchet / lint / unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Types (tsc --noEmit)
+        run: npm run check:types
+
+      - name: File sizes + quality ratchet
+        run: npm run check:sizes
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (vitest)
+        run: npx vitest run

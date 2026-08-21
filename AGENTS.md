@@ -1,0 +1,83 @@
+# AGENTS.md — Session Entry Map (read this first)
+
+Governing standard: `AI-CODING-CONVENTIONS.md` (v2, repo root). The old conventions
+are archived at `docs/archive/AI-CODING-CONVENTIONS.v1.md` and are not current guidance.
+This file is capped at 150 lines so it always fits in context. Keep it that way.
+
+## Commands
+
+```bash
+npm run dev              # app on http://localhost:4029
+npm run check:types      # tsc --noEmit               (must be 0)
+npm run check:sizes      # size gate + quality ratchet (must pass)
+npm run lint             # next lint                   (clean on changed files)
+npm test                 # vitest run                  (all passing)
+npx vitest run tests/<domain>   # scoped: only the domain you touched
+npm run check:all        # full gate: types -> sizes -> lint -> tests
+npm run test:contract    # Newman CMS-0057-F contract tests (backbone up)
+npm run test:e2e         # Playwright
+npm run backbone:up      # HAPI FHIR + services (Docker)
+npm run seed:maria       # seed the Maria bundle into HAPI
+```
+
+One-time per clone: `git config core.hooksPath tools/hooks` (enables the pre-commit gate).
+
+## Read order for any change
+
+1. This file.
+2. `docs/ARCHITECTURE.md` — layers, security invariants, BFF contract.
+3. `docs/traceability.md` — capability without a green test = asserted, not verified.
+4. The feature `README.md` of the ONE domain you are changing.
+5. `AI-CODING-CONVENTIONS.md` — the rules; §13 is the agent-session discipline.
+
+Search before assuming location: `rg "symbolName" src/`. Grep anchors:
+`rg "SEAM:"` (swap points) · `rg "INVARIANT:"` · `rg "CONTRACT:"`.
+
+## Repo map
+
+```
+src/lib/<domain>/     pure domain logic (no React/Next imports)
+                      types.ts | schema.ts | <name>Engine.ts | ingest/ | data/ | index.ts | README.md
+src/lib/server/       server-only (audit, sessions, logging) — never imported by UI
+src/components/       presentation only — no business rules
+src/app/              Next.js routes; pages are thin, load via /api/* (BFF)
+src/app/api/          BFF routes — the ONLY thing the browser calls
+tests/<domain>/       one test file per domain module (+ fixtures/ as JSON)
+e2e/                  Playwright
+fhir/ install/        HAPI FHIR backbone (Docker), seed + install tooling
+tools/                seed scripts, contract tests, hooks
+docs/                 architecture, traceability, conformance plan, archive/
+```
+
+Key domains: `policy/` (engine + 17-policy corpus), `identity/` (match engine),
+`consent/` (seam-pattern exemplar — copy this shape), `goldenThread/`,
+`networkAdequacy/`, `services/carePlanGenerator*` (legacy, frozen — see ratchet).
+
+## Hard rules (details in AI-CODING-CONVENTIONS.md)
+
+- New files ≤ 400 lines (tests ≤ 500). Functions ≤ 50 lines. No helpers.ts dumping grounds.
+- **Ratchet:** never add code to a file listed in `quality-baseline.json`. Extract to a
+  new module and call it from the legacy file. The baseline may only shrink, and only
+  in refactor-only PRs (`bash check-file-sizes.sh --write-baseline`).
+- **BFF-only:** browser -> /api/* only. No secrets in NEXT_PUBLIC_*. PHI-safe audit
+  events on privileged actions.
+- **AI guardrails:** model calls server-side only, deterministic fallback, human-gated,
+  PHI-safe payloads, labelled decision-support, feature-flagged.
+- **Boundaries are parsed:** external payloads (FHIR, X12, QE, LLM output) go through
+  a zod schema in the domain's schema.ts. No `any` in new code.
+- **Deterministic engines:** clock/RNG/IO injected via deps. Idempotency keys on mutations.
+- **Prompts are code:** versioned files with eval fixtures, never inline strings.
+- One domain / one seam per session. Never mix refactor with feature in one PR.
+
+## Stop and report (do not guess) when
+
+- a symbol you expected cannot be found by search;
+- a test fails for reasons outside your change;
+- your fix requires editing a baselined (over-cap) file or a second domain;
+- an interface change would break callers you have not read.
+
+## Definition of done
+
+`npm run check:all` exits 0 · traceability row added for new capabilities · feature
+README updated · commit message says what changed, why, and which invariants/contracts
+were touched.

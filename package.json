@@ -36,7 +36,7 @@
       "serve",
       "type-check"
     ],
-    "warning": "🚨 CRITICAL: DO NOT REMOVE OR MODIFY ABOVE DEPENDENCIES - Required for Next.js 15 TypeScript app functionality"
+    "warning": "\ud83d\udea8 CRITICAL: DO NOT REMOVE OR MODIFY ABOVE DEPENDENCIES - Required for Next.js 15 TypeScript app functionality"
   },
   "scripts": {
     "dev": "next dev -p 4029",
@@ -55,7 +55,11 @@
     "backbone:up": "docker compose -f install/docker-compose.backbone.yml up -d",
     "backbone:down": "docker compose -f install/docker-compose.backbone.yml down",
     "backbone:logs": "docker compose -f install/docker-compose.backbone.yml logs -f",
-    "install:integrated": "bash install/install.sh --no-dev"
+    "install:integrated": "bash install/install.sh --no-dev",
+    "check:types": "tsc --noEmit",
+    "check:sizes": "bash check-file-sizes.sh",
+    "check:all": "npm run check:types && npm run check:sizes && npm run lint && vitest run",
+    "pretest": "npm run check:types && npm run check:sizes"
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.15",

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Versioned pre-commit hook — AI-CODING-CONVENTIONS.md v2 §18.
+# Enable once per clone:  git config core.hooksPath tools/hooks
+# Runs the two cheapest rungs of the verification ladder (§13.4).
+
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+echo "[pre-commit] tsc --noEmit"
+npx tsc --noEmit
+
+echo "[pre-commit] file sizes + quality ratchet"
+bash check-file-sizes.sh
+
+echo "[pre-commit] OK"

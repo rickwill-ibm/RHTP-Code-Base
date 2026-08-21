@@ -1,410 +1,319 @@
-# AI Coding Conventions
+# AI Coding Conventions — v2
 
-> **Purpose:** Keep this codebase maintainable, navigable by humans and AI agents, and
-> scalable over time. Paste this file into any coding prompt, or reference it from
-> `AGENTS.md` / `CLAUDE.md` so every agent session starts from the same baseline.
+> **Purpose:** Produce new high-quality code in a codebase that is built *by* AI agents
+> and *ships* AI agents. Every rule here is optimized for two readers at once: a senior
+> engineer and a coding agent with a finite context window.
 >
-> **Scope:** Applies to the RHTP platform (`feat/cms0057f-native` and `main`).
-> Architecturally grounded in `docs/ARCHITECTURE.md`, `docs/traceability.md`,
-> `docs/build-narrative.md`, and `docs/remaining-work-and-test-plan.md`.
+> **Scope:** RHTP platform. Applies in full to **new code**. Existing violations are
+> governed by the Quality Ratchet (§3) — they are frozen, not fixed, in this pass.
 >
-> **Enforcement:** `check-file-sizes.sh` (CI gate) + `.eslintrc.enforcement.json`
-> (lint rules). Run `bash check-file-sizes.sh rhtpdemo/src rhtpdemo/tests` for the
-> full codebase report. Add `"check:sizes": "bash check-file-sizes.sh rhtpdemo/src
-> rhtpdemo/tests"` to `package.json` scripts and call it from CI.
+> **Enforcement:** `check-file-sizes.sh` + lint + `npm run check:all` (§18). The core
+> v2 principle: **a convention without a gate is a suggestion.** Wherever possible a
+> rule below names the tool that enforces it.
+>
+> **v2 changelog:** strict typing + boundary validation (§5), error doctrine (§6),
+> determinism (§7), observability (§8), prompts-as-code + agent manifests (§10),
+> expanded agent-session discipline with grep anchors and a verification ladder (§13),
+> quality ratchet replacing ad-hoc legacy policy (§3), public-surface import rule (§4),
+> updated DoD (§16) and tooling wiring (§18).
 
 ---
 
 ## 0. Read Before You Touch Anything
 
-Before making any change — including what looks like a trivial fix — read:
+Read order, for humans and agents alike:
 
-1. `docs/ARCHITECTURE.md` — the layer model, security invariants, and BFF contract.
-2. `docs/traceability.md` — every capability traces to a test. A capability without a
-   green test is *asserted, not verified*. Never claim compliance from an untested path.
-3. `AGENTS.md` / `CLAUDE.md` / `README.md` — build commands, test commands, and
-   architecture boundaries.
-4. The feature-area `README.md` — e.g., `src/lib/policy/README.md` before touching the
-   Policy Engine.
+1. `AGENTS.md` (create it from §13 if absent — it is the entry map: commands, repo map,
+   read order, per-domain links; hard cap 150 lines so it always fits in context).
+2. `docs/ARCHITECTURE.md` — layer model, security invariants, BFF contract.
+3. `docs/traceability.md` — a capability without a green test is *asserted, not verified*.
+4. The feature `README.md` of the one domain you are changing.
 
-Search first. Never rewrite a large file without understanding how it is used.
-
-```bash
-# preferred discovery tools
-npx tsc --noEmit            # zero errors before you start; zero errors when you finish
-grep -r "symbolName" src/   # or use ripgrep: rg "symbolName"
-```
-
----
+Search first (`rg "symbolName" src/`). Never assume a symbol's location. Never rewrite a
+large file wholesale. `npx tsc --noEmit` must be 0 before you start and when you finish.
 
 ## 1. Core Principles
 
-1. **Small files.** Every code file ≤ 400 lines. If it grows past that, split it first.
-2. **Single responsibility.** One primary reason to change per file.
-3. **Single source of truth.** One authoritative location for every type, schema,
-   contract, or dataset.
-4. **Stable interfaces.** Change implementation behind a public interface; do not break
-   the contract.
-5. **Automated enforcement over tribal knowledge.** Lint rules + the
-   `check-file-sizes.sh` CI script enforce the caps; do not rely on memory.
-6. **Build must stay green.** `tsc` 0 · `vitest` all passing · `next lint` clean —
-   before *and* after every change. A task is not done until the build is green.
-
----
+1. **Small files, single responsibility, single source of truth, stable interfaces**
+   (unchanged from v1 — see §2, §4, §5).
+2. **Gates over prose.** Automated enforcement beats tribal knowledge; if a rule
+   matters, wire it (§18).
+3. **Parse, don't validate.** Data crossing any boundary is parsed into a typed shape
+   exactly once, at the boundary; interior code never re-checks (§5).
+4. **Deterministic core, effects at the edge.** Engines are pure functions;
+   time, randomness, and I/O are injected (§7).
+5. **The smallest change that works.** No speculative generality. Agents especially:
+   do not scaffold layers, options, or abstractions nobody asked for.
+6. **Build stays green.** tsc 0 · tests passing · lint clean · size gate 0 — before and
+   after every change. A task is not done until the ladder (§13.4) is green.
 
 ## 2. File Size & Structure
 
-### Hard limits
+Unchanged hard limits: production files ≤ **400** lines, tests ≤ **500**, generated /
+seed / template files exempt (glob in `EXEMPT_PATTERNS`). Functions ≤ 50 lines,
+complexity ≤ 10, nesting ≤ 4. At the limit: stop, split by responsibility, continue.
+No `helpers.ts` / `utils.ts` / `misc.ts` dumping grounds — purposeful modules only.
 
-| Artefact | Maximum lines |
-|----------|--------------|
-| Production code | **400** |
-| Test files | **500** |
-| Generated / seed files | Exempt (e.g. `policy-library.seed.json`) |
-| PDF / HTML template generators | **Exempt** — files whose primary content is CSS/HTML template strings or long narrative copy (e.g. `generateDetailedScreenPDF*.ts`, `generateTalkTrackPDF*.ts`). Splitting these yields no architectural benefit; the content is data, not logic. Add the glob pattern to `EXEMPT_PATTERNS` in `check-file-sizes.sh`. |
+The cap is not bureaucracy; it is a **context-window guarantee**: any file in this repo
+can be read whole by an agent alongside its types and README without evicting the task.
 
-**If a file is at the limit: stop adding code, split by responsibility, then continue.**
+## 3. Quality Ratchet (legacy policy, replaces v1 §14 policy text)
 
-### Function limits
+Existing violations are **frozen, not fixed, in this pass.**
 
-| Metric | Target | Hard limit |
-|--------|--------|-----------|
-| Function body | 30 lines | **50 lines** |
-| Cyclomatic complexity | ≤ 7 | **≤ 10** |
-| Nesting depth | ≤ 3 | **≤ 4** |
+1. A committed baseline (`quality-baseline.json`, generated by `check-file-sizes.sh
+   --write-baseline`) records today's violation set: over-cap files, `any` counts,
+   console usage.
+2. CI fails only when the count **increases** or a **new** file violates. New code is
+   always fully compliant; legacy files are not touched to make numbers move.
+3. **Never add code to a file in the baseline.** If your change forces you into one,
+   extract the code you need into a new compliant module and call it from the legacy
+   file (a one-line edit), or split first as a separate, refactor-only PR.
+4. The baseline may only shrink. Deliberate remediation PRs (refactor-only, no feature
+   mixed in) regenerate it.
 
-### Avoid generic dumping grounds
+## 4. Project Organisation
 
-Files like `helpers.ts`, `utils.ts`, `common.ts`, `misc.ts`, and `mockData.ts` are
-smell signals. Extract purposeful modules (`fhirHelpers.ts`, `dateUtils.ts`) instead.
-
-> **RHTP example:** `src/lib/mockData.ts` is a legacy accumulation point.
-> New mock/seed data belongs in `data/` files loaded at runtime, not appended there.
-
----
-
-## 3. Project Organisation
-
-### Feature-first layout
+Feature-first layout unchanged:
 
 ```
-src/lib/<domain>/         ← pure domain logic; no Next.js or React imports
-  types.ts                ← NormalizedFoo + evaluation types (ONE place)
-  fooEngine.ts            ← evaluate(inputs) → output; pure + deterministic
-  ingest/                 ← adapters that normalize raw sources
-  data/                   ← seed JSON/YAML loaded at runtime
-  index.ts                ← public re-exports only; keeps the surface stable
-  README.md               ← what it does, layout table, usage snippet, guardrails
-
-src/components/<domain>/  ← React components; presentation only
-  FooPanel.tsx
-  FooStatus.tsx
-
-src/app/(roleGroup)/      ← Next.js route group per audience
-  foo/page.tsx            ← thin: loads data via BFF, passes to components
+src/lib/<domain>/
+  types.ts        ← every shared shape for the domain (ONE place)
+  schema.ts       ← zod schemas; types derive from these at boundaries (§5)
+  <name>Engine.ts ← pure, deterministic evaluate(inputs, deps) → output
+  ingest/         ← adapters normalizing raw sources
+  data/           ← seed JSON/YAML loaded at runtime (data is not code)
+  index.ts        ← public surface: re-exports ONLY
+  README.md       ← templated, ≤150 lines (§13.2)
 ```
 
-### BFF-only rule (security invariant — never break this)
+**Public-surface rule (new, enforced):** cross-domain imports go through `index.ts`
+only. `import { x } from '@/lib/policy'` — never `@/lib/policy/internal/scorer`.
+Enforced with `eslint-plugin-boundaries` (or dependency-cruiser): UI never imports
+`src/lib/server/*`; `src/lib/*` never imports React or Next.js; domains never deep-
+import each other. Layer rules live in config, not in memory.
 
-```
-Browser → /api/* (BFF) → external services / FHIR / model calls
-```
-
-- The browser calls **only** `/api/*` routes. It never reaches FHIR, APIM, or any
-  AI endpoint directly.
-- SMART tokens live in an encrypted, httpOnly server session — **never** in the browser.
-- No secrets in `NEXT_PUBLIC_*` — ever. Not for AI keys, not for OAuth secrets.
-- Every privileged action emits a **PHI-safe** audit event (references + codes,
-  never PHI payloads). See `src/lib/server/audit.ts`.
-
-> This is not style — it is a compliance requirement under CMS-0057-F and HIPAA.
-
----
-
-## 4. Data Separation
-
-### Rule: data is not code
-
-- No large literals, mock records, or configuration inline in source files.
-- Store seed data in `data/*.json` (or `data/*.yaml`) and load at runtime.
-- Generate bulk/repetitive data with a script (`tools/seed/`), not by hand-writing
-  every record.
-
-### Rule: one source of truth
-
-A dataset, type, schema, or contract exists in **one authoritative location**.
-
-```
-src/lib/policy/data/policy-library.seed.json   ← the 17-policy corpus; regenerated
-                                                   by tools/seed/parse_policies.py
-src/lib/networkAdequacy/data/seed.json         ← GA + SD adequacy seed
-src/lib/evidence/types.ts                      ← EvidenceRecord shape
-```
-
-Never duplicate the same dataset across modules or across front-end / back-end.
-
----
+**BFF-only security invariant (unchanged, non-negotiable):** browser → `/api/*` only;
+SMART tokens in encrypted httpOnly sessions; no secrets in `NEXT_PUBLIC_*`; every
+privileged action emits a PHI-safe audit event.
 
 ## 5. Types & Contracts
 
-### Centralise shared shapes
+1. **Strict TypeScript for new code.** `strict: true` plus `noUncheckedIndexedAccess`
+   and `exactOptionalPropertyTypes`. `any` is an **error** in new modules (lint
+   override scopes legacy paths to warn via the ratchet). Prefer `unknown` + narrowing.
+2. **Schemas are the source of truth at boundaries.** Every BFF route input/output,
+   every external payload (FHIR resources beyond HAPI's guarantees, X12-derived
+   records, QE feeds, LLM outputs) has a zod schema in the domain's `schema.ts`;
+   the TS type is `z.infer<>` of it. One parse at the boundary; typed data inside.
+3. **Contracts are generated, not transcribed.** The API reference and route contracts
+   render from the schemas (zod-openapi). Hand-written copies of generatable contracts
+   are forbidden — they drift.
+4. **One shape, any source.** The `NormalizedPolicy` pattern generalizes: extractors
+   emit raw, adapters normalize, engines see only the normalized model. Extending a
+   payer/source means registering an adapter, never editing `evaluate()`.
+5. **LLM output is a boundary.** Model responses are untrusted input: schema-parsed,
+   failure-handled, never spread into state unchecked.
 
-```
-src/lib/<domain>/types.ts     ← NormalizedPolicy, MemberContext, OrderContext,
-                                 CoverageDetermination, EvidenceRecord, …
-src/lib/server/              ← server-only types (never re-export to the browser)
-```
+## 6. Errors & Results
 
-**One shape, any source.** The `NormalizedPolicy` model in `src/lib/policy/types.ts`
-is the canonical example: source-specific extractors emit raw records; adapters
-normalize them; the engine only ever sees the normalized model and never changes
-per payer. Apply this pattern to every domain.
+1. **Two kinds of failure, never confused.** *Expected domain outcomes* (no match,
+   consent absent, policy not met) are values — discriminated unions / Result shapes
+   defined in `types.ts`. *Infrastructure failures* (backbone down, timeout) throw
+   typed errors extending a domain error class with a stable `code`.
+2. **Fail loud, degrade deliberately.** No silent `catch {}`. The
+   `BackboneNotConfiguredError` pattern generalizes: unconfigured dependencies refuse
+   loudly; AI features degrade to their deterministic path by design, not by accident.
+3. **PHI-safe by construction.** Error messages and log payloads carry references,
+   codes, and counts — never names, DOBs, or free-text clinical content. Asserted in
+   BFF route tests.
 
-### Keep public interfaces stable
+## 7. Determinism & Purity (new)
 
-When adding a payer adapter or a new domain module:
+1. Engines never call `Date.now()`, `new Date()`, `Math.random()`, or I/O directly.
+   Clock, RNG, and data access are injected (`deps` parameter). Same inputs → same
+   outputs, forever — this is what makes tests trustworthy, agents verifiable, and
+   the scale-out doctrine (stateless partitioned workers) possible.
+2. Every externally-triggered mutation carries an **idempotency key**; handlers are
+   safe to retry. This is a code convention here and an infrastructure contract in the
+   production plan (C2/C6) — same rule, both layers.
+
+## 8. Observability (new)
+
+1. **No raw `console.*` in new code** (lint: error; legacy via ratchet). New code logs
+   through `src/lib/server/log.ts` — a thin structured-logging interface (level, event
+   name, correlation id, PHI-safe fields) that can back onto pino/OTel without touching
+   call sites.
+2. Every BFF request gets a correlation id, propagated into engine calls and audit
+   events, so one member's journey is traceable across lanes.
+3. Engines expose counters/timings through the same interface. Dashboards consume
+   metrics; they do not compute them inline (the G6 lesson, encoded).
+
+## 9. AI / LLM Guardrails — product features (v1 §6, kept verbatim in force)
+
+Server-side only · deterministic-first · human-gated · PHI-safe · labelled
+decision-support · feature-flagged with graceful degradation. Non-negotiable.
+
+## 10. Agentic Platform Conventions (new — the product ships agents)
+
+1. **Prompts are code.** Every production prompt lives in a versioned file
+   (`src/lib/<domain>/prompts/*.md`), never as an inline template string. Each has eval
+   fixtures (`tests/<domain>/evals/`): representative inputs + assertions on the
+   parsed output. A prompt change without a passing eval run is not done.
+2. **Agent manifest.** Every agent in the library is declared in a versioned manifest
+   (name, purpose, tool allowlist, autonomy tier HITL/HOTL/autonomous, escalation
+   gates, PHI posture, owning module). The runtime loads manifests; nothing about an
+   agent's authority is implicit in code.
+3. **Least privilege.** An agent's tool allowlist is the minimum for its purpose;
+   widening it is a reviewed manifest change, not a code tweak.
+4. **Injection-aware.** Content retrieved from records, documents, or messages is data,
+   never instructions. Prompts separate instruction from quoted content structurally;
+   evals include injection cases.
+5. **Autonomy is configuration.** The HITL→HOTL→autonomous dial is a manifest setting
+   per agent per deployment, auditable — never a hardcoded branch.
+
+## 11. Offline-First / Tier-A vs Tier-B (v1 §7, unchanged)
+
+Tier A: offline, seeded, deterministic, always runnable without keys. Tier B: backbone-
+gated, refuses loudly until configured. Never claim Tier-B conformance from Tier-A
+behavior; conformance is an Inferno / Da Vinci activity per `docs/conformance-plan.md`.
+
+## 12. State & UI Architecture (v1 §8, plus)
+
+Dependency flow unchanged: UI → hooks → BFF → domain libs; presentation components
+render, business rules live in libs. Additions: prefer React Server Components for
+read paths (less client state to manage or leak); client components take parsed, typed
+props — no fetching or schema logic in the browser; derived values are computed once
+(shared hook or BFF response), never duplicated per component.
+
+## 13. Agent-Session Discipline (v1 §9, expanded — context is the scarce resource)
+
+### 13.1 Session scope
+One domain folder, one seam, or one contract per session. Never mix refactoring with
+feature work in one change set — separate PRs, because both human and AI reviewers
+verify one intent per diff.
+
+### 13.2 Self-describing modules
+Feature READMEs follow a fixed template, ≤150 lines: *purpose · public surface ·
+invariants · what an agent may change freely / must never change · test commands*.
+An agent should reach full working context from README + `types.ts` + `index.ts`
+without reading implementations.
+
+### 13.3 Grep anchors (new)
+Stable, greppable markers tie code to the governing artifacts:
 
 ```ts
-// ✅  extend the registry — engine never changes
-import { registerAdapter } from '@/lib/policy';
-registerAdapter(myStateMedicaidAdapter);
-
-// ❌  modify evaluate() to handle a new raw format
+// SEAM: graph-store — swap per ADR-001; callers depend on index.ts only
+// INVARIANT: BFF-only — this route is the sole browser entry for dispositions
+// CONTRACT: C2 — event envelope; fields frozen, additive changes only
 ```
 
----
+`rg "SEAM:"` lists every seam in the repo; `rg "CONTRACT: C2"` finds every touchpoint
+of a contract. Markers are maintained like code — a removed seam loses its marker in
+the same PR.
 
-## 6. AI / LLM Guardrails (mandatory — do not relax)
-
-These rules are non-negotiable. They are baked into every feature in this codebase and
-must be preserved as the platform grows.
-
-| Rule | Rationale |
-|------|-----------|
-| **AI is server-side only.** All model calls (`networkAdequacyAI`, `dtr/generator`, copilots) run in the BFF. No AI SDK import in any browser-side file. | Client-exposed keys + PHI risk |
-| **Deterministic-first.** Every AI-enhanced feature has a deterministic offline path that produces grounded, reproducible output with no API key. The LLM narrates *on top*; it does not replace the engine. | Reliability; demo without infrastructure |
-| **Human-gated.** Any AI *recommendation* (augmentation plan, DTR draft, action plan, propensity routing) requires explicit human approval before it is acted on. AI never sets Approved / Denied on a PA; only a payer `ClaimResponse` moves the state machine. | Regulatory + liability |
-| **PHI-safe.** Model calls carry references, codes, and aggregates — never identifiable PHI payloads. Assert this in tests. | HIPAA + audit |
-| **Labelled decision-support.** `propensityToDeny`, adequacy recommendations, and cost estimates are **not** determinations. Label them explicitly in UI and in API responses. | Clinical + regulatory honesty |
-| **Feature-flagged.** AI features (`aiDtrGeneration`, `networkAdequacyAI`) are off by default; the flag lives in `src/lib/flags/flags.ts`. A missing key → graceful degradation to the deterministic path, never a runtime crash. | Safe rollout |
-
----
-
-## 7. Offline-First / Tier-A vs Tier-B
-
-```
-Tier A (offline, always runnable)
-  dev stubs · seeded HAPI FHIR · deterministic engines · mock auth
-  → everything in this repo demos without keys or external infrastructure
-
-Tier B (live, backbone-dependent)
-  BACKBONE_* env vars → live CRD/DTR/PAS, eligibility 270/271, X12 278/275
-  → each live client refuses calls until configured (BackboneNotConfiguredError)
-     so offline code fails loud, not silently
-```
-
-**Never** conflate Tier-A demo behaviour with Tier-B conformance claims.
-Nothing is claimed conformant without Inferno / Da Vinci testing on the live backbone
-(see `docs/conformance-plan.md`).
-
-### Adding a new backbone-dependent feature
-
-1. Write the domain library against a clean interface.
-2. Implement a dev stub that satisfies the interface.
-3. Gate the live client behind `isBackboneConfigured()` from
-   `src/lib/backbone/config.ts`.
-4. Document the cutover step in `docs/conformance-plan.md`.
-
----
-
-## 8. State & UI Architecture
-
-### Dependency flow (never invert this)
-
-```
-UI (page.tsx / components)
-  ↓  props / hooks only
-Hooks / view-models
-  ↓  calls BFF routes (/api/*)
-BFF API routes
-  ↓  calls
-Domain libraries (src/lib/*) — pure, no React, no Next.js
-```
-
-- Presentation components render; they do not contain business rules.
-- Business logic belongs in hooks, services, or domain libs.
-- Local state for local concerns; shared state (`stores/`) for shared concerns.
-- Avoid duplicated state. If two components need the same derived value, derive it
-  once in a shared hook or BFF response.
-
----
-
-## 9. Context-Window Discipline (AI agent sessions)
-
-These rules keep AI sessions productive on a large codebase without hallucination.
-
-### Before every session
-
-1. Read `docs/ARCHITECTURE.md` and the relevant feature `README.md`.
-2. Search to locate the symbol/file — never assume location.
-3. Read only the sections you need to change. Do not load the whole file.
-
-### During a session
-
-- **Targeted edits only.** Replace specific strings / blocks. Do not regenerate a
-  file wholesale unless it is a new file.
-- **One feature / folder per session.** Scope prevents context bleed.
-- **Consistent, greppable names.** `runFinancialClearance`, `evaluate`,
-  `toMemberContext` — predictable names make search reliable.
-- **Preserve interfaces.** If you change a function signature, update every caller
-  in the same change set. Never leave the repo in a broken state.
-- **Commit (or stash) before a large edit** so the state is recoverable.
-
-### After every change
+### 13.4 Verification ladder (new)
+Cheapest signal first; run after every edit, full suite before done:
 
 ```bash
-npx tsc --noEmit          # must be 0 errors
-npx vitest run            # must be all passing (currently 178)
-npm run lint              # must be clean on changed files
-bash check-file-sizes.sh  # must exit 0
+npx tsc --noEmit                 # 1. seconds — types
+npm run lint -- <changed paths>  # 2. seconds — style + boundaries
+npx vitest run tests/<domain>    # 3. the domain you touched
+npm run check:all                # 4. full gate before handoff/commit
 ```
 
----
+### 13.5 Stop conditions (new)
+An agent stops and reports — instead of guessing — when: a symbol it expected cannot
+be found by search; a test fails for reasons outside its change; a fix would require
+editing a baseline (over-cap) file or crossing into a second domain; an interface
+change would break callers it has not read. No invented APIs, no dead stubs, no
+commented-out code, no `TODO` without an issue reference.
 
-## 10. Testing
+## 14. Testing
 
-### Coverage expectations
+v1 coverage table stands (domain libs unit-tested; BFF routes test 401/403/400/200 +
+PHI-safe body; state machines test transitions + human gates; regression anchors stay
+green). Additions:
 
-| Layer | Required test |
-|-------|--------------|
-| Domain library (`src/lib/*`) | Unit tests; pure functions → straightforward |
-| BFF route (`/api/*`) | Auth 401 · authz 403 · validation 400 · happy-path 200 · PHI-safe body |
-| State machine | All transitions + human-gate enforcement |
-| Policy engine | Accuracy anchors — 19/19 known source anchors must stay green |
-| Adequacy engine | Seed-spread regression (catch parser / seed drift) |
-| UI smoke | Playwright: critical paths, including the stage-3 handoff and gold-card vs PA paths |
+1. **New modules ship with coverage** on their public surface — every exported function
+   exercised; thresholds enforced per-module in vitest config for `src/lib/<new>/`.
+2. **Property-based tests for engines** (fast-check): invariants like "score is
+   monotone in field agreement" or "disposition never exceeds autonomy tier" catch what
+   example-based tests miss — and they pin down engine behavior for future agents
+   better than prose ever will.
+3. **Contract tests per seam.** Every `SEAM:` marker has a test that runs the same
+   suite against the mock and the real implementation; a swap that passes is a safe
+   swap (this is what gates ADR-001-style store decisions).
+4. **Eval suites for prompts/agents** (§10.1) run in CI like any other test.
+5. Fixtures are data (`tests/**/fixtures/*.json`), generated by `tools/seed/` scripts —
+   never hand-written 200-line literals inside test files.
 
-### Co-locate small tests
+## 15. Traceability (v1 §11, unchanged)
 
-```
-src/lib/policy/policyEngine.ts
-tests/policy/policyEngine.test.ts    ← one test file per domain module
-```
+Every capability adds a `docs/traceability.md` row (code path + test file) and is
+delivered only when the test passes. Backbone-gated rows marked; offline behavior is
+never cited as conformance.
 
-### Regression gates
+## 16. Definition of Done (v2)
 
-- Policy corpus-accuracy suite must stay green on every change to `src/lib/policy/`.
-- Adequacy seed-spread test must stay green on every change to `src/lib/networkAdequacy/`.
+- [ ] New files ≤ 400/500 lines; functions ≤ 50 / complexity ≤ 10 / nesting ≤ 4
+- [ ] Ratchet respected: no additions to baseline files; baseline count not increased
+- [ ] Strict types: no `any`; boundary data parsed via `schema.ts`; types derived
+- [ ] Errors typed: expected outcomes as values; infra failures as coded errors; PHI-safe
+- [ ] Engines deterministic (clock/RNG/I-O injected); mutations idempotent
+- [ ] Logging structured via the log interface; correlation id propagated
+- [ ] Public surface only via `index.ts`; boundary lint clean
+- [ ] BFF invariant + AI guardrails upheld; prompts versioned with passing evals
+- [ ] Data externalized; single source of truth preserved
+- [ ] Tests: unit + property (engines) + contract (seams touched); domain suite green
+- [ ] `docs/traceability.md` row added; feature README updated; grep anchors current
+- [ ] `npm run check:all` exits 0
+- [ ] Commit/PR states what changed, why, and which invariants/contracts were touched
 
----
-
-## 11. Traceability Rule
-
-> A capability without a green test is *asserted, not verified*.
-
-When you add a capability:
-
-1. Add a row to `docs/traceability.md` with the code path and the test file.
-2. The test must pass before the capability is considered delivered.
-3. Mark backbone-gated rows clearly; do not claim offline-verified conformance for
-   capabilities that require the live stack.
-
----
-
-## 12. Definition of Done
-
-A task is **not complete** until every item below is true:
-
-- [ ] File size ≤ 400 lines (production) / ≤ 500 lines (tests)
-- [ ] Function size ≤ 50 lines; complexity ≤ 10; nesting ≤ 4
-- [ ] Data externalized (no large inline literals; seed data in `data/`)
-- [ ] Shared types updated in their authoritative `types.ts`
-- [ ] Single source of truth preserved — no duplicated dataset or schema
-- [ ] BFF invariant upheld — no secrets / AI calls / direct FHIR in browser code
-- [ ] AI guardrails upheld — server-side · deterministic fallback · human-gated · PHI-safe · labelled
-- [ ] `docs/traceability.md` row added for any new capability
-- [ ] `npx tsc --noEmit` exits 0
-- [ ] `npx vitest run` — all tests passing
-- [ ] `npm run lint` — clean on changed files
-- [ ] `bash check-file-sizes.sh` — exits 0
-- [ ] `git commit` (or PR) with a description of what changed and why
-
----
-
-## 13. Anti-Patterns (never do these)
+## 17. Anti-Patterns (v1 §13 stands; agent-era additions)
 
 | Anti-pattern | Why it is harmful here |
 |---|---|
-| `NEXT_PUBLIC_ANTHROPIC_API_KEY` or any `NEXT_PUBLIC_` secret | Exposes keys to the browser; violates BFF invariant |
-| Calling FHIR / AI / APIM directly from a component | Bypasses auth, audit, and PHI-safety |
-| Duplicating `NormalizedPolicy` or `EvidenceRecord` shapes | Breaks single source of truth; engine diverges |
-| Adding to `mockData.ts` / `helpers.ts` instead of a domain module | Grows the dumping ground; makes search unreliable |
-| `evaluate()` checking `if (payer === 'aetna')` | Engine must be source-agnostic; write an adapter |
-| Claiming conformance from offline stub behaviour | Conformance is a Tier-B / Inferno activity |
-| LLM setting PA status directly | Only `ClaimResponse` moves the PA state machine |
-| Feature-flagged AI code that crashes when the key is absent | Must degrade to the deterministic path |
+| Speculative scaffolding (extra layers, config, options "for later") | Agents generate it effortlessly; humans maintain it forever. Smallest change that works. |
+| Wholesale file regeneration for a targeted fix | Destroys review signal; invites regression; burns context |
+| Mixing refactor + feature in one PR | Neither intent is verifiable; blocks the ratchet |
+| Inline prompt strings in components/services | Unversioned, untested, invisible to evals |
+| Trusting LLM output shape without parsing | A model is an external system; parse at the boundary |
+| `catch (e) { console.log(e) }` | Silent failure + unstructured log + probable PHI leak |
+| Hand-editing generated files or duplicating a schema as prose | Drift; single source of truth broken |
+| Adding "just one function" to a baseline file | The ratchet only works if it never moves backward |
 
----
+## 18. Tooling & Wiring (v1 §15, updated — wire it or it is not a rule)
 
----
-
-## 14. Legacy Debt Register (known pre-convention violations)
-
-Running `bash check-file-sizes.sh rhtpdemo/src rhtpdemo/tests` against the codebase
-as of the convention adoption date reveals **86 files over the 400-line cap** and
-**19 approaching it**. These are legacy accumulations — they do not get a pass, but
-they are tracked here so AI agents do not treat them as a green baseline.
-
-### Worst offenders (priority split list)
-
-| File | Lines | Remediation |
-|---|---|---|
-| `src/lib/mockData.ts` | 2 661 | Move all inline mock records to `data/*.json`; load with a registry |
-| `src/uhg/components/shared/OrchestrationFlowModal.tsx` | 3 352 | Split into sub-components + a data file |
-| `src/app/md-smart-launch/components/MdSmartSummaryScreen.tsx` | 2 247 | Extract tab panels as separate components |
-| `src/uhg/lib/generateDetailedScreenPDF.ts` | 1 287 | Extract template data to JSON; keep logic thin |
-| `src/lib/services/carePlanGenerator.ts` | 1 148 | Split into `carePlanBuilder`, `carePlanValidator`, `carePlanTemplates` |
-| `src/lib/patientContext.tsx` | 773 | Extract `patientReducer`, `patientSelectors`, `patientTypes` |
-| `src/lib/patientRegistry.ts` | 870 | Move the `FHIR_ID_MAP` data to `data/patient-registry.json` |
-
-### Policy for legacy files
-
-- **Do not add to any file that is already over the limit.** If you need to add code,
-  split the file first as part of the same PR.
-- **Do not treat a legacy violation as permission** to create a new large file.
-- Track remediation progress by re-running `check-file-sizes.sh` on each PR. The
-  violation count should only decrease over time.
-
----
-
-## 15. `package.json` Integration
-
-Add these entries to `rhtpdemo/package.json` scripts to wire the gates into every
-development workflow:
+Wired today (these exist and run):
 
 ```json
 {
   "scripts": {
-    "check:sizes":   "bash ../check-file-sizes.sh src tests",
-    "check:types":   "tsc --noEmit",
-    "check:all":     "npm run check:types && npm run check:sizes && npm run lint && npm run test",
-    "pretest":       "npm run check:types && npm run check:sizes"
+    "check:types": "tsc --noEmit",
+    "check:sizes": "bash check-file-sizes.sh",
+    "check:all": "npm run check:types && npm run check:sizes && npm run lint && vitest run",
+    "pretest": "npm run check:types && npm run check:sizes"
   }
 }
 ```
 
-And the GitHub Actions step (`.github/workflows/ci.yml`):
+The size gate is ratchet-aware: `check-file-sizes.sh --write-baseline` records the
+current violation set to `quality-baseline.json`; ordinary runs fail only on NEW
+violations or on a baselined file that GREW. The baseline may only shrink.
 
-```yaml
-- name: Convention gates (types · sizes · lint · tests)
-  working-directory: rhtpdemo
-  run: |
-    npx tsc --noEmit
-    bash ../check-file-sizes.sh src tests
-    npm run lint
-    npx vitest run
-```
+Enforcement surfaces: `.github/workflows/convention-gates.yml` (per PR: types →
+sizes+ratchet → lint → unit tests) · versioned pre-commit hook at
+`tools/hooks/pre-commit` (enable once per clone: `git config core.hooksPath
+tools/hooks`) · `AGENTS.md` as the ≤150-line session entry map.
+
+Next npm session (needs registry access): install `eslint-plugin-boundaries` and add
+`check:boundaries` to `check:all` so the §4 public-surface rule moves from prose to
+gate; promote `@typescript-eslint/no-explicit-any` and `no-console` to error for
+`src/lib/**` new modules via ESLint overrides.
 
 ---
 
-*Maintained alongside `docs/ARCHITECTURE.md`. When the architecture evolves, update both.*
+*v2 maintained alongside `docs/ARCHITECTURE.md`. Legacy debt register (v1 §14 table)
+remains the ratchet baseline's human-readable companion; it is frozen in this pass and
+may only shrink.*

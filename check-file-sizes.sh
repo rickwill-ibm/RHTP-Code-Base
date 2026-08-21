@@ -1,52 +1,53 @@
 #!/usr/bin/env bash
 # =============================================================================
 # check-file-sizes.sh
-# AI-CODING-CONVENTIONS §2 enforcement — file size hard caps.
+# AI-CODING-CONVENTIONS §2 + §3 enforcement — file size caps with quality ratchet.
 #
-# Exits 0 if all files are within limits; exits 1 with a report if any breach.
+# Exits 0 when no NEW violations exist and no baselined file has GROWN.
+# Legacy violations recorded in quality-baseline.json are frozen, not failed.
 #
 # Usage
-# ─────
-#   bash check-file-sizes.sh              # check everything under src/ and tests/
-#   bash check-file-sizes.sh src/lib      # check a specific directory
+#   bash check-file-sizes.sh                    # gate: fail on new/grown only
+#   bash check-file-sizes.sh --write-baseline   # (re)generate quality-baseline.json
+#   bash check-file-sizes.sh src/lib            # gate a specific directory
 #
 # Limits (mirrors AI-CODING-CONVENTIONS.md §2):
-#   Production code  (src/**):    400 lines
-#   Test files       (tests/**):  500 lines
-#   Generated / seed (data/**):   exempt
+#   Production code (src/**): 400 lines | Tests (tests/**, e2e/**): 500 lines
+#   Generated / seed / reviewed-exempt files: see EXEMPT_PATTERNS
 #
-# Integration
-# ───────────
-#   Pre-commit (via .git/hooks/pre-commit or lint-staged):
-#     bash check-file-sizes.sh
-#
-#   GitHub Actions (add to .github/workflows/ci.yml):
-#     - name: File size gate
-#       run: bash check-file-sizes.sh
-#
-#   package.json scripts:
-#     "check:sizes": "bash check-file-sizes.sh",
-#     "pretest":     "bash check-file-sizes.sh"
+# Ratchet rules (AI-CODING-CONVENTIONS.md §3):
+#   - quality-baseline.json lists known-over-cap legacy files with their counts
+#   - a file NOT in the baseline that breaches the cap  -> FAIL (new violation)
+#   - a baselined file whose count EXCEEDS its baseline -> FAIL (ratchet moved back)
+#   - a baselined file at or under its baseline         -> reported, not failed
+#   - regenerate the baseline ONLY in refactor-only PRs; the count may only shrink
 # =============================================================================
 
 set -euo pipefail
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-
 PROD_LIMIT=400
 TEST_LIMIT=500
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASELINE_FILE="$SCRIPT_DIR/quality-baseline.json"
 
-# Directories to scan (override by passing args)
-if [[ $# -gt 0 ]]; then
-  SCAN_DIRS=("$@")
-else
+WRITE_BASELINE=0
+SCAN_DIRS=()
+for arg in "$@"; do
+  if [[ "$arg" == "--write-baseline" ]]; then
+    WRITE_BASELINE=1
+  else
+    SCAN_DIRS+=("$arg")
+  fi
+done
+if [[ ${#SCAN_DIRS[@]} -eq 0 ]]; then
   SCAN_DIRS=("src" "tests" "e2e")
 fi
 
-# File extensions to check
 EXTENSIONS=("ts" "tsx" "js" "jsx")
 
-# Patterns that are EXEMPT from the cap (seed data, generated artefacts, etc.)
+# Genuinely exempt: data, generated artefacts, template/copy generators, backups.
+# Reviewed-monolith page exemptions from v1 have been MIGRATED to the baseline —
+# the ratchet also catches growth in those files, which patterns never could.
 EXEMPT_PATTERNS=(
   "*/data/*.json"
   "*/data/*.yaml"
@@ -54,138 +55,19 @@ EXEMPT_PATTERNS=(
   "*.generated.ts"
   "*.generated.tsx"
   "*.seed.json"
-
-  # ── PDF/HTML generator families ───────────────────────────────────────────────
-  # Large template strings (CSS, HTML, narrative copy) — content, not code.
   "*/generateDetailedScreenPDF*.ts"
   "*/generateTalkTrackPDF*.ts"
-
-  # ── Slide/backup artefacts ────────────────────────────────────────────────────
-  # demo-deck: slide copy, speaker notes, PDF template strings
-  "*/demo-deck/page.tsx"
-  # md-smart-launch.backup: backup directory, not production code
   "*/md-smart-launch.backup/*"
-
-  # ── Pure data literals (splitting yields no architectural benefit) ─────────────
-  # wholePersonGraphData.ts — 52 nodes + 67 edges + lens defs: one coherent dataset
-  "*/wholePersonGraphData.ts"
-  # mockData.data2.ts — overflow file from Batch 1a split; already purposefully named
-  "*/mockData.data2.ts"
-  # fhirResourceMappers.ts — FHIR R4 types + mappers share declarations; splitting duplicates types
-  "*/fhirResourceMappers.ts"
-
-  # ── Monolithic view/page components — single responsibility, tightly coupled state ──
-  #
-  # Rule: a page/component is exempt when ALL of the following hold:
-  #   (1) It has one primary reason to change (render this screen)
-  #   (2) Its state variables are shared across the entire render — cannot be
-  #       decomposed without passing 8+ setter props into every sub-component
-  #   (3) Splitting produces prop-drilling or context abuse that is architecturally
-  #       worse than the size violation
-  #
-  # These files were reviewed individually — see AI-CODING-CONVENTIONS.md §2 exemptions.
-
-  # app pages — single-screen components with deeply coupled local state
-  "*/social-needs-dashboard/page.tsx"
-  "*/care-manager/page.tsx"
-  "*/care-team-inbox/page.tsx"
-  "*/demo-onboarding/page.tsx"
-  "*/episodic-management-analytics/page.tsx"
-  "*/referral-journey-tracker/page.tsx"
-  "*/settings/fhir-tester/page.tsx"
-  "*/social-needs-screening/page.tsx"
-  "*/submitted-referrals/page.tsx"
-  "*/uhg-orchestrate/agent-impact-dashboard/page.tsx"
-  "*/uhg-orchestrate/controller-agentic-super-orchestration-centerpiece/page.tsx"
-  "*/whole-person-care-summary/page.tsx"
-  "*/care-gap-closure-verification/page.tsx"
-  "*/cbo-directory/page.tsx"
-  "*/chw-workflow/page.tsx"
-  "*/crisis-pathway/page.tsx"
-  "*/signal-disposition-engine/page.tsx"
-  "*/uhg-orchestrate/consumer-360/page.tsx"
-  "*/specialist-inbox/page.tsx"
-  "*/stars-hedis-mips/page.tsx"
-  "*/program-eligibility/page.tsx"
-  "*/physician-view/page.tsx"
-  "*/provider-level/page.tsx"
-  "*/settings/page.tsx"
-  "*/referral-tracking/page.tsx"
-  "*/api-explorer/page.tsx"
-  "*/cdp-assembly/page.tsx"
-  "*/episode-detail/page.tsx"
-  "*/journey-aware-context/page.tsx"
-  "*/uhg-orchestrate/agent-library/page.tsx"
-  "*/uhg-orchestrate/caregiver-elena/page.tsx"
-  "*/uhg-orchestrate/cdp-assembly-split/page.tsx"
-  "*/uhg-orchestrate/portfolio-scale/page.tsx"
-  "*/uhg-orchestrate/signal-disposition-engine/page.tsx"
-  "*/uhg-orchestrate/whole-person-care/page.tsx"
-  "*/whole-person-intelligence/page.tsx"
-  "*/md-smart-launch/page.tsx"
-  "*/md-smart-launch/components/MdSmartSummaryScreen.tsx"
-
-  # DemoNavigator.tsx — 54-step + 15-step story mode; step data + state are
-  # inseparable (each step references multiple pieces of shared state);
-  # splitting requires passing the entire demo state machine as props.
-  "*/components/DemoNavigator.tsx"
-
-  # patient-detail sub-components — multi-step journey/form components
-  # with complex wizard state that cannot be split without prop explosion
-  "*/patient-detail/components/WholePersonSummary.tsx"
-  "*/patient-detail/components/CareGapClosureJourney.tsx"
-  "*/patient-detail/components/ContextualActionPanel.tsx"
-  "*/patient-detail/components/CarePlanForm.tsx"
-  "*/patient-detail/components/ActionsTasksTab.tsx"
-  "*/patient-detail/components/WholePersonCarePlanTab.tsx"
-  "*/patient-detail/components/AttributionDisputeJourney.tsx"
-  "*/patient-detail/components/HCCConfirmationJourney.tsx"
-  "*/patient-detail/components/UtilizationEscalationJourney.tsx"
-  "*/patient-detail/components/RiskQualityTab.tsx"
-
-  # md-smart-launch sub-components — tightly coupled to MdSmartSummaryScreen state
-  "*/md-smart-launch/components/CarePlanPanel.tsx"
-  "*/md-smart-launch/components/cerner/ChartPages.tsx"
-  "*/md-smart-launch/components/MdPatientSummary.tsx"
-  "*/md-smart-launch/components/SdohGapPanel.tsx"
-  "*/md-smart-launch/components/ComplianceDashboard.tsx"
-  "*/md-smart-launch/components/cerner/ProviderViewReview.tsx"
-
-  # panel/table components — single-purpose tables with many inline helpers
-  "*/panel-cohort-view/components/PatientRowActions.tsx"
-  "*/panel-cohort-view/components/PatientPanelTable.tsx"
-
-  # other over-limit components reviewed and confirmed single-responsibility
-  "*/care-manager/components/CaseloadDashboard.tsx"
-  "*/financial-dashboard/components/FinancialActionBar.tsx"
-
-  # CMS-0057-F Postman Suite — 3-panel config/download/run UI; all state is
-  # shared across panels (editMode, editScopes, etc.); splitting requires
-  # passing 15+ setters into each sub-panel — prop explosion worse than size.
-  "*/components/PostmanSuiteTab.tsx"
-
-  # executive-outcomes-dashboard — single dashboard screen with deeply coupled
-  # filter state (region/program/org/period) shared by 6 chart sub-sections;
-  # splitting requires context or 12+ prop-drills — architecturally worse.
-  "*/executive-outcomes-dashboard/page.tsx"
-
-  # provider-selection sub-components — ProviderDetailPanel (437 lines, single concern)
-  # and ReferralJourney steps (3 steps that share Provider type, always used together)
-  "*/provider-selection/components/ProviderDirectoryTable.tsx"
-  "*/provider-selection/components/ReferralJourney.tsx"
 )
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
+CYAN='\033[0;36m'
 RESET='\033[0m'
 
 line_count() {
-  # Count non-blank, non-comment lines so the limit matches the ESLint rule
-  # (ESLint max-lines uses skipBlankLines + skipComments)
-  grep -cEv '^\s*(//|/\*|\*|$)' "$1" 2>/dev/null || true
+  wc -l < "$1" 2>/dev/null || true
 }
 
 is_exempt() {
@@ -206,71 +88,92 @@ limit_for() {
   is_test_file "$1" && echo "$TEST_LIMIT" || echo "$PROD_LIMIT"
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+baseline_count() {
+  # Returns the baselined line count for a file, or empty if not baselined.
+  local file="$1"
+  [[ -f "$BASELINE_FILE" ]] || return 0
+  grep -F "\"$file\":" "$BASELINE_FILE" 2>/dev/null | head -1 | sed -E 's/.*:[[:space:]]*([0-9]+),?[[:space:]]*$/\1/' || true
+}
 
 violations=()
+legacy=()
 warnings=()
+over_entries=()
 checked=0
 
-# Build the find command for each directory and extension
 for dir in "${SCAN_DIRS[@]}"; do
   [[ -d "$dir" ]] || continue
-
   for ext in "${EXTENSIONS[@]}"; do
     while IFS= read -r -d '' file; do
       is_exempt "$file" && continue
-
       limit=$(limit_for "$file")
       count=$(line_count "$file")
       ((checked++)) || true
 
       if (( count > limit )); then
-        violations+=("$(printf "%-80s %5d / %d lines  ← OVER LIMIT" "$file" "$count" "$limit")")
+        over_entries+=("    \"$file\": $count")
+        base="$(baseline_count "$file")"
+        if [[ -z "$base" ]]; then
+          violations+=("$(printf "%-78s %5d / %d lines  <- NEW violation" "$file" "$count" "$limit")")
+        elif (( count > base )); then
+          violations+=("$(printf "%-78s %5d lines  <- GREW past baseline (%d)" "$file" "$count" "$base")")
+        else
+          legacy+=("$file ($count)")
+        fi
       elif (( count > limit * 85 / 100 )); then
-        # Warn when a file is within 15% of the limit (approaching cap)
-        warnings+=("$(printf "%-80s %5d / %d lines  ← approaching cap" "$file" "$count" "$limit")")
+        warnings+=("$(printf "%-78s %5d / %d lines  <- approaching cap" "$file" "$count" "$limit")")
       fi
     done < <(find "$dir" -name "*.$ext" -print0 2>/dev/null)
   done
 done
 
-# ── Report ────────────────────────────────────────────────────────────────────
+if [[ $WRITE_BASELINE -eq 1 ]]; then
+  {
+    echo "{"
+    echo "  \"_comment\": \"Quality ratchet baseline (AI-CODING-CONVENTIONS §3). Frozen legacy over-cap files with their line counts. May only shrink. Regenerate ONLY in a refactor-only PR: bash check-file-sizes.sh --write-baseline\","
+    echo "  \"files\": {"
+    total=${#over_entries[@]}
+    for i in "${!over_entries[@]}"; do
+      if (( i < total - 1 )); then echo "${over_entries[$i]},"; else echo "${over_entries[$i]}"; fi
+    done
+    echo "  }"
+    echo "}"
+  } > "$BASELINE_FILE"
+  echo -e "${CYAN}Baseline written: $BASELINE_FILE (${#over_entries[@]} legacy over-cap files frozen).${RESET}"
+  exit 0
+fi
 
 echo ""
-echo "══════════════════════════════════════════════════════════════════════"
-echo "  AI-CODING-CONVENTIONS §2 — File Size Gate"
-echo "  Production cap: ${PROD_LIMIT} lines  |  Test cap: ${TEST_LIMIT} lines"
-echo "  Files checked: ${checked}"
-echo "══════════════════════════════════════════════════════════════════════"
+echo "=================================================================="
+echo "  AI-CODING-CONVENTIONS v2 - File Size Gate + Quality Ratchet"
+echo "  Production cap: ${PROD_LIMIT} | Test cap: ${TEST_LIMIT} | Files checked: ${checked}"
+echo "  Baselined legacy files (frozen): ${#legacy[@]}"
+echo "=================================================================="
 
 if [[ ${#warnings[@]} -gt 0 ]]; then
   echo ""
-  echo -e "${YELLOW}  ⚠  Files approaching the cap (> 85% of limit):${RESET}"
-  for w in "${warnings[@]}"; do
-    echo -e "${YELLOW}     $w${RESET}"
-  done
+  echo -e "${YELLOW}  Approaching the cap (> 85% of limit):${RESET}"
+  for w in "${warnings[@]}"; do echo -e "${YELLOW}     $w${RESET}"; done
 fi
 
 if [[ ${#violations[@]} -gt 0 ]]; then
   echo ""
-  echo -e "${RED}  ✗  Files OVER the limit — split these before merging:${RESET}"
-  for v in "${violations[@]}"; do
-    echo -e "${RED}     $v${RESET}"
-  done
+  echo -e "${RED}  RATCHET FAILURES - new violations or growth in frozen files:${RESET}"
+  for v in "${violations[@]}"; do echo -e "${RED}     $v${RESET}"; done
   echo ""
-  echo -e "${RED}  FAILED — ${#violations[@]} file(s) exceed the line-count cap.${RESET}"
+  echo -e "${RED}  FAILED - ${#violations[@]} ratchet breach(es).${RESET}"
   echo ""
-  echo "  Remediation checklist (AI-CODING-CONVENTIONS.md §2):"
-  echo "   1. Split by responsibility — one primary reason to change per file."
-  echo "   2. Extract domain logic to src/lib/<domain>/ (pure, no framework deps)."
-  echo "   3. Move large inline data to data/*.json loaded at runtime."
-  echo "   4. Move helper functions to purposefully named modules (not helpers.ts)."
-  echo "   5. Re-run this script; then run: npx tsc --noEmit && npx vitest run"
+  echo "  Remediation (AI-CODING-CONVENTIONS.md v2 sec 2-3):"
+  echo "   1. New file over cap: split by responsibility before merging."
+  echo "   2. Baselined file grew: move your addition into a new compliant module"
+  echo "      and call it from the legacy file. Never grow a frozen file."
+  echo "   3. Data goes to data/*.json; domain logic to src/lib/<domain>/."
+  echo "   4. Then: npx tsc --noEmit && npx vitest run"
   echo ""
   exit 1
 fi
 
 echo ""
-echo -e "${GREEN}  ✓  All ${checked} files are within limits.${RESET}"
+echo -e "${GREEN}  PASS - no new violations; ratchet intact (${#legacy[@]} frozen legacy files unchanged or smaller).${RESET}"
 echo ""
 exit 0
