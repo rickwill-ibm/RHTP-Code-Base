@@ -53,3 +53,6 @@ fhir/**/*.war
 # Use .env.example as the template (that IS committed)
 .env.local
 .env.*.local
+
+# Runtime config (contains FHIR URLs + auth, user-editable)
+.rhtp-config.json

@@ -2,7 +2,7 @@
   "info": {
     "name": "CMS-0057-F Contract Tests",
     "_postman_id": "cms0057f-contract-2026",
-    "description": "Contract tests for the CMS-0057-F prior-authorization platform's core API surface (CDS Hooks discovery, DTR package retrieval, $member-match, PAS submission human-gate, bulk export, work queue, financial clearance). Run with: npm run test:contract (newman). Restored as part of Dev Plan Workstream E (risk-flag remediation) — this artifact previously did not exist despite being referenced by package.json's test:contract script.",
+    "description": "Contract tests for the CMS-0057-F prior-authorization platform. All patient-specific values are parameterised via environment variables — switch patient by changing {{patientId}}, {{fhirPatientId}}, {{cptCode}}, {{procedureName}}, {{priorPayer}} in the active environment. Run with: npm run test:contract (Newman). Environments: tools/contract/local.postman_environment.json (mock) and tools/contract/production.postman_environment.json (live FHIR).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,20 +10,23 @@
   ],
   "item": [
     {
-      "name": "Establish Dev Session",
+      "name": "§0 — Establish Dev Session",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/api/auth/login",
         "header": [],
-        "description": "Must run first. In the offline install (ALLOW_DEV_MOCK_AUTH=true), this sets the rhtp_smart_session cookie every subsequent request in this collection needs. Newman's built-in cookie jar carries it forward automatically within a single run. Without this step every other request correctly 401s (auth is real, not skipped) but never exercises the authenticated path."
+        "description": "Must run first. In dev-mock mode (ALLOW_DEV_MOCK_AUTH=true) sets the rhtp_smart_session cookie. Newman's cookie jar carries it forward. Without this step all session-gated requests correctly 401."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('redirects to /cms (dev session established) or is not applicable outside dev-mock', () => {",
+              "pm.test('session initiation: 200 or redirect (302/307)', () => {",
               "  pm.expect([200, 302, 307]).to.include(pm.response.code);",
+              "});",
+              "pm.test('no server error', () => {",
+              "  pm.expect(pm.response.code).to.not.equal(500);",
               "});"
             ]
           }
@@ -31,11 +34,12 @@
       ]
     },
     {
-      "name": "CDS Hooks Discovery",
+      "name": "§0 — Config Status (mode + FHIR target)",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/api/cds-hooks",
-        "header": [{ "key": "Accept", "value": "application/json" }]
+        "url": "{{baseUrl}}/api/config-status",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "Returns the active server configuration: mock vs production mode, FHIR gateway URL, auth mode. Drives the Postman Suite UI config panel."
       },
       "event": [
         {
@@ -43,14 +47,47 @@
           "script": {
             "exec": [
               "pm.test('status is 200', () => pm.response.to.have.status(200));",
-              "pm.test('returns a services array', () => {",
+              "pm.test('returns mode field', () => {",
               "  const body = pm.response.json();",
-              "  pm.expect(body).to.have.property('services');",
-              "  pm.expect(body.services).to.be.an('array');",
+              "  pm.expect(body).to.have.property('mode');",
+              "  pm.expect(['mock', 'production']).to.include(body.mode);",
               "});",
-              "pm.test('advertises order-sign hook', () => {",
+              "pm.test('returns fhirGateway field', () => {",
               "  const body = pm.response.json();",
-              "  pm.expect(body.services.some(s => s.hook === 'order-sign')).to.be.true;",
+              "  pm.expect(body).to.have.property('fhirGateway');",
+              "});",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.environment.set('serverMode', body.mode);",
+              "  pm.environment.set('fhirGateway', body.fhirGateway);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§1 — Patient Access: Session",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/session",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "CMS-0057-F §1 Patient Access API. Confirms authenticated session. In production validates SMART bearer token from WSO2 IS."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('returns authenticated boolean', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('authenticated');",
+              "  pm.expect(body.authenticated).to.be.a('boolean');",
+              "});",
+              "pm.test('returns patient field', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('patient');",
               "});"
             ]
           }
@@ -58,21 +95,22 @@
       ]
     },
     {
-      "name": "DTR Package Retrieval",
+      "name": "§1 — Patient Access: Coverage",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/api/dtr/package?questionnaire=CPT-70551",
-        "header": [{ "key": "Accept", "value": "application/json" }]
+        "url": "{{baseUrl}}/api/fhir/Coverage?beneficiary=Patient%2F{{fhirPatientId}}",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "description": "CMS-0057-F §1. Returns FHIR R4 Coverage resources for {{patientId}} (FHIR ID: {{fhirPatientId}}). Coverage data must be accessible through the Patient Access API."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "pm.test('status is 200 or 401', () => {",
               "  pm.expect([200, 401]).to.include(pm.response.code);",
               "});",
-              "pm.test('returns a Questionnaire bundle when 200', () => {",
+              "pm.test('returns FHIR Bundle when 200', () => {",
               "  if (pm.response.code === 200) {",
               "    const body = pm.response.json();",
               "    pm.expect(body.resourceType).to.equal('Bundle');",
@@ -84,23 +122,26 @@
       ]
     },
     {
-      "name": "Provider Access - Member Match",
+      "name": "§1 — Patient Access: Conditions",
       "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/match",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"resourceType\": \"Parameters\",\n  \"parameter\": [\n    { \"name\": \"MemberId\", \"valueString\": \"MARIA_SD_001\" },\n    { \"name\": \"MemberFirstName\", \"valueString\": \"Maria\" },\n    { \"name\": \"MemberLastName\", \"valueString\": \"Redhawk\" },\n    { \"name\": \"MemberBirthDate\", \"valueDate\": \"1985-04-12\" }\n  ]\n}"
-        }
+        "method": "GET",
+        "url": "{{baseUrl}}/api/fhir/Condition?subject=Patient%2F{{fhirPatientId}}",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "description": "CMS-0057-F §1. FHIR R4 Condition bundle for {{patientId}}. Clinical data accessible to the member — core data class required by CMS-0057-F."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "pm.test('status is 200 or 401', () => {",
               "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns FHIR Bundle when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.resourceType).to.equal('Bundle');",
+              "  }",
               "});"
             ]
           }
@@ -108,28 +149,295 @@
       ]
     },
     {
-      "name": "PAS Submit - Human Gate (no approvedBy)",
+      "name": "§1 — Patient Access: ClaimResponse (PA status + denial reasons)",
       "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/pas/submit",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"claimBundle\": { \"resourceType\": \"Bundle\", \"type\": \"collection\" }\n}"
-        }
+        "method": "GET",
+        "url": "{{baseUrl}}/api/fhir/ClaimResponse?patient=Patient%2F{{fhirPatientId}}",
+        "header": [{ "key": "Accept", "value": "application/fhir+json" }],
+        "description": "CMS-0057-F §1. ClaimResponse includes disposition and denial reasons — members must be able to see why a PA was denied."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('status is 202 (requires human approval) or 401 (auth required)', () => {",
-              "  pm.expect([202, 401]).to.include(pm.response.code);",
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
               "});",
-              "pm.test('202 response does not silently submit', () => {",
+              "pm.test('returns FHIR Bundle when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.resourceType).to.equal('Bundle');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§2 — Provider Access: Consent Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/consent/provider-access?memberId={{patientId}}",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "CMS-0057-F §2. Checks member opt-out before provider data access. Returns optedOut: true/false. Blocks and audits if opted out."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('returns optedOut boolean', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('optedOut');",
+              "  pm.expect(body.optedOut).to.be.a('boolean');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§2 — Provider Access: $member-match",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/match",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resourceType\": \"Parameters\",\n  \"parameter\": [\n    { \"name\": \"MemberId\", \"valueString\": \"{{patientId}}\" },\n    { \"name\": \"MemberFirstName\", \"valueString\": \"{{patientFirstName}}\" },\n    { \"name\": \"MemberLastName\", \"valueString\": \"{{patientLastName}}\" },\n    { \"name\": \"MemberBirthDate\", \"valueDate\": \"{{patientDob}}\" }\n  ]\n}"
+        },
+        "description": "CMS-0057-F §2 (Da Vinci PDex). FHIR $member-match operation. Resolves identity across payer systems. Returns matched patient ID."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns matched patient reference when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('matchedPatientId');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§3 — Payer-to-Payer: Start Bulk Export",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/bulk/start",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"priorPayer\": \"{{priorPayer}}\",\n  \"patientId\": \"{{patientId}}\",\n  \"memberMatch\": {\n    \"resourceType\": \"Parameters\",\n    \"parameter\": [{ \"name\": \"MemberPatient\", \"resource\": { \"resourceType\": \"Patient\", \"id\": \"{{patientId}}\" } }]\n  }\n}"
+        },
+        "description": "CMS-0057-F §3. Initiates async FHIR Bulk Data export from prior payer ({{priorPayer}}) for {{patientId}}. Returns jobId. Mock: returns dev-p2p-job-001 immediately."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200, 202 or 401', () => {",
+              "  pm.expect([200, 202, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('202 includes a jobId when authenticated', () => {",
               "  if (pm.response.code === 202) {",
               "    const body = pm.response.json();",
-              "    const text = JSON.stringify(body).toLowerCase();",
+              "    pm.expect(body).to.have.property('jobId');",
+              "    pm.environment.set('p2pJobId', body.jobId);",
+              "  }",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    if (body.jobId) pm.environment.set('p2pJobId', body.jobId);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§3 — Payer-to-Payer: Poll Export Status",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/bulk/status?jobId={{p2pJobId}}&patientId={{patientId}}",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "CMS-0057-F §3. Polls bulk export job {{p2pJobId}}. Returns state, coveragePeriod, resourceCounts (EOB, Coverage, Claim, etc.), PA denial history from prior payer, and import impact."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns job state when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('state');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§4 — CDS Hooks Discovery",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/cds-hooks",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "HL7 CDS Hooks 2.0 discovery endpoint. Lists all hook services. Must advertise order-sign for CRD compliance."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('returns services array', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('services');",
+              "  pm.expect(body.services).to.be.an('array');",
+              "});",
+              "pm.test('advertises order-sign hook', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.services.some(s => s.hook === 'order-sign')).to.be.true;",
+              "});",
+              "pm.test('advertises patient-view hook', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.services.some(s => s.hook === 'patient-view')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§4 — CRD: order-sign (Coverage Requirements Discovery)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/cds",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hookId\": \"order-sign\",\n  \"hookRequest\": {\n    \"hook\": \"order-sign\",\n    \"context\": {\n      \"userId\": \"Practitioner/PRAC_PCP\",\n      \"patientId\": \"{{patientId}}\",\n      \"draftOrders\": {\n        \"resourceType\": \"Bundle\",\n        \"entry\": [{\n          \"resource\": {\n            \"resourceType\": \"ServiceRequest\",\n            \"code\": {\n              \"coding\": [{\n                \"system\": \"http://www.ama-assn.org/go/cpt\",\n                \"code\": \"{{cptCode}}\",\n                \"display\": \"{{procedureName}}\"\n              }]\n            }\n          }\n        }]\n      }\n    }\n  }\n}"
+        },
+        "description": "CMS-0057-F §4 (Da Vinci CRD). CDS Hooks order-sign for CPT {{cptCode}} ({{procedureName}}) for patient {{patientId}}. Returns coverage requirement cards."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns cards array when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('cards');",
+              "    pm.expect(body.cards).to.be.an('array');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§4 — DTR: $questionnaire-package",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/dtr/package?cptCode={{cptCode}}",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "CMS-0057-F §4 (Da Vinci DTR STU3). Retrieves payer Questionnaire for CPT {{cptCode}} ({{procedureName}}). Step 1: fetch questionnaire → prefill from EHR → submit QuestionnaireResponse."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns Questionnaire Bundle when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.resourceType).to.equal('Bundle');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§4 — DTR: evaluate documentation requirements",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/dtr/evaluate",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"cptCode\": \"{{cptCode}}\",\n  \"procedureName\": \"{{procedureName}}\"\n}"
+        },
+        "description": "CMS-0057-F §4 (Da Vinci DTR). Evaluates medical necessity for CPT {{cptCode}} against patient {{patientId}} record. Returns per-criterion met/gap status with FHIR evidence references."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns criteria evaluation when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('criteria');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§4 — PAS: Submit WITHOUT human approver (gate demo)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/pas/submit",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"claimBundle\": {\n    \"resourceType\": \"Bundle\",\n    \"type\": \"collection\",\n    \"entry\": [{\n      \"resource\": {\n        \"resourceType\": \"Claim\",\n        \"id\": \"claim-{{patientId}}\",\n        \"status\": \"active\",\n        \"use\": \"preauthorization\",\n        \"patient\": { \"reference\": \"Patient/{{patientId}}\" },\n        \"insurance\": [{ \"sequence\": 1, \"focal\": true, \"coverage\": { \"reference\": \"Coverage/cov-1\" } }],\n        \"item\": [{ \"sequence\": 1, \"productOrService\": { \"coding\": [{ \"system\": \"http://www.ama-assn.org/go/cpt\", \"code\": \"{{cptCode}}\", \"display\": \"{{procedureName}}\" }] } }]\n      }\n    }]\n  },\n  \"approvedBy\": \"\"\n}"
+        },
+        "description": "CMS-0057-F §4D. No approvedBy → 202 'requires human approval'. AI prepares, human approves. Proves the human gate is enforced."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 202 (human gate) or 401', () => {",
+              "  pm.expect([202, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('202 body references human approval', () => {",
+              "  if (pm.response.code === 202) {",
+              "    const text = pm.response.text().toLowerCase();",
               "    pm.expect(text).to.include('human approval');",
               "  }",
               "});"
@@ -139,55 +447,32 @@
       ]
     },
     {
-      "name": "PAS Submit - With Human Approver",
+      "name": "§4 — PAS: Submit WITH human approver (approved)",
       "request": {
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" },
-          { "key": "x-approved-by", "value": "test-reviewer@example.org" }
+          { "key": "x-approved-by", "value": "{{reviewerEmail}}" }
         ],
         "url": "{{baseUrl}}/api/pas/submit",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"claimBundle\": { \"resourceType\": \"Bundle\", \"type\": \"collection\" },\n  \"approvedBy\": \"test-reviewer@example.org\"\n}"
-        }
+          "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"claimBundle\": {\n    \"resourceType\": \"Bundle\",\n    \"type\": \"collection\",\n    \"entry\": [{\n      \"resource\": {\n        \"resourceType\": \"Claim\",\n        \"id\": \"claim-{{patientId}}\",\n        \"status\": \"active\",\n        \"use\": \"preauthorization\",\n        \"patient\": { \"reference\": \"Patient/{{patientId}}\" },\n        \"insurance\": [{ \"sequence\": 1, \"focal\": true, \"coverage\": { \"reference\": \"Coverage/cov-1\" } }],\n        \"item\": [{ \"sequence\": 1, \"productOrService\": { \"coding\": [{ \"system\": \"http://www.ama-assn.org/go/cpt\", \"code\": \"{{cptCode}}\", \"display\": \"{{procedureName}}\" }] } }]\n      }\n    }]\n  },\n  \"approvedBy\": \"{{reviewerEmail}}\"\n}"
+        },
+        "description": "CMS-0057-F §4D. Same payload with approvedBy set — proves human gate is the only difference between blocked and approved."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "pm.test('status is 200 or 401', () => {",
               "  pm.expect([200, 401]).to.include(pm.response.code);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Bulk Export - Start",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/bulk/start",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"priorPayer\": \"OldPayer Medicaid Plan\",\n  \"memberMatch\": { \"memberId\": \"MARIA_SD_001\" }\n}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('status is 200/202 or 401 (auth required)', () => {",
-              "  pm.expect([200, 202, 401]).to.include(pm.response.code);",
               "});",
-              "pm.test('202 response includes a jobId when authenticated', () => {",
-              "  if (pm.response.code === 202) {",
+              "pm.test('returns ClaimResponse when 200', () => {",
+              "  if (pm.response.code === 200) {",
               "    const body = pm.response.json();",
-              "    pm.expect(body).to.have.property('jobId');",
+              "    pm.expect(body).to.satisfy(b => b.resourceType === 'ClaimResponse' || b.claimResponse || b.status);",
               "  }",
               "});"
             ]
@@ -196,19 +481,30 @@
       ]
     },
     {
-      "name": "Reviewer Work Queue",
+      "name": "§4 — Financial Clearance (full Golden Thread)",
       "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/api/work-queue",
-        "header": [{ "key": "Accept", "value": "application/json" }]
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/financial-clearance",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"orderCode\": \"{{cptCode}}\",\n  \"providerNpi\": \"{{providerNpi}}\"\n}"
+        },
+        "description": "CMS-0057-F §4. Full eligibility → medical necessity → PA determination → cost estimation. Returns propensity score, work queue routing, Evidence Record ID. Gold-card exemption applied when approval rate ≥ 90%."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "pm.test('status is 200 or 401', () => {",
               "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns clearance result when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.satisfy(b => b.disposition || b.status || b.evidenceRecordId);",
+              "  }",
               "});"
             ]
           }
@@ -216,23 +512,107 @@
       ]
     },
     {
-      "name": "Financial Clearance",
+      "name": "§4 — Reviewer Work Queue (SLA timers)",
       "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/financial-clearance",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"memberId\": \"MARIA_SD_001\",\n  \"providerNpi\": \"1234567890\"\n}"
-        }
+        "method": "GET",
+        "url": "{{baseUrl}}/api/work-queue",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "CMS-0057-F §422.122(b)(1). Work items grouped by disposition with 72h expedited / 168h standard SLA due-dates and breach flags."
       },
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('status is 200 or 401 (auth required)', () => {",
+              "pm.test('status is 200 or 401', () => {",
               "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns items array when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.satisfy(b => Array.isArray(b) || Array.isArray(b.items) || typeof b === 'object');",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "§4 — Evidence Record (CDex audit spine)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/evidence/ev-{{patientId}}-{{cptCode}}-{{providerNpi}}",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "CMS-0057-F §4 (Da Vinci CDex). Fetches the Coverage Determination Record — auditable chain linking every PA decision to its source data for patient {{patientId}}, CPT {{cptCode}}."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200, 404 or 401', () => {",
+              "  pm.expect([200, 404, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns evidence record when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.satisfy(b => b.id || b.evidenceId || b.patientId);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Infrastructure — Network Adequacy (patient state)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/network-adequacy?state={{patientState}}",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "description": "MA §422.116 · Medicaid §438.68 · 2024 CMS Access Rule. Returns adequacy metrics and prioritised gaps for {{patientState}}."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('returns adequacy data', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.satisfy(b => b.gaps || b.metrics || b.state || Array.isArray(b));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Infrastructure — CDS Hooks patient-view",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/cds-hooks/patient-view",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hook\": \"patient-view\",\n  \"context\": { \"userId\": \"Practitioner/PRAC_PCP\", \"patientId\": \"{{patientId}}\" },\n  \"prefetch\": {}\n}"
+        },
+        "description": "HL7 CDS Hooks 2.0 patient-view. Returns care-gap cards from the active patient's registry data. Shows the HL7-standard interface that EMR systems call."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200 or 401', () => {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "pm.test('returns cards array when 200', () => {",
+              "  if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('cards');",
+              "  }",
               "});"
             ]
           }

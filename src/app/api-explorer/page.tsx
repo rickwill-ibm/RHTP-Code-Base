@@ -3,14 +3,16 @@
  * CMS-0057-F API Explorer
  *
  * Interactive Postman-style explorer for every BFF endpoint that proves
- * CMS-0057-F compliance. Five tabs — one per mandate provision plus
- * infrastructure cross-cuts. All requests go through the RHTP BFF layer
- * (never directly to FHIR/APIM). Pre-fills from activePatientId.
+ * CMS-0057-F compliance. Six tabs — one per mandate provision plus
+ * infrastructure cross-cuts and a Postman Suite configurator.
+ * All requests go through the RHTP BFF layer (never directly to FHIR/APIM).
+ * Pre-fills from activePatientId.
  */
 import { useState, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useAppContext } from '@/lib/appContext';
 import { resolveToCanonicalFhirPatientId } from '@/lib/patientRegistry';
+import PostmanSuiteTab from '@/components/PostmanSuiteTab';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,11 +44,12 @@ interface Endpoint {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'patient-access',   label: 'Patient Access',   mandate: '§1' },
-  { id: 'provider-access',  label: 'Provider Access',  mandate: '§2' },
-  { id: 'payer-to-payer',   label: 'Payer-to-Payer',   mandate: '§3' },
+  { id: 'patient-access',   label: 'Patient Access',      mandate: '§1' },
+  { id: 'provider-access',  label: 'Provider Access',     mandate: '§2' },
+  { id: 'payer-to-payer',   label: 'Payer-to-Payer',      mandate: '§3' },
   { id: 'prior-auth',       label: 'Prior Authorization', mandate: '§4' },
-  { id: 'infrastructure',   label: 'Infrastructure',   mandate: '—'  },
+  { id: 'infrastructure',   label: 'Infrastructure',      mandate: '—'  },
+  { id: 'postman-suite',    label: 'Postman Suite',       mandate: '—'  },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
@@ -82,7 +85,7 @@ function networkContextFor(patientId: string) {
 
 // ── Endpoint definitions ──────────────────────────────────────────────────────
 
-function buildEndpoints(patientId: string): Record<TabId, Endpoint[]> {
+function buildEndpoints(patientId: string): Record<Exclude<TabId, 'postman-suite'>, Endpoint[]> {
   const pa = paScenarioFor(patientId);
   const fhirPatientId = resolveToCanonicalFhirPatientId(patientId) ?? patientId;
   return {
@@ -497,6 +500,7 @@ function EndpointCard({
 export default function ApiExplorerPage(): React.ReactElement {
   const { activePatientId } = useAppContext();
   const [activeTab, setActiveTab] = useState<TabId>('patient-access');
+  const isPostmanTab = activeTab === 'postman-suite';
   const [sessionPatient, setSessionPatient] = useState<string | null>(null);
 
   useEffect(() => {
@@ -527,7 +531,7 @@ export default function ApiExplorerPage(): React.ReactElement {
   // Rebuild endpoint definitions whenever the active patient changes —
   // labels, CPT codes, paths, and request bodies are all patient-specific.
   const ENDPOINTS = buildEndpoints(activePatientId);
-  const endpoints = ENDPOINTS[activeTab];
+  const endpoints = isPostmanTab ? [] : ENDPOINTS[activeTab as Exclude<TabId, 'postman-suite'>] ?? [];
   const tab = TABS.find((t) => t.id === activeTab)!;
 
   return (
@@ -583,10 +587,12 @@ export default function ApiExplorerPage(): React.ReactElement {
                   {t.mandate}
                 </span>
               )}
-              {t.label}
-              <span className={`ml-0.5 text-[10px] ${activeTab === t.id ? 'text-[#1669c1]' : 'text-gray-400'}`}>
-                ({buildEndpoints(activePatientId)[t.id].length})
-              </span>
+              {t.id === 'postman-suite' ? '⚙ Postman Suite' : t.label}
+              {t.id !== 'postman-suite' && (
+                <span className={`ml-0.5 text-[10px] ${activeTab === t.id ? 'text-[#1669c1]' : 'text-gray-400'}`}>
+                  ({buildEndpoints(activePatientId)[t.id as Exclude<TabId, 'postman-suite'>]?.length ?? 0})
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -594,26 +600,33 @@ export default function ApiExplorerPage(): React.ReactElement {
 
       {/* Content */}
       <main className="mx-auto max-w-[1100px] px-6 py-6 pb-24">
-        {/* Tab subtitle */}
-        <div className="mb-5 flex items-center gap-3">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">{tab.label}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {tab.id === 'patient-access'  && 'Member-facing FHIR reads — coverage, conditions, and PA status with denial reasons.'}
-              {tab.id === 'provider-access'  && 'Provider-facing operations — consent check, $member-match identity resolution, and clinical data access under treatment relationship.'}
-              {tab.id === 'payer-to-payer'   && 'Async FHIR Bulk Data export from a prior payer — start job, poll status, import 5-year claims history.'}
-              {tab.id === 'prior-auth'        && 'Full Da Vinci CRD → DTR → PAS pipeline — coverage requirements, policy evaluation, human-gated submission, reviewer queue, and Evidence Record audit spine.'}
-              {tab.id === 'infrastructure'    && 'Cross-cutting compliance infrastructure — network adequacy analytics and raw HL7 CDS Hooks endpoints.'}
-            </p>
-          </div>
-        </div>
+        {/* Postman Suite tab — full-width config/run UI */}
+        {isPostmanTab ? (
+          <PostmanSuiteTab />
+        ) : (
+          <>
+            {/* Tab subtitle */}
+            <div className="mb-5 flex items-center gap-3">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">{tab.label}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {tab.id === 'patient-access'  && 'Member-facing FHIR reads — coverage, conditions, and PA status with denial reasons.'}
+                  {tab.id === 'provider-access'  && 'Provider-facing operations — consent check, $member-match identity resolution, and clinical data access under treatment relationship.'}
+                  {tab.id === 'payer-to-payer'   && 'Async FHIR Bulk Data export from a prior payer — start job, poll status, import 5-year claims history.'}
+                  {tab.id === 'prior-auth'        && 'Full Da Vinci CRD → DTR → PAS pipeline — coverage requirements, policy evaluation, human-gated submission, reviewer queue, and Evidence Record audit spine.'}
+                  {tab.id === 'infrastructure'    && 'Cross-cutting compliance infrastructure — network adequacy analytics and raw HL7 CDS Hooks endpoints.'}
+                </p>
+              </div>
+            </div>
 
-        {/* Endpoint cards — key includes patientId so state resets on patient switch */}
-        <div className="space-y-3">
-          {endpoints.map((ep) => (
-            <EndpointCard key={`${ep.id}-${activePatientId}`} ep={ep} patientId={activePatientId} />
-          ))}
-        </div>
+            {/* Endpoint cards — key includes patientId so state resets on patient switch */}
+            <div className="space-y-3">
+              {endpoints.map((ep) => (
+                <EndpointCard key={`${ep.id}-${activePatientId}`} ep={ep} patientId={activePatientId} />
+              ))}
+            </div>
+          </>
+        )}
       </main>
     </AppLayout>
   );
