@@ -44,7 +44,10 @@ function PanelCohortContent() {
     { label: 'RHTP Overview', href: '/contract-program-selection' },
   ];
   if (regionName) {
-    breadcrumbs.push({ label: regionName, href: `/provider-level?region=${regionId}&regionName=${encodeURIComponent(regionName)}` });
+    breadcrumbs.push({
+      label: regionName,
+      href: `/provider-level?region=${regionId}&regionName=${encodeURIComponent(regionName)}`,
+    });
   }
   if (providerName) {
     const physicianHref = providerId
@@ -63,8 +66,8 @@ function PanelCohortContent() {
   const pageTitle = physicianName
     ? `${physicianName} — Patient Panel`
     : providerName
-    ? `${providerName} — Patient Panel`
-    : 'Medicaid RHTP Track 3 — Patient Panel';
+      ? `${providerName} — Patient Panel`
+      : 'Medicaid RHTP Track 3 — Patient Panel';
 
   return (
     <AppLayout
@@ -72,7 +75,9 @@ function PanelCohortContent() {
       breadcrumbs={breadcrumbs}
       contextBanner={
         <div className="bg-[#d0e2ff] border-b border-[#97c1ff] px-6 py-2 flex items-center gap-6 flex-wrap">
-          <span className="text-xs font-medium text-[#0043ce]">Contract: Medicaid RHTP Track 3</span>
+          <span className="text-xs font-medium text-[#0043ce]">
+            Contract: Medicaid RHTP Track 3
+          </span>
           <span className="text-xs text-[#0043ce]">Payer: State Medicaid / RHTP</span>
           <span className="text-xs text-[#0043ce]">Period: Jan 2025 – Dec 2025</span>
           <span className="text-xs text-[#0043ce]">4,872 attributed lives</span>
@@ -89,7 +94,10 @@ function PanelCohortContent() {
       }
     >
       <CohortKPIStrip physicianName={physicianName || undefined} />
-      <PanelActionBar selectedPatients={selectedPatients} onClearSelection={() => setSelectedPatients(new Set())} />
+      <PanelActionBar
+        selectedPatients={selectedPatients}
+        onClearSelection={() => setSelectedPatients(new Set())}
+      />
       <PanelFilterBar filters={filters} onFiltersChange={setFilters} />
       <PatientPanelTable
         filters={filters}
@@ -104,7 +112,13 @@ function PanelCohortContent() {
 
 export default function PanelCohortViewPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen text-carbon-gray-50 text-sm">Loading panel...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen text-carbon-gray-50 text-sm">
+          Loading panel...
+        </div>
+      }
+    >
       <PanelCohortContent />
     </Suspense>
   );

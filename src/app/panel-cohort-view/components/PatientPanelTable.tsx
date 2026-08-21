@@ -25,7 +25,9 @@ function ErRiskBar({ score }: { score: number }) {
       <div className="w-16 h-1.5 bg-carbon-gray-20 flex-shrink-0">
         <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-xs font-mono tabular-nums ${pct >= 70 ? 'text-[#da1e28]' : pct >= 40 ? 'text-[#b45309]' : 'text-[#24a148]'}`}>
+      <span
+        className={`text-xs font-mono tabular-nums ${pct >= 70 ? 'text-[#da1e28]' : pct >= 40 ? 'text-[#b45309]' : 'text-[#24a148]'}`}
+      >
         {pct}%
       </span>
     </div>
@@ -33,7 +35,10 @@ function ErRiskBar({ score }: { score: number }) {
 }
 
 function AttributionBadge({ status }: { status: Patient['attributionStatus'] }) {
-  const map: Record<Patient['attributionStatus'], { v: 'success' | 'info' | 'warning' | 'danger' | 'neutral'; label: string }> = {
+  const map: Record<
+    Patient['attributionStatus'],
+    { v: 'success' | 'info' | 'warning' | 'danger' | 'neutral'; label: string }
+  > = {
     Confirmed: { v: 'success', label: 'Confirmed' },
     Provisional: { v: 'warning', label: 'Provisional' },
     Disputed: { v: 'danger', label: 'Disputed' },
@@ -46,7 +51,11 @@ function AttributionBadge({ status }: { status: Patient['attributionStatus'] }) 
 // ─── Three-column attribution ─────────────────────────────────────────────────
 
 // Deterministic attribution data per patient
-function getPatientAttribution(patient: Patient): { clinicalPcp: string; assignedChw: string; bhProvider: string } {
+function getPatientAttribution(patient: Patient): {
+  clinicalPcp: string;
+  assignedChw: string;
+  bhProvider: string;
+} {
   const hash = patient.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const pcps = ['Dr. Whitfield', 'Dr. Okonkwo', 'Dr. Castillo', 'Dr. Torres', 'Dr. Chen'];
   const chws = ['M. Johnson CHW', 'R. Gutierrez CHW', 'T. Brown CHW', 'D. Washington CHW', '—'];
@@ -64,15 +73,30 @@ function AttributionTriple({ patient }: { patient: Patient }) {
     <div className="space-y-0.5 min-w-[160px]">
       <div className="flex items-center gap-1.5">
         <span className="text-2xs text-[#0043ce] font-semibold w-4 flex-shrink-0">🩺</span>
-        <span className="text-2xs text-carbon-gray-70 truncate" title={`Clinical PCP: ${attr.clinicalPcp}`}>{attr.clinicalPcp}</span>
+        <span
+          className="text-2xs text-carbon-gray-70 truncate"
+          title={`Clinical PCP: ${attr.clinicalPcp}`}
+        >
+          {attr.clinicalPcp}
+        </span>
       </div>
       <div className="flex items-center gap-1.5">
         <span className="text-2xs text-[#198038] font-semibold w-4 flex-shrink-0">🤝</span>
-        <span className={`text-2xs truncate ${attr.assignedChw === '—' ? 'text-carbon-gray-30' : 'text-carbon-gray-70'}`} title={`Assigned CHW: ${attr.assignedChw}`}>{attr.assignedChw}</span>
+        <span
+          className={`text-2xs truncate ${attr.assignedChw === '—' ? 'text-carbon-gray-30' : 'text-carbon-gray-70'}`}
+          title={`Assigned CHW: ${attr.assignedChw}`}
+        >
+          {attr.assignedChw}
+        </span>
       </div>
       <div className="flex items-center gap-1.5">
         <span className="text-2xs text-[#9f1853] font-semibold w-4 flex-shrink-0">🧠</span>
-        <span className={`text-2xs truncate ${attr.bhProvider === '—' ? 'text-carbon-gray-30' : 'text-carbon-gray-70'}`} title={`BH Provider: ${attr.bhProvider}`}>{attr.bhProvider}</span>
+        <span
+          className={`text-2xs truncate ${attr.bhProvider === '—' ? 'text-carbon-gray-30' : 'text-carbon-gray-70'}`}
+          title={`BH Provider: ${attr.bhProvider}`}
+        >
+          {attr.bhProvider}
+        </span>
       </div>
     </div>
   );
@@ -81,7 +105,7 @@ function AttributionTriple({ patient }: { patient: Patient }) {
 // ─── Episode indicator ────────────────────────────────────────────────────────
 
 const EPISODE_TYPES = ['Acute', 'Chronic', 'Specialist', 'Preventive'] as const;
-type EpisodeType = typeof EPISODE_TYPES[number];
+type EpisodeType = (typeof EPISODE_TYPES)[number];
 
 function getEpisodeForPatient(patient: Patient): { type: EpisodeType; active: boolean } | null {
   const hash = patient.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -99,7 +123,13 @@ const EPISODE_COLORS: Record<EpisodeType, string> = {
   Preventive: 'bg-[#defbe6] text-[#0e6027] border-[#a7f0ba]',
 };
 
-function EpisodeBadge({ patient, onEpisodeClick }: { patient: Patient; onEpisodeClick?: (e: React.MouseEvent) => void }) {
+function EpisodeBadge({
+  patient,
+  onEpisodeClick,
+}: {
+  patient: Patient;
+  onEpisodeClick?: (e: React.MouseEvent) => void;
+}) {
   const episode = getEpisodeForPatient(patient);
   if (!episode) return <span className="text-2xs text-carbon-gray-30">—</span>;
   return (
@@ -111,14 +141,16 @@ function EpisodeBadge({ patient, onEpisodeClick }: { patient: Patient; onEpisode
       >
         {episode.type}
       </button>
-      <span className={`text-2xs font-medium ${episode.active ? 'text-[#24a148]' : 'text-carbon-gray-50'}`}>
+      <span
+        className={`text-2xs font-medium ${episode.active ? 'text-[#24a148]' : 'text-carbon-gray-50'}`}
+      >
         {episode.active ? '● Active' : '○ Closed'}
       </span>
     </div>
   );
 }
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   const month = MONTHS[d.getUTCMonth()];
@@ -129,10 +161,26 @@ function formatDate(dateStr: string): string {
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
-type SortableCol = 'name' | 'riskTier' | 'rafScore' | 'predictedErRisk' | 'openHCCSuspects' | 'openCareGaps' | 'pmpmCost' | 'lastContactDate' | 'attributionStatus';
+type SortableCol =
+  | 'name'
+  | 'riskTier'
+  | 'rafScore'
+  | 'predictedErRisk'
+  | 'openHCCSuspects'
+  | 'openCareGaps'
+  | 'pmpmCost'
+  | 'lastContactDate'
+  | 'attributionStatus';
 
 interface ColDef {
-  key: SortableCol | 'erRisk' | 'carePlanStatus' | 'primaryCareProvider' | 'actions' | 'episode' | 'attribution';
+  key:
+    | SortableCol
+    | 'erRisk'
+    | 'carePlanStatus'
+    | 'primaryCareProvider'
+    | 'actions'
+    | 'episode'
+    | 'attribution';
   label: string;
 }
 
@@ -163,7 +211,13 @@ interface PatientPanelTableProps {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PatientPanelTable({ filters, onFiltersChange, selectedPatients, onSelectionChange, physicianName }: PatientPanelTableProps & { physicianName?: string }) {
+export default function PatientPanelTable({
+  filters,
+  onFiltersChange,
+  selectedPatients,
+  onSelectionChange,
+  physicianName,
+}: PatientPanelTableProps & { physicianName?: string }) {
   const router = useRouter();
   const { setActivePatientId, useMockData } = useAppContext();
   const [page, setPage] = useState(1);
@@ -173,17 +227,21 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
   // over the registry so RAF scores, gaps, and risk tiers reflect server state.
   const [fhirPatients, setFhirPatients] = useState<RegistryPatient[]>([]);
   useEffect(() => {
-    if (useMockData) { setFhirPatients([]); return; }
+    if (useMockData) {
+      setFhirPatients([]);
+      return;
+    }
     getFhirClient()
       .getAllRegistryPatients()
-      .then((pts) => { if (pts.length > 0) setFhirPatients(pts); })
+      .then((pts) => {
+        if (pts.length > 0) setFhirPatients(pts);
+      })
       .catch((err) => console.warn('[PatientPanelTable] FHIR patient list load failed:', err));
   }, [useMockData]);
 
   // In Live FHIR mode use the server list; otherwise fall back to registry.
-  const sourcePatients: RegistryPatient[] = !useMockData && fhirPatients.length > 0
-    ? fhirPatients
-    : getAllPatients();
+  const sourcePatients: RegistryPatient[] =
+    !useMockData && fhirPatients.length > 0 ? fhirPatients : getAllPatients();
 
   // Build a Patient-shaped list so existing filter/sort logic works unchanged.
   const registryAsMockPatients: Patient[] = sourcePatients.map((rp) => ({
@@ -207,7 +265,11 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
     lastContactDate: rp.lastContact || new Date().toISOString(),
     primaryCareProvider: rp.pcp,
     payer: rp.organization || 'Unknown',
-    carePlanStatus: (rp.episodeStatus === 'Active' ? 'Active' : rp.episodeStatus === 'Closed' ? 'None' : 'Pending') as Patient['carePlanStatus'],
+    carePlanStatus: (rp.episodeStatus === 'Active'
+      ? 'Active'
+      : rp.episodeStatus === 'Closed'
+        ? 'None'
+        : 'Pending') as Patient['carePlanStatus'],
     phone: rp.phone ?? '',
     address: rp.location ?? '',
     insuranceId: '',
@@ -218,8 +280,9 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
   // Merge: registry patients first, then any mock patients not already present
   // (avoids duplicating entries when mock and registry overlap).
   const registryIds = new Set(registryAsMockPatients.map((p) => p.id));
-  const mockFallback = mockPatients
-    .filter((p) => p.contractId === 'contract-001' && !registryIds.has(p.id));
+  const mockFallback = mockPatients.filter(
+    (p) => p.contractId === 'contract-001' && !registryIds.has(p.id)
+  );
   const basePatients = [...registryAsMockPatients, ...mockFallback];
 
   const filteredPatients = useMemo(() => {
@@ -232,7 +295,9 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
 
     if (filters.search.trim()) {
       const q = filters.search.toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.mrn.toLowerCase().includes(q));
+      result = result.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.mrn.toLowerCase().includes(q)
+      );
     }
     if (filters.risk !== 'All') result = result.filter((p) => p.riskTier === filters.risk);
     if (filters.gap === 'Has Open Gaps') result = result.filter((p) => p.openCareGaps > 0);
@@ -241,24 +306,37 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
     else if (filters.hcc === 'No Suspects') result = result.filter((p) => p.openHCCSuspects === 0);
     if (filters.alert === 'Has Alerts') result = result.filter((p) => p.predictedErRisk >= 0.4);
     else if (filters.alert === 'No Alerts') result = result.filter((p) => p.predictedErRisk < 0.4);
-    if (filters.attribution !== 'All') result = result.filter((p) => p.attributionStatus === filters.attribution);
+    if (filters.attribution !== 'All')
+      result = result.filter((p) => p.attributionStatus === filters.attribution);
 
     const riskOrder: Record<string, number> = { Critical: 0, High: 1, Moderate: 2, Low: 3 };
-    const attrOrder: Record<string, number> = { Confirmed: 0, Provisional: 1, Disputed: 2, Dropped: 3 };
+    const attrOrder: Record<string, number> = {
+      Confirmed: 0,
+      Provisional: 1,
+      Disputed: 2,
+      Dropped: 3,
+    };
     const dir = filters.sortDir === 'desc' ? -1 : 1;
 
     result.sort((a, b) => {
       switch (filters.sort) {
-        case 'Risk Tier': case 'riskTier':
+        case 'Risk Tier':
+        case 'riskTier':
           return dir * ((riskOrder[a.riskTier] ?? 4) - (riskOrder[b.riskTier] ?? 4));
-        case 'RAF Score': case 'rafScore':
+        case 'RAF Score':
+        case 'rafScore':
           return dir * (a.rafScore - b.rafScore);
-        case 'PMPM Cost': case 'pmpmCost':
+        case 'PMPM Cost':
+        case 'pmpmCost':
           return dir * (a.pmpmCost - b.pmpmCost);
-        case 'ER Risk': case 'predictedErRisk':
+        case 'ER Risk':
+        case 'predictedErRisk':
           return dir * (a.predictedErRisk - b.predictedErRisk);
-        case 'Last Contact': case 'lastContactDate':
-          return dir * (new Date(a.lastContactDate).getTime() - new Date(b.lastContactDate).getTime());
+        case 'Last Contact':
+        case 'lastContactDate':
+          return (
+            dir * (new Date(a.lastContactDate).getTime() - new Date(b.lastContactDate).getTime())
+          );
         case 'name':
           return dir * a.name.localeCompare(b.name);
         case 'openHCCSuspects':
@@ -266,7 +344,9 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
         case 'openCareGaps':
           return dir * (a.openCareGaps - b.openCareGaps);
         case 'attributionStatus':
-          return dir * ((attrOrder[a.attributionStatus] ?? 4) - (attrOrder[b.attributionStatus] ?? 4));
+          return (
+            dir * ((attrOrder[a.attributionStatus] ?? 4) - (attrOrder[b.attributionStatus] ?? 4))
+          );
         default:
           return 0;
       }
@@ -275,13 +355,18 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
     return result;
   }, [filters, basePatients]);
 
-  React.useEffect(() => { setPage(1); }, [filters]);
+  React.useEffect(() => {
+    setPage(1);
+  }, [filters]);
 
-  const toggleRow = useCallback((id: string) => {
-    const next = new Set(selectedPatients);
-    next.has(id) ? next.delete(id) : next.add(id);
-    onSelectionChange(next);
-  }, [selectedPatients, onSelectionChange]);
+  const toggleRow = useCallback(
+    (id: string) => {
+      const next = new Set(selectedPatients);
+      next.has(id) ? next.delete(id) : next.add(id);
+      onSelectionChange(next);
+    },
+    [selectedPatients, onSelectionChange]
+  );
 
   const toggleAll = useCallback(() => {
     if (selectedPatients.size === filteredPatients.length) onSelectionChange(new Set());
@@ -289,22 +374,26 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
   }, [selectedPatients, filteredPatients, onSelectionChange]);
 
   const handleExportPanel = () => {
-    exportPanelCSV(filteredPatients.map((p) => ({
-      name: p.name,
-      riskTier: p.riskTier,
-      rafScore: p.rafScore,
-      rafScoreDelta: p.rafScoreDelta,
-      predictedErRisk: p.predictedErRisk,
-      openHCCSuspects: p.openHCCSuspects,
-      openCareGaps: p.openCareGaps,
-      pmpmCost: p.pmpmCost,
-      pmpmTarget: p.pmpmTarget,
-      attributionStatus: p.attributionStatus,
-      lastContactDate: p.lastContactDate,
-      primaryCareProvider: p.primaryCareProvider,
-      payer: p.payer,
-    })));
-    toast.success('Panel exported', { description: `${filteredPatients.length} patients exported to CSV.` });
+    exportPanelCSV(
+      filteredPatients.map((p) => ({
+        name: p.name,
+        riskTier: p.riskTier,
+        rafScore: p.rafScore,
+        rafScoreDelta: p.rafScoreDelta,
+        predictedErRisk: p.predictedErRisk,
+        openHCCSuspects: p.openHCCSuspects,
+        openCareGaps: p.openCareGaps,
+        pmpmCost: p.pmpmCost,
+        pmpmTarget: p.pmpmTarget,
+        attributionStatus: p.attributionStatus,
+        lastContactDate: p.lastContactDate,
+        primaryCareProvider: p.primaryCareProvider,
+        payer: p.payer,
+      }))
+    );
+    toast.success('Panel exported', {
+      description: `${filteredPatients.length} patients exported to CSV.`,
+    });
   };
 
   const totalPages = Math.ceil(filteredPatients.length / perPage);
@@ -314,18 +403,30 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
     <div className="bg-white border border-carbon-gray-20 overflow-x-auto scrollbar-thin">
       {/* Attribution legend */}
       <div className="px-4 py-2 border-b border-carbon-gray-10 bg-carbon-gray-10 flex items-center gap-6 flex-wrap">
-        <span className="text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest">Attribution:</span>
-        <span className="text-2xs text-carbon-gray-70 flex items-center gap-1"><span>🩺</span> Clinical PCP — primary care attribution</span>
-        <span className="text-2xs text-carbon-gray-70 flex items-center gap-1"><span>🤝</span> Assigned CHW — social program assignment</span>
-        <span className="text-2xs text-carbon-gray-70 flex items-center gap-1"><span>🧠</span> BH Provider — behavioral health enrollment</span>
+        <span className="text-2xs font-semibold text-carbon-gray-50 uppercase tracking-widest">
+          Attribution:
+        </span>
+        <span className="text-2xs text-carbon-gray-70 flex items-center gap-1">
+          <span>🩺</span> Clinical PCP — primary care attribution
+        </span>
+        <span className="text-2xs text-carbon-gray-70 flex items-center gap-1">
+          <span>🤝</span> Assigned CHW — social program assignment
+        </span>
+        <span className="text-2xs text-carbon-gray-70 flex items-center gap-1">
+          <span>🧠</span> BH Provider — behavioral health enrollment
+        </span>
       </div>
 
       <div className="flex items-center justify-between px-4 py-3 border-b border-carbon-gray-20">
         <p className="text-sm font-medium text-carbon-gray-100">
           {filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''}
-          {filteredPatients.length !== basePatients.length ? ` (filtered from ${basePatients.length})` : ' attributed'}
+          {filteredPatients.length !== basePatients.length
+            ? ` (filtered from ${basePatients.length})`
+            : ' attributed'}
           {selectedPatients.size > 0 && (
-            <span className="ml-2 text-xs text-[#0043ce] font-semibold">· {selectedPatients.size} selected</span>
+            <span className="ml-2 text-xs text-[#0043ce] font-semibold">
+              · {selectedPatients.size} selected
+            </span>
           )}
         </p>
         <div className="flex items-center gap-2">
@@ -347,7 +448,9 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
               <th className="w-10 px-4 py-3">
                 <input
                   type="checkbox"
-                  checked={selectedPatients.size === filteredPatients.length && filteredPatients.length > 0}
+                  checked={
+                    selectedPatients.size === filteredPatients.length && filteredPatients.length > 0
+                  }
                   onChange={toggleAll}
                   className="accent-carbon-blue"
                 />
@@ -390,17 +493,26 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
                       router.push(`/patient-detail?id=${patient.id}`);
                     }}
                   >
-                    <p className="font-medium text-carbon-gray-100 group-hover:text-carbon-blue whitespace-nowrap">{patient.name}</p>
-                    <p className="text-2xs text-carbon-gray-50 font-mono">{patient.mrn} · {patient.age}y {patient.gender}</p>
+                    <p className="font-medium text-carbon-gray-100 group-hover:text-carbon-blue whitespace-nowrap">
+                      {patient.name}
+                    </p>
+                    <p className="text-2xs text-carbon-gray-50 font-mono">
+                      {patient.mrn} · {patient.age}y {patient.gender}
+                    </p>
                   </button>
                 </td>
                 <td className="px-3 py-3">
                   <RiskBadge tier={patient.riskTier} size="sm" />
                 </td>
                 <td className="px-3 py-3">
-                  <span className="font-mono text-sm tabular-nums text-carbon-gray-100">{patient.rafScore.toFixed(2)}</span>
-                  <span className={`ml-1 text-2xs font-mono ${patient.rafScoreDelta >= 0 ? 'text-[#24a148]' : 'text-[#da1e28]'}`}>
-                    {patient.rafScoreDelta >= 0 ? '+' : ''}{patient.rafScoreDelta.toFixed(2)}
+                  <span className="font-mono text-sm tabular-nums text-carbon-gray-100">
+                    {patient.rafScore.toFixed(2)}
+                  </span>
+                  <span
+                    className={`ml-1 text-2xs font-mono ${patient.rafScoreDelta >= 0 ? 'text-[#24a148]' : 'text-[#da1e28]'}`}
+                  >
+                    {patient.rafScoreDelta >= 0 ? '+' : ''}
+                    {patient.rafScoreDelta.toFixed(2)}
                   </span>
                 </td>
                 <td className="px-3 py-3">
@@ -412,7 +524,9 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#fdf6dd] text-[#b45309] border border-[#f1c21b] text-xs font-semibold">
                         {patient.openHCCSuspects} suspect{patient.openHCCSuspects > 1 ? 's' : ''}
                       </span>
-                      <p className="text-2xs text-carbon-gray-50 mt-0.5 font-mono">${(patient.hccSuspectValue / 1000).toFixed(1)}K value</p>
+                      <p className="text-2xs text-carbon-gray-50 mt-0.5 font-mono">
+                        ${(patient.hccSuspectValue / 1000).toFixed(1)}K value
+                      </p>
                     </div>
                   ) : (
                     <span className="text-2xs text-carbon-gray-30">—</span>
@@ -432,15 +546,21 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
                     patient={patient}
                     onEpisodeClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/patient-episode-summary?patientId=${patient.id}&patientName=${encodeURIComponent(patient.name)}&mrn=${patient.mrn}&from=panel`);
+                      router.push(
+                        `/patient-episode-summary?patientId=${patient.id}&patientName=${encodeURIComponent(patient.name)}&mrn=${patient.mrn}&from=panel`
+                      );
                     }}
                   />
                 </td>
                 <td className="px-3 py-3">
-                  <span className={`font-mono text-sm tabular-nums ${patient.pmpmCost > patient.pmpmTarget ? 'text-[#da1e28]' : 'text-[#24a148]'}`}>
+                  <span
+                    className={`font-mono text-sm tabular-nums ${patient.pmpmCost > patient.pmpmTarget ? 'text-[#da1e28]' : 'text-[#24a148]'}`}
+                  >
                     ${patient.pmpmCost.toLocaleString()}
                   </span>
-                  <p className="text-2xs text-carbon-gray-50 font-mono">target ${patient.pmpmTarget}</p>
+                  <p className="text-2xs text-carbon-gray-50 font-mono">
+                    target ${patient.pmpmTarget}
+                  </p>
                 </td>
                 <td className="px-3 py-3">
                   <AttributionBadge status={patient.attributionStatus} />
@@ -457,7 +577,13 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
                 <td className="px-3 py-3">
                   <StatusBadge
                     label={patient.carePlanStatus}
-                    variant={patient.carePlanStatus === 'Active' ? 'success' : patient.carePlanStatus === 'Pending' ? 'warning' : 'neutral'}
+                    variant={
+                      patient.carePlanStatus === 'Active'
+                        ? 'success'
+                        : patient.carePlanStatus === 'Pending'
+                          ? 'warning'
+                          : 'neutral'
+                    }
                     size="sm"
                   />
                 </td>
@@ -486,7 +612,8 @@ export default function PatientPanelTable({ filters, onFiltersChange, selectedPa
       {filteredPatients.length > 0 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-carbon-gray-20 bg-carbon-gray-10">
           <p className="text-xs text-carbon-gray-50">
-            Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filteredPatients.length)} of {filteredPatients.length} patients
+            Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filteredPatients.length)}{' '}
+            of {filteredPatients.length} patients
           </p>
           <div className="flex items-center gap-1">
             <button
