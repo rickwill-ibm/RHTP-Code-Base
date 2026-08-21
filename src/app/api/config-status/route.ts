@@ -8,30 +8,30 @@ import type { RuntimeConfig } from '@/lib/runtimeConfig';
 export async function GET() {
   const cfg = readRuntimeConfig();
   return NextResponse.json({
-    mode:             cfg.mode,
-    fhirGatewayBase:  cfg.mode === 'mock' ? '(mock — no server required)' : cfg.fhirGatewayBase,
-    fhirGatewayLive:  cfg.mode === 'production' ? cfg.fhirGatewayBase : null,
-    cdsGatewayBase:   cfg.cdsGatewayBase,
-    bulkGatewayBase:  cfg.bulkGatewayBase,
+    mode: cfg.mode,
+    fhirGatewayBase: cfg.mode === 'mock' ? '(mock — no server required)' : cfg.fhirGatewayBase,
+    fhirGatewayLive: cfg.mode === 'production' ? cfg.fhirGatewayBase : null,
+    cdsGatewayBase: cfg.cdsGatewayBase,
+    bulkGatewayBase: cfg.bulkGatewayBase,
     wso2AuthorizeUrl: cfg.wso2AuthorizeUrl,
-    wso2TokenUrl:     cfg.wso2TokenUrl,
-    wso2ClientId:     cfg.wso2ClientId,
-    wso2Configured:   Boolean(cfg.wso2AuthorizeUrl && cfg.wso2ClientId),
+    wso2TokenUrl: cfg.wso2TokenUrl,
+    wso2ClientId: cfg.wso2ClientId,
+    wso2Configured: Boolean(cfg.wso2AuthorizeUrl && cfg.wso2ClientId),
     allowDevMockAuth: cfg.allowDevMockAuth,
-    authMode:         cfg.allowDevMockAuth && !cfg.wso2AuthorizeUrl ? 'dev-mock' : 'wso2-pkce',
-    postmanPatientId:     cfg.postmanPatientId,
+    authMode: cfg.allowDevMockAuth && !cfg.wso2AuthorizeUrl ? 'dev-mock' : 'wso2-pkce',
+    postmanPatientId: cfg.postmanPatientId,
     postmanReviewerEmail: cfg.postmanReviewerEmail,
-    postmanProviderNpi:   cfg.postmanProviderNpi,
-    postmanScopes:        cfg.postmanScopes,
-    lastSaved:            cfg.lastSaved,
-    appPort:              4029,
-    newmanCommand:        'npm run test:contract',
+    postmanProviderNpi: cfg.postmanProviderNpi,
+    postmanScopes: cfg.postmanScopes,
+    lastSaved: cfg.lastSaved,
+    appPort: 4029,
+    newmanCommand: 'npm run test:contract',
     environments: {
-      mock:       'tools/contract/local.postman_environment.json',
+      mock: 'tools/contract/local.postman_environment.json',
       production: 'tools/contract/production.postman_environment.json',
     },
     collectionPath: 'tools/contract/cms0057f.postman_collection.json',
-    totalRequests:  20,
+    totalRequests: 20,
     mandateSections: [
       '§1 Patient Access',
       '§2 Provider Access',
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Never allow the client to inject wso2ClientSecret through this route
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { ...safePatch } = patch as any;
   delete safePatch.wso2ClientSecret;
 
@@ -62,11 +63,11 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    mode:             updated.mode,
-    fhirGatewayBase:  updated.fhirGatewayBase,
+    mode: updated.mode,
+    fhirGatewayBase: updated.fhirGatewayBase,
     allowDevMockAuth: updated.allowDevMockAuth,
     postmanPatientId: updated.postmanPatientId,
-    postmanScopes:    updated.postmanScopes,
-    lastSaved:        updated.lastSaved,
+    postmanScopes: updated.postmanScopes,
+    lastSaved: updated.lastSaved,
   });
 }

@@ -18,3 +18,8 @@ compliance from it. Backbone-gated rows are verified once the stack is up.
 | PAS submit is human-gated | `app/api/pas/submit/route.ts` | (route returns 202 w/o approver) | live `Claim/$submit` |
 | Webhook authentication | `app/api/webhooks/claim-response/route.ts` | (secret check) | signature/mTLS |
 | Feature-flag gating | `lib/flags/flags.ts` | `tests/flags/flags.test.ts` ✅ | — |
+| Runtime config read/write (no restart) | `lib/runtimeConfig.ts` | — (integration; GET /api/config-status defaults when no file) | — |
+| CMS-0057-F Postman env generation | `app/api/postman-environment/route.ts` | — (download smoke-tested manually) | Newman `test:contract` |
+| CMS-0057-F Postman collection scope-filter | `app/api/postman-collection/route.ts` | — (download smoke-tested manually) | Newman `test:contract` |
+| CMS-0057-F Newman SSE runner | `app/api/postman-run/route.ts` | — (SSE stream; requires Newman) | `npm run test:contract` |
+| Postman Suite UI (configure/download/run) | `components/PostmanSuiteTab.tsx` + `app/api-explorer/page.tsx` | — (UI smoke) | — |

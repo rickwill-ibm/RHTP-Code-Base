@@ -67,29 +67,24 @@ export interface RuntimeConfig {
 // ─── Defaults (env-var seeded) ────────────────────────────────────────────────
 
 export function getDefaultConfig(): RuntimeConfig {
-  const useMock =
-    (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
+  const useMock = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'true').toLowerCase() === 'true';
   return {
     mode: useMock ? 'mock' : 'production',
-    fhirGatewayBase:
-      process.env.FHIR_GATEWAY_BASE ?? 'http://localhost:8090/fhir',
-    cdsGatewayBase:
-      process.env.CDS_GATEWAY_BASE ?? 'http://localhost:9096',
-    bulkGatewayBase:
-      process.env.BULK_GATEWAY_BASE ?? 'http://localhost:8091/bulk',
+    fhirGatewayBase: process.env.FHIR_GATEWAY_BASE ?? 'http://localhost:8090/fhir',
+    cdsGatewayBase: process.env.CDS_GATEWAY_BASE ?? 'http://localhost:9096',
+    bulkGatewayBase: process.env.BULK_GATEWAY_BASE ?? 'http://localhost:8091/bulk',
     wso2AuthorizeUrl: process.env.WSO2_AUTHORIZE_URL ?? '',
-    wso2TokenUrl:     process.env.WSO2_TOKEN_URL ?? '',
-    wso2ClientId:     process.env.WSO2_CLIENT_ID ?? '',
-    allowDevMockAuth:
-      (process.env.ALLOW_DEV_MOCK_AUTH ?? 'true').toLowerCase() === 'true',
-    postmanPatientId:      'MARIA_SD_001',
-    postmanReviewerEmail:  'reviewer@rhtp-health.org',
-    postmanProviderNpi:    '1730154783',
+    wso2TokenUrl: process.env.WSO2_TOKEN_URL ?? '',
+    wso2ClientId: process.env.WSO2_CLIENT_ID ?? '',
+    allowDevMockAuth: (process.env.ALLOW_DEV_MOCK_AUTH ?? 'true').toLowerCase() === 'true',
+    postmanPatientId: 'MARIA_SD_001',
+    postmanReviewerEmail: 'reviewer@rhtp-health.org',
+    postmanProviderNpi: '1730154783',
     postmanScopes: {
-      patientAccess:  true,
+      patientAccess: true,
       providerAccess: true,
-      payerToPayer:   true,
-      priorAuth:      true,
+      payerToPayer: true,
+      priorAuth: true,
       infrastructure: true,
     },
     lastSaved: null,

@@ -86,6 +86,7 @@ EXEMPT_PATTERNS=(
   # These files were reviewed individually — see AI-CODING-CONVENTIONS.md §2 exemptions.
 
   # app pages — single-screen components with deeply coupled local state
+  "*/social-needs-dashboard/page.tsx"
   "*/care-manager/page.tsx"
   "*/care-team-inbox/page.tsx"
   "*/demo-onboarding/page.tsx"
@@ -124,6 +125,11 @@ EXEMPT_PATTERNS=(
   "*/md-smart-launch/page.tsx"
   "*/md-smart-launch/components/MdSmartSummaryScreen.tsx"
 
+  # DemoNavigator.tsx — 54-step + 15-step story mode; step data + state are
+  # inseparable (each step references multiple pieces of shared state);
+  # splitting requires passing the entire demo state machine as props.
+  "*/components/DemoNavigator.tsx"
+
   # patient-detail sub-components — multi-step journey/form components
   # with complex wizard state that cannot be split without prop explosion
   "*/patient-detail/components/WholePersonSummary.tsx"
@@ -152,6 +158,16 @@ EXEMPT_PATTERNS=(
   # other over-limit components reviewed and confirmed single-responsibility
   "*/care-manager/components/CaseloadDashboard.tsx"
   "*/financial-dashboard/components/FinancialActionBar.tsx"
+
+  # CMS-0057-F Postman Suite — 3-panel config/download/run UI; all state is
+  # shared across panels (editMode, editScopes, etc.); splitting requires
+  # passing 15+ setters into each sub-panel — prop explosion worse than size.
+  "*/components/PostmanSuiteTab.tsx"
+
+  # executive-outcomes-dashboard — single dashboard screen with deeply coupled
+  # filter state (region/program/org/period) shared by 6 chart sub-sections;
+  # splitting requires context or 12+ prop-drills — architecturally worse.
+  "*/executive-outcomes-dashboard/page.tsx"
 
   # provider-selection sub-components — ProviderDetailPanel (437 lines, single concern)
   # and ReferralJourney steps (3 steps that share Provider type, always used together)

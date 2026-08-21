@@ -24,50 +24,56 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   const cfg = readRuntimeConfig();
   let body: { patientId?: string; mode?: string; scopes?: string[] } = {};
-  try { body = await req.json(); } catch { /* use defaults */ }
+  try {
+    body = await req.json();
+  } catch {
+    /* use defaults */
+  }
 
   const patientId = body.patientId ?? cfg.postmanPatientId;
-  const mode      = (body.mode ?? cfg.mode) as 'mock' | 'production';
-  const scenario  = getScenario(patientId);
+  const mode = (body.mode ?? cfg.mode) as 'mock' | 'production';
+  const scenario = getScenario(patientId);
 
   // Build the environment object Newman will use
   const envValues: Record<string, string> = {
-    baseUrl:          'http://localhost:4029',
-    patientId:        scenario.platformId,
-    fhirPatientId:    scenario.fhirPatientId,
+    baseUrl: 'http://localhost:4029',
+    patientId: scenario.platformId,
+    fhirPatientId: scenario.fhirPatientId,
     patientFirstName: scenario.firstName,
-    patientLastName:  scenario.lastName,
-    patientDob:       scenario.dob,
-    patientState:     scenario.state,
-    cptCode:          scenario.cptCode,
-    procedureName:    scenario.procedureName,
-    priorPayer:       scenario.priorPayer,
-    providerNpi:      cfg.postmanProviderNpi  || DEFAULT_PROVIDER_NPI,
-    reviewerEmail:    cfg.postmanReviewerEmail || DEFAULT_REVIEWER_EMAIL,
-    fhirGatewayBase:  mode === 'production' ? cfg.fhirGatewayBase : '(mock)',
-    p2pJobId:         'dev-p2p-job-001',
-    serverMode:       mode,
+    patientLastName: scenario.lastName,
+    patientDob: scenario.dob,
+    patientState: scenario.state,
+    cptCode: scenario.cptCode,
+    procedureName: scenario.procedureName,
+    priorPayer: scenario.priorPayer,
+    providerNpi: cfg.postmanProviderNpi || DEFAULT_PROVIDER_NPI,
+    reviewerEmail: cfg.postmanReviewerEmail || DEFAULT_REVIEWER_EMAIL,
+    fhirGatewayBase: mode === 'production' ? cfg.fhirGatewayBase : '(mock)',
+    p2pJobId: 'dev-p2p-job-001',
+    serverMode: mode,
     wso2AuthorizeUrl: cfg.wso2AuthorizeUrl,
-    wso2TokenUrl:     cfg.wso2TokenUrl,
-    wso2ClientId:     cfg.wso2ClientId,
+    wso2TokenUrl: cfg.wso2TokenUrl,
+    wso2ClientId: cfg.wso2ClientId,
   };
 
-  const collectionPath = path.resolve(process.cwd(), 'tools/contract/cms0057f.postman_collection.json');
+  const collectionPath = path.resolve(
+    process.cwd(),
+    'tools/contract/cms0057f.postman_collection.json'
+  );
 
   // SSE stream
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       function send(event: string, data: unknown) {
-        controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-        );
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       }
 
-      // Dynamically require Newman (devDependency — available in dev/local, not in
+      // Dynamically import Newman (devDependency — available in dev/local, not in
       // serverless prod deploys. Gracefully errors if absent.)
       let newman: typeof import('newman');
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         newman = require('newman');
       } catch {
         send('error', { message: 'Newman is not installed. Run: npm install --save-dev newman' });
@@ -76,7 +82,9 @@ export async function POST(req: NextRequest) {
       }
 
       const environmentValues = Object.entries(envValues).map(([key, value]) => ({
-        key, value, enabled: true,
+        key,
+        value,
+        enabled: true,
       }));
 
       let totalPassed = 0;
@@ -91,57 +99,65 @@ export async function POST(req: NextRequest) {
         totalRequests: 20,
       });
 
-      newman.run(
-        {
-          collection:   require(collectionPath),
-          environment:  { id: 'runtime', name: 'Runtime Config', values: environmentValues },
-          reporters:    ['cli'],
-          // Follow redirects for the session-establish login request
-          insecure:     true,
-          // Cookie jar persists the rhtp_smart_session cookie across requests
-          cookieJar:    true as unknown as any,
-        },
-        (err: Error | null) => {
-          if (err) {
-            send('error', { message: err.message });
-          } else {
-            send('done', {
-              passed:  totalPassed,
-              failed:  totalFailed,
-              totalMs: Date.now() - startMs,
-            });
+      newman
+        .run(
+          {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            collection: require(collectionPath),
+            environment: { id: 'runtime', name: 'Runtime Config', values: environmentValues },
+            reporters: ['cli'],
+            // Follow redirects for the session-establish login request
+            insecure: true,
+            // Cookie jar persists the rhtp_smart_session cookie across requests
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            cookieJar: true as unknown as any,
+          },
+          (err: Error | null) => {
+            if (err) {
+              send('error', { message: err.message });
+            } else {
+              send('done', {
+                passed: totalPassed,
+                failed: totalFailed,
+                totalMs: Date.now() - startMs,
+              });
+            }
+            controller.close();
           }
-          controller.close();
-        },
-      )
+        )
+        // Newman event callbacks have no published type definitions — suppress any warnings
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .on('beforeRequest', (err: any, args: any) => {
           if (err) return;
           requestIndex++;
           send('request', {
-            index:  requestIndex,
-            total:  20,
-            name:   args.item?.name ?? '—',
+            index: requestIndex,
+            total: 20,
+            name: args.item?.name ?? '—',
             method: args.request?.method ?? '—',
-            url:    args.request?.url?.toString() ?? '—',
+            url: args.request?.url?.toString() ?? '—',
           });
         })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .on('request', (err: any, args: any) => {
           if (err) return;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const assertions = (args.executions ?? []).flatMap((e: any) =>
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (e.assertions ?? []).map((a: any) => ({
-              name:   a.assertion,
+              name: a.assertion,
               passed: !a.error,
-              error:  a.error?.message ?? null,
-            })),
+              error: a.error?.message ?? null,
+            }))
           );
-          const passed = assertions.filter((a: any) => a.passed).length;
-          const failed = assertions.filter((a: any) => !a.passed).length;
+          const passed = assertions.filter((a: { passed: boolean }) => a.passed).length;
+          const failed = assertions.filter((a: { passed: boolean }) => !a.passed).length;
           totalPassed += passed;
           totalFailed += failed;
           send('result', {
-            name:       args.item?.name ?? '—',
-            status:     args.response?.code ?? null,
-            latencyMs:  args.response?.responseTime ?? null,
+            name: args.item?.name ?? '—',
+            status: args.response?.code ?? null,
+            latencyMs: args.response?.responseTime ?? null,
             passed,
             failed,
             assertions,
@@ -152,9 +168,9 @@ export async function POST(req: NextRequest) {
 
   return new NextResponse(stream, {
     headers: {
-      'Content-Type':      'text/event-stream',
-      'Cache-Control':     'no-cache',
-      'Connection':        'keep-alive',
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     },
   });
